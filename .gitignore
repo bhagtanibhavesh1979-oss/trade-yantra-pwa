@@ -45,7 +45,7 @@ npm-debug.log*
 backend/logs/
 
 # Flet app files (exclude from web version)
-main.py
+/main.py
 main.py.backup
 main_complete.py
 main_fixed.py
