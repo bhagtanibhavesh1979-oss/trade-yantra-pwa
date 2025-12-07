@@ -51,8 +51,8 @@ main_complete.py
 main_fixed.py
 main_fixed_backup.py
 test_main.py
-components/
-services/
+/components/
+/services/
 assets/
 .fletignore
 flet_info.txt

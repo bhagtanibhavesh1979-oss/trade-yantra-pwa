@@ -1,0 +1,6 @@
+flet>=0.24.1
+requests
+pyotp
+smartapi-python
+websocket-client
+python-telegram-bot==20.7
