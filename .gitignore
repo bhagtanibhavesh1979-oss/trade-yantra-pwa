@@ -1,0 +1,84 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+*.log
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Sensitive data
+config.json
+scripmaster.json
+backend/scripmaster.json
+backend/config.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+backend/logs/
+
+# Flet app files (exclude from web version)
+main.py
+main.py.backup
+main_complete.py
+main_fixed.py
+main_fixed_backup.py
+test_main.py
+components/
+services/
+assets/
+.fletignore
+flet_info.txt
+MOBILE_BUILD_GUIDE.md
+metadata.json
+
+# Debug/test files
+debug_*.py
+test_*.py
+check_*.py
+inspect_*.py
+verify_*.py
+*.backup
+
+# TypeScript build artifacts
+*.tsbuildinfo
+
+# React specific (root level - we want frontend files)
+/index.html
+/index.tsx
+/App.tsx
+/types.ts
+/tsconfig.json
+/vite.config.ts
+/package.json
+/.github/
+
+# Test results
+test_results.log
