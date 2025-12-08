@@ -116,7 +116,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     }
 
     return (
-        <div className="max-w-4xl mx-auto space-y-4">
+        <div className="w-full mx-auto space-y-4">
             {/* Search */}
             <div className="bg-[#222844] rounded-lg p-4 border border-[#2D3748]">
                 <div className="relative">
@@ -163,7 +163,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                     <div className="text-gray-400 text-sm">
-                        {watchlist.length} stocks in watchlist
+                        {watchlist.length} stocks
                     </div>
                     <select
                         value={sortBy}
@@ -171,8 +171,8 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                         className="px-3 py-2 bg-[#222844] border border-[#2D3748] rounded-lg text-white text-sm focus:outline-none focus:border-[#667EEA]"
                     >
                         <option value="none">Sort: Default</option>
-                        <option value="sym_az">Sort: Symbol A-Z</option>
-                        <option value="sym_za">Sort: Symbol Z-A</option>
+                        <option value="sym_az">Sort: A-Z</option>
+                        <option value="sym_za">Sort: Z-A</option>
                         <option value="price_low">Sort: Price Low</option>
                         <option value="price_high">Sort: Price High</option>
                     </select>
@@ -185,7 +185,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                     <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    {refreshing ? 'Refreshing...' : 'Refresh Prices'}
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
                 </button>
             </div>
 
@@ -200,52 +200,50 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
-                                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-300">Symbol</th>
-                                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">LTP</th>
-                                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">PDC</th>
-                                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">WC</th>
-                                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-300">Change %</th>
-                                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-300">Action</th>
+                                    <th className="px-2 py-3 text-left text-xs font-semibold text-gray-300">Symbol</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">LTP</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">PDC</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">WC</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">Change</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#2D3748]">
                                 {filteredWatchlist.map((stock) => {
-                                    const changePercent = stock.pdc > 0
-                                        ? ((stock.ltp - stock.pdc) / stock.pdc * 100)
-                                        : 0;
-                                    const isPositive = changePercent >= 0;
+                                    const changeValue = stock.ltp - stock.pdc;
+                                    const isPositive = changeValue >= 0;
 
                                     return (
                                         <tr
                                             key={stock.token}
                                             className="hover:bg-[#2D3748] transition-colors"
                                         >
-                                            <td className="px-4 py-3">
-                                                <div className="text-white font-bold">{stock.symbol}</div>
-                                                <div className="text-xs text-gray-400">Token: {stock.token}</div>
+                                            <td className="px-2 py-3">
+                                                <div className="text-white font-bold text-sm">{stock.symbol}</div>
+                                                <div className="text-xs text-gray-400 truncate max-w-[80px]">Token: {stock.token}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className={`font-bold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
+                                            <td className="px-2 py-3 text-right">
+                                                <div className={`font-bold text-sm ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     ₹{stock.ltp?.toFixed(2) || '0.00'}
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-3 text-right text-gray-300">
+                                            <td className="px-2 py-3 text-right text-xs text-gray-300">
                                                 ₹{stock.pdc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-gray-300">
+                                            <td className="px-2 py-3 text-right text-xs text-gray-300">
                                                 ₹{stock.wc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-4 py-3 text-right">
+                                            <td className="px-2 py-3 text-right text-xs">
                                                 <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
-                                                    {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                                                    {isPositive ? '+' : ''}{changeValue.toFixed(2)}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-center">
+                                            <td className="px-2 py-3 text-center">
                                                 <button
                                                     onClick={() => handleRemoveStock(stock.token)}
-                                                    className="px-3 py-1.5 bg-[#F56565] hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
+                                                    className="px-2 py-1 bg-[#F56565] hover:bg-red-600 text-white text-xs rounded transition-colors"
                                                 >
-                                                    🗑️
+                                                    ✕
                                                 </button>
                                             </td>
                                         </tr>
