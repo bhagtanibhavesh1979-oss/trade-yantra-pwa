@@ -16,25 +16,28 @@ def generate_369_levels(ltp: float, weekly_close: float) -> List[Dict]:
     levels = []
     pattern = [30, 60, 90] if weekly_close > 3333 else [3, 6, 9]
     
-    # Generate resistance levels (ABOVE current price)
+    # Generate potential UP levels (Resistance flow)
     curr = weekly_close
     for i in range(10):
         curr += pattern[i % 3]
-        if curr > ltp:
-            levels.append({
-                "price": round(curr, 2),
-                "type": "ABOVE"
-            })
+        price = round(curr, 2)
+        
+        if price > ltp:
+            levels.append({"price": price, "type": "ABOVE"})
+        elif price < ltp:
+            levels.append({"price": price, "type": "BELOW"})
     
-    # Generate support levels (BELOW current price)
+    # Generate potential DOWN levels (Support flow)
     curr = weekly_close
     for i in range(10):
         curr -= pattern[i % 3]
-        if curr < ltp:
-            levels.append({
-                "price": round(curr, 2),
-                "type": "BELOW"
-            })
+        price = round(curr, 2)
+        
+        # Dynamic typing: If price is ABOVE ltp, it's resistance. If BELOW, it's support.
+        if price > ltp:
+            levels.append({"price": price, "type": "ABOVE"})
+        elif price < ltp:
+            levels.append({"price": price, "type": "BELOW"})
     
     return levels
 
