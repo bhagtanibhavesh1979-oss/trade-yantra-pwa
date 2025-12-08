@@ -1,25 +1,10 @@
 import { useState } from 'react';
-import { login } from '../services/api';
+import { login, API_BASE_URL } from '../services/api';
 
 function LoginPage({ onLoginSuccess }) {
-    const [formData, setFormData] = useState({
-        apiKey: '',
-        clientId: '',
-        password: '',
-        totpSecret: '',
-    });
-    const [showPassword, setShowPassword] = useState(false);
-    const [showTotp, setShowTotp] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    // ... state ...
 
-    const handleInputChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
-        setError(''); // Clear error on input change
-    };
+    // ... handleInputChange ...
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -40,8 +25,16 @@ function LoginPage({ onLoginSuccess }) {
                 clientId: response.client_id,
             });
         } catch (err) {
-            setError(err.response?.data?.detail || 'Login failed. Please check your credentials.');
             console.error('Login error:', err);
+            // Show specific error if available, otherwise show network error or default
+            let errorMessage = err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.';
+
+            // Add API URL to error for debugging
+            if (!err.response) {
+                errorMessage += ` (Server: ${API_BASE_URL})`;
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
