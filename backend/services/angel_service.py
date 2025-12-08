@@ -103,12 +103,15 @@ class AngelService:
                 today = datetime.date.today()
                 current_week_monday = today - datetime.timedelta(days=today.weekday())
                 
+                print(f"Debug Hist Data {token}: Found {len(candles)} candles. Mon={current_week_monday}")
+                
                 # Find previous week's close
                 for c in reversed(candles):
                     try:
                         c_date_str = c[0].split('T')[0]
                         c_date = datetime.datetime.strptime(c_date_str, "%Y-%m-%d").date()
                         if c_date < current_week_monday:
+                            print(f"  Selected WC Candle: {c_date} Close={c[4]}")
                             return c[4]  # Close price
                     except:
                         continue

@@ -6,8 +6,18 @@ import { getSession, setSession, clearSession, getWatchlist, getAlerts, getLogs 
 import './App.css';
 
 function App() {
+  // Initialize watchlist from localStorage with lazy loading
+  const [watchlist, setWatchlist] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trade_yantra_watchlist');
+      // Ensure we start with empty array if nothing saved
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   const [session, setSessionState] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [logs, setLogs] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
@@ -18,18 +28,7 @@ function App() {
     const savedSession = getSession();
     if (savedSession) {
       setSessionState(savedSession);
-
-      // Load watchlist from localStorage FIRST (before loadData)
-      const savedWatchlist = localStorage.getItem('trade_yantra_watchlist');
-      if (savedWatchlist) {
-        try {
-          const parsed = JSON.parse(savedWatchlist);
-          setWatchlist(parsed);
-          console.log('✅ Loaded watchlist from localStorage:', parsed.length, 'stocks');
-        } catch (err) {
-          console.error('❌ Failed to load watchlist from localStorage:', err);
-        }
-      }
+      // Watchlist is already initialized from localStorage via useState
 
       loadData(savedSession.sessionId);
       connectWebSocket(savedSession.sessionId);
@@ -38,10 +37,9 @@ function App() {
 
   // Save watchlist to localStorage whenever it changes
   useEffect(() => {
-    if (watchlist.length > 0) {
-      localStorage.setItem('trade_yantra_watchlist', JSON.stringify(watchlist));
-      console.log('💾 Saved watchlist to localStorage:', watchlist.length, 'stocks');
-    }
+    // Allows saving empty list if user intentionally clears it
+    localStorage.setItem('trade_yantra_watchlist', JSON.stringify(watchlist));
+    console.log('💾 Saved watchlist to localStorage:', watchlist.length, 'stocks');
   }, [watchlist]);
 
   const loadData = async (sessionId) => {
@@ -106,6 +104,31 @@ function App() {
           tag: alert.id,
         });
       }
+
+      // Play sound
+      try {
+        const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // Short beep placeholder
+        // Better beep sound (Base64 for a simple chime)
+        const chime = new Audio("data:audio/mp3;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84000000000000000000000000000000000000000000000000//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84000000000000000000000000000000000000000000000000");
+        // Using a comprehensive beep url or local file is better, but this is a start.
+        // Let's use a standard accessible URL or just a simple beep logic if possible.
+        // Since I cannot upload a file easily, I will trust the user to replace it or I will use a public URL if allowed. 
+        // Reverting to a simple console log placeholder for sound for now to avoid broken base64, 
+        // but wait, I can write a valid base64 short beep.
+
+        // Simple Beep Base64
+        const beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
+        // beep.play().catch(e => console.log('Audio play failed:', e));
+
+        // BETTER: Use the browser's SpeechSynthesis for a spoken alert if audio fails? No, standard sound is better.
+        // Let's add a log and a real placeholder specific for "alert.mp3" that the user can fill, or a base64.
+
+        const notificationSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        notificationSound.play().catch(e => console.error("Error playing sound:", e));
+
+      } catch (e) {
+        console.error("Audio error:", e);
+      }
     });
 
     wsClient.on('error', (error) => {
@@ -137,7 +160,6 @@ function App() {
     clearSession();
     // DON'T clear watchlist - it should persist across logins
     setSessionState(null);
-    setWatchlist([]);
     setAlerts([]);
     setLogs([]);
     setIsPaused(false);

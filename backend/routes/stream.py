@@ -39,16 +39,22 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     
     print(f"WebSocket connected for session {session_id}")
     
+    # Capture running loop for thread-safe broadcasting from background thread
+    loop = asyncio.get_running_loop()
+    
     # Broadcast callback for Angel One WebSocket
     def broadcast_to_client(sid: str, message: Dict):
         """Broadcast message to frontend WebSocket"""
         if sid == session_id and sid in active_connections:
             try:
-                # Schedule async send
-                asyncio.create_task(active_connections[sid].send_json(message))
-            except:
-                pass
-    
+                # Use threadsafe call since this runs in Angel One's thread
+                asyncio.run_coroutine_threadsafe(
+                    active_connections[sid].send_json(message), 
+                    loop
+                )
+            except Exception as e:
+                print(f"Broadcast error: {e}")
+
     # Start Angel One WebSocket if not already started
     if session_id not in ws_manager.connections:
         success = ws_manager.start_websocket(

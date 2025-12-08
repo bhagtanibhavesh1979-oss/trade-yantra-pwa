@@ -88,6 +88,7 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         ltp = stock.get('ltp', 0)
         
         if wc > 0 and ltp > 0:
+            print(f"Generating 3-6-9 for {stock['symbol']}: LTP={ltp}, WC={wc}")
             levels = generate_369_levels(ltp, wc)
             
             for level in levels:
