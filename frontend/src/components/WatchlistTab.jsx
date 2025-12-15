@@ -200,7 +200,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
             </div>
 
             {/* Watchlist */}
-            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto">
+            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden w-full md:max-w-4xl mx-auto">
                 {filteredWatchlist.length === 0 ? (
                     <div className="p-8 text-center">
                         <p className="text-gray-400">No stocks in watchlist. Search and add symbols above.</p>
@@ -211,10 +211,10 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                             <thead>
                                 <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-300 w-[30%] border-r border-[#2D3748]">Symbol</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">PDC</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">WC</th>
-                                    <th className="px-3 py-3 text-right text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">PDC</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">WC</th>
+                                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#2D3748]">
@@ -232,18 +232,18 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                                 <div className="text-white font-bold text-sm">{stock.symbol}</div>
                                                 <div className="text-[10px] text-gray-400">T: {stock.token}</div>
                                             </td>
-                                            <td className="px-2 py-3 text-right border-r border-[#2D3748]">
+                                            <td className="px-2 py-3 text-center border-r border-[#2D3748]">
                                                 <div className={`font-bold text-sm ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     ₹{stock.ltp?.toFixed(2) || '0.00'}
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-3 text-right text-[11px] text-gray-300 border-r border-[#2D3748]">
+                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
                                                 {stock.pdc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-2 py-3 text-right text-[11px] text-gray-300 border-r border-[#2D3748]">
+                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
                                                 {stock.wc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-3 py-3 text-right text-xs">
+                                            <td className="px-3 py-3 text-center text-xs">
                                                 <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     {isPositive ? '+' : ''}{changeValue.toFixed(2)}
                                                 </span>
