@@ -5,8 +5,9 @@ class WebSocketClient {
         this.ws = null;
         this.sessionId = null;
         this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
+        this.maxReconnectAttempts = 15; // Increased for mobile resilience
         this.reconnectDelay = 3000;
+        this.pingInterval = null;
         this.listeners = {
             price_update: [],
             alert_triggered: [],
@@ -30,7 +31,8 @@ class WebSocketClient {
 
         this.ws.onopen = () => {
             console.log('WebSocket connected');
-            this.reconnectAttempts = 0;
+            this.reconnectAttempts = 0; // Reset on successful connection
+            this.startHeartbeat();
             this.emit('connected', { sessionId });
         };
 
@@ -50,6 +52,7 @@ class WebSocketClient {
 
         this.ws.onclose = () => {
             console.log('WebSocket disconnected');
+            this.stopHeartbeat();
             this.emit('disconnected', { sessionId });
             this.attemptReconnect();
         };
@@ -73,11 +76,12 @@ class WebSocketClient {
                 break;
 
             case 'heartbeat':
-                // Silent heartbeat
+                // Server heartbeat received
                 break;
 
             case 'pong':
-                // Response to ping
+                // Server responded to our ping
+                // console.log('Pong received');
                 break;
 
             case 'error':
@@ -90,6 +94,21 @@ class WebSocketClient {
         }
     }
 
+    startHeartbeat() {
+        this.stopHeartbeat();
+        // Ping every 20 seconds to keep Render/Mobile connection alive
+        this.pingInterval = setInterval(() => {
+            this.ping();
+        }, 20000);
+    }
+
+    stopHeartbeat() {
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
+        }
+    }
+
     attemptReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error('Max reconnect attempts reached');
@@ -97,19 +116,23 @@ class WebSocketClient {
         }
 
         this.reconnectAttempts++;
-        console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+        // Implement simple backoff or keep it linear
+        const delay = this.reconnectDelay * (1 + (this.reconnectAttempts * 0.2)); // Slight backoff
+
+        console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`);
 
         setTimeout(() => {
             if (this.sessionId) {
                 this.connect(this.sessionId);
             }
-        }, this.reconnectDelay);
+        }, delay);
     }
 
     disconnect() {
         if (this.ws) {
             this.sessionId = null;
             this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect
+            this.stopHeartbeat();
             this.ws.close();
             this.ws = null;
         }
