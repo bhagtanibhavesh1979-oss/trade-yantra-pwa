@@ -126,7 +126,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     return (
         <div className="w-full space-y-4">
             {/* Search */}
-            <div className="bg-[#222844] rounded-lg p-3 border border-[#2D3748]">
+            <div className="bg-[#222844] md:rounded-lg p-2 md:p-3 border-b md:border border-[#2D3748]">
                 <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,7 +198,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
             </div>
 
             {/* Watchlist */}
-            <div className="bg-[#222844] rounded-lg border border-[#2D3748] overflow-hidden">
+            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden">
                 {filteredWatchlist.length === 0 ? (
                     <div className="p-8 text-center">
                         <p className="text-gray-400">No stocks in watchlist. Search and add symbols above.</p>
