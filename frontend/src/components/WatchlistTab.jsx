@@ -7,6 +7,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     const [showSearchResults, setShowSearchResults] = useState(false);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [selectedStock, setSelectedStock] = useState(null);
 
     // Sorting only
     const [sortBy, setSortBy] = useState('none');
@@ -64,6 +65,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
         try {
             await removeFromWatchlist(sessionId, token);
             setWatchlist(watchlist.filter(s => s.token !== token));
+            setSelectedStock(null);
         } catch (err) {
             console.error('Remove stock error:', err);
         }
@@ -198,7 +200,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
             </div>
 
             {/* Watchlist */}
-            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden">
+            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto">
                 {filteredWatchlist.length === 0 ? (
                     <div className="p-8 text-center">
                         <p className="text-gray-400">No stocks in watchlist. Search and add symbols above.</p>
@@ -208,12 +210,11 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
-                                    <th className="px-0.5 py-2 text-left text-xs font-semibold text-gray-300">Symbol</th>
-                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">LTP</th>
-                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">PDC</th>
-                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">WC</th>
-                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">Change</th>
-                                    <th className="px-0.5 py-2 text-center text-xs font-semibold text-gray-300">Action</th>
+                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-300 w-[30%] border-r border-[#2D3748]">Symbol</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">PDC</th>
+                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">WC</th>
+                                    <th className="px-3 py-3 text-right text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#2D3748]">
@@ -224,35 +225,28 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                     return (
                                         <tr
                                             key={stock.token}
-                                            className="hover:bg-[#2D3748] transition-colors"
+                                            onClick={() => setSelectedStock(stock)}
+                                            className="hover:bg-[#2D3748] transition-colors cursor-pointer active:bg-[#4A5568]"
                                         >
-                                            <td className="px-0.5 py-2 text-left">
-                                                <div className="text-white font-bold text-sm text-left">{stock.symbol}</div>
-                                                <div className="text-xs text-gray-400 truncate max-w-[80px] text-left">Token: {stock.token}</div>
+                                            <td className="px-3 py-3 text-left border-r border-[#2D3748]">
+                                                <div className="text-white font-bold text-sm">{stock.symbol}</div>
+                                                <div className="text-[10px] text-gray-400">T: {stock.token}</div>
                                             </td>
-                                            <td className="px-0.5 py-2 text-right">
+                                            <td className="px-2 py-3 text-right border-r border-[#2D3748]">
                                                 <div className={`font-bold text-sm ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     ₹{stock.ltp?.toFixed(2) || '0.00'}
                                                 </div>
                                             </td>
-                                            <td className="px-0.5 py-2 text-right text-xs text-gray-300">
-                                                ₹{stock.pdc?.toFixed(2) || '0.00'}
+                                            <td className="px-2 py-3 text-right text-[11px] text-gray-300 border-r border-[#2D3748]">
+                                                {stock.pdc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-0.5 py-2 text-right text-xs text-gray-300">
-                                                ₹{stock.wc?.toFixed(2) || '0.00'}
+                                            <td className="px-2 py-3 text-right text-[11px] text-gray-300 border-r border-[#2D3748]">
+                                                {stock.wc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-0.5 py-2 text-right text-xs">
+                                            <td className="px-3 py-3 text-right text-xs">
                                                 <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     {isPositive ? '+' : ''}{changeValue.toFixed(2)}
                                                 </span>
-                                            </td>
-                                            <td className="px-0.5 py-2 text-center">
-                                                <button
-                                                    onClick={() => handleRemoveStock(stock.token)}
-                                                    className="px-2 py-1 bg-[#F56565] hover:bg-red-600 text-white text-xs rounded transition-colors"
-                                                >
-                                                    ✕
-                                                </button>
                                             </td>
                                         </tr>
                                     );
@@ -262,6 +256,61 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                     </div>
                 )}
             </div>
+            {/* Stock Details Modal */}
+            {selectedStock && (
+                <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setSelectedStock(null)}>
+                    <div className="bg-[#222844] w-full max-w-sm rounded-xl border border-[#2D3748] shadow-2xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="text-xl font-bold text-white">{selectedStock.symbol}</h3>
+                                <p className="text-sm text-gray-400">Token: {selectedStock.token}</p>
+                            </div>
+                            <button onClick={() => setSelectedStock(null)} className="text-gray-400 hover:text-white p-1">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 py-2">
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                                <div className="text-gray-400 text-xs text-center">LTP</div>
+                                <div className={`text-xl font-bold text-center ${selectedStock.ltp - selectedStock.pdc >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
+                                    ₹{selectedStock.ltp?.toFixed(2)}
+                                </div>
+                            </div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                                <div className="text-gray-400 text-xs text-center">Change</div>
+                                <div className={`text-xl font-bold text-center ${(selectedStock.ltp - selectedStock.pdc) >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
+                                    {selectedStock.ltp - selectedStock.pdc >= 0 ? '+' : ''}{(selectedStock.ltp - selectedStock.pdc).toFixed(2)}
+                                </div>
+                            </div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                                <div className="text-gray-400 text-xs text-center">PDC</div>
+                                <div className="text-lg font-semibold text-white text-center">
+                                    ₹{selectedStock.pdc?.toFixed(2)}
+                                </div>
+                            </div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                                <div className="text-gray-400 text-xs text-center">Weekly Close</div>
+                                <div className="text-lg font-semibold text-white text-center">
+                                    ₹{selectedStock.wc?.toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={() => handleRemoveStock(selectedStock.token)}
+                            className="w-full py-3 bg-[#F56565] hover:bg-red-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Remove from Watchlist
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
