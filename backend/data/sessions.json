@@ -1,0 +1,444 @@
+{
+  "3a01b21e-fcab-4874-a256-9def3d078e70": {
+    "client_id": "B38590",
+    "jwt_token": "Bearer eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsInJvbGVzIjowLCJ1c2VydHlwZSI6IlVTRVIiLCJ0b2tlbiI6ImV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUoxYzJWeVgzUjVjR1VpT2lKamJHbGxiblFpTENKMGIydGxibDkwZVhCbElqb2lkSEpoWkdWZllXTmpaWE56WDNSdmEyVnVJaXdpWjIxZmFXUWlPallzSW5OdmRYSmpaU0k2SWpNaUxDSmtaWFpwWTJWZmFXUWlPaUprT0RFMU9HWTFNaTFrWlRObUxUTmtOV010T0Rsa09TMDBNV05tTkRBNE5UUmhNRGNpTENKcmFXUWlPaUowY21Ga1pWOXJaWGxmZGpJaUxDSnZiVzVsYldGdVlXZGxjbWxrSWpvMkxDSndjbTlrZFdOMGN5STZleUprWlcxaGRDSTZleUp6ZEdGMGRYTWlPaUpoWTNScGRtVWlmU3dpYldZaU9uc2ljM1JoZEhWeklqb2lZV04wYVhabEluMTlMQ0pwYzNNaU9pSjBjbUZrWlY5c2IyZHBibDl6WlhKMmFXTmxJaXdpYzNWaUlqb2lRak00TlRrd0lpd2laWGh3SWpveE56WTFPRGMyTXpJM0xDSnVZbVlpT2pFM05qVTNPRGszTkRjc0ltbGhkQ0k2TVRjMk5UYzRPVGMwTnl3aWFuUnBJam9pTWpaaE56VmtPRE10TkRrNVlpMDBaRFppTFdKaVltWXRORFJrWkdOaE5USmlZakppSWl3aVZHOXJaVzRpT2lJaWZRLkNGbTF5VEdvbjNmRExqdVlIU3FidzZ2LXlIUHIzZUNlWDFGcnpFdHlsSktwSHZuYzNmSlJHUU45em1HRzF1U2lzU2RhNzFuSWRHbTRrNW1ZSmZ2dmkyTE0tTVA4M2U5Y0FSeVE2TWU3MDY1WnozWnc3d1ljU1JHZC0tTlZBLURqdHA1YVZKT0dITjl0QWhKV0dGZDN0OWtyR0wzbEVDQ2FueFVPRXY3aExYSSIsIkFQSS1LRVkiOiJCc1JpZ2JNcyIsIlgtT0xELUFQSS1LRVkiOnRydWUsImlhdCI6MTc2NTc4OTkyNywiZXhwIjoxNzY1ODIzNDAwfQ.g7MRMQGsXwd2ZG7XcQP4vs4jnNcPFjKzTSElV8KhHVv-oEJ2kA_XIWRbFgBqBLxSRHcMEfVa9fBksnRBW22yzA",
+    "feed_token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsImlhdCI6MTc2NTc4OTkyNywiZXhwIjoxNzY1ODc2MzI3fQ.PNlk5mKtWNcP5F-uYW8vjTk_fIb-wP2gAKbzmVRZd9TuypvCA7TXvorz32r4z8-A9CFSt3jNX3jcoGfPTm8J8g",
+    "api_key": "BsRigbMs",
+    "watchlist": [
+      {
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "exch_seg": "NSE",
+        "ltp": 1411.9,
+        "pdc": 1409.6,
+        "wc": 1409.6,
+        "loading": false
+      },
+      {
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "exch_seg": "NSE",
+        "ltp": 697.1,
+        "pdc": 699.4,
+        "wc": 699.4,
+        "loading": false
+      }
+    ],
+    "alerts": [
+      {
+        "id": "4ab39dba-8a00-4bce-b8b0-60c1afb193fe",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1412.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "824699d2-0854-4394-8d31-0ccbce89a820",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1418.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "379f013e-ffef-4c6c-a135-56599da76a00",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1427.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "241bd1f1-4eb2-4616-98aa-a794e7be3ccf",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1430.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "2daf0d70-882a-4fc7-adf2-332b15562275",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1436.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "17d0ea62-a7bd-42e4-89f6-3a5c8497fdbe",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1445.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "a8fdb0b8-d158-44bf-adfa-ec3ac91d3a8b",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1448.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646366"
+      },
+      {
+        "id": "e5777a05-4ee9-44ee-81f9-d269129bd3e4",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1454.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "19d89c64-626d-49c5-a986-51f7de5201fd",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1463.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "8334cc98-bf5e-4455-95a6-45623f5ccc78",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "ABOVE",
+        "price": 1466.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "e5f02518-7a26-4ccf-b3dc-6a56b9294870",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1406.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "280da6bf-a035-42eb-b995-aa082327e9bb",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1400.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "6966af45-54ac-4052-b8e9-21092da93e60",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1391.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "2355ef54-9f11-46a0-b78e-81f086f103ad",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1388.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "6c922dec-d7af-4104-b65f-48695d84fc19",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1382.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "e1cdda23-7cfc-42b5-9e78-36e11aa7c4b9",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1373.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "b9b47c83-24c0-4cd2-bc73-dcecf3c8a492",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1370.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "6f3f4355-6705-43c8-a7ba-4e1a0430eaa9",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1364.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "ab0888b1-de9e-47df-b342-956aa28747d5",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1355.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "70c1180f-a867-430f-a1e3-b4f6ba1c4e96",
+        "symbol": "HAVELLS-EQ",
+        "token": "9819",
+        "condition": "BELOW",
+        "price": 1352.6,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:43:21.646871"
+      },
+      {
+        "id": "71bf35d2-5983-4da8-a3bd-153be66f2ceb",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 702.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "e69f0c04-c139-48b7-848f-e9328cbec4c7",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 708.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "387f8a6c-7d38-4e45-bdd9-a0aa8923cc45",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 717.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "3e3a9f96-0c7b-4efb-a912-47b79103bdd5",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 720.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "67fa1004-6db3-4f34-9e04-27751c468ea5",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 726.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "0329ee1f-85e5-4cc3-a98f-b195c2f0fc60",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 735.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "0a125b04-d20e-486b-a2f4-0325657435c9",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 738.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "4756cbc5-d8d3-4496-a1d4-485c4036fd9e",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 744.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "87649c63-b241-42cc-9bed-8b7cefccfa25",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 753.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "1245896c-bcd1-4d83-9f98-53bb7d1499fe",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "ABOVE",
+        "price": 756.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "f176566d-5902-4895-b9eb-e27fb3e449ee",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 696.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "e1374a14-07b0-48ed-b816-ec88167b6c3f",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 690.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "1a7ea21f-2aa1-4aff-a950-dbdb8e9aad29",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 681.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "2bb8bb6c-00c1-4e4a-af19-f11b05727b77",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 678.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "e67c4417-4172-43b1-9017-bcfe158c72d1",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 672.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "f175d129-38cf-474d-bfb1-1edb4b488b3b",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 663.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "7a50c2ed-496e-4f2b-991f-6deeaff72a89",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 660.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "db89e319-c8d5-4b44-ad87-4c03b9067446",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 654.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "43d283f5-6eac-43ce-a0d5-4c1de496e30b",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 645.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      },
+      {
+        "id": "55fa90df-a706-4770-8aa8-f21464d86305",
+        "symbol": "DLF-EQ",
+        "token": "14732",
+        "condition": "BELOW",
+        "price": 642.4,
+        "active": true,
+        "type": "AUTO",
+        "created_at": "2025-12-15T14:44:27.243209"
+      }
+    ],
+    "logs": [
+      {
+        "time": "SYS",
+        "symbol": "AUTO",
+        "msg": "Generated 20 alerts"
+      },
+      {
+        "time": "SYS",
+        "symbol": "AUTO",
+        "msg": "Generated 20 alerts"
+      }
+    ],
+    "is_paused": false,
+    "last_activity": "2025-12-15T14:44:27.166486"
+  }
+}

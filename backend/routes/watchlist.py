@@ -96,6 +96,9 @@ async def add_stock(req: AddStockRequest):
     
     threading.Thread(target=fetch_data, daemon=True).start()
     
+    # Save session
+    session_manager.save_session(req.session_id)
+    
     return {
         "success": True,
         "message": f"Added {req.symbol} to watchlist",
@@ -123,6 +126,9 @@ async def remove_stock(req: RemoveStockRequest):
     
     # Remove related alerts
     session.alerts = [a for a in session.alerts if a['token'] != req.token]
+    
+    # Save session
+    session_manager.save_session(req.session_id)
     
     return {
         "success": True,

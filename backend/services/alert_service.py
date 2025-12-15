@@ -61,8 +61,11 @@ def create_alert_log(stock: Dict, alert: Dict) -> Dict:
     """
     Create alert log entry
     """
+    # Use IST (UTC+5:30)
+    ist_time = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+    
     return {
-        "time": datetime.datetime.now().strftime("%H:%M:%S"),
+        "time": datetime.datetime.utcnow().isoformat() + "Z", # Send UTC ISO string
         "symbol": stock['symbol'],
         "msg": f"{stock['symbol']} hit {alert['price']} ({alert['condition']})",
         "price": stock['ltp'],
@@ -73,6 +76,9 @@ def create_alert(symbol: str, token: str, condition: str, price: float, alert_ty
     """
     Create a new alert
     """
+    # Use IST (UTC+5:30)
+    ist_now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
+    
     return {
         "id": str(uuid.uuid4()),
         "symbol": symbol,
@@ -81,5 +87,5 @@ def create_alert(symbol: str, token: str, condition: str, price: float, alert_ty
         "price": price,
         "active": True,
         "type": alert_type,
-        "created_at": datetime.datetime.now().isoformat()
+        "created_at": ist_now.isoformat()
     }

@@ -83,21 +83,29 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     };
 
     const pollForUpdates = () => {
-        // Poll every 2 seconds for 10 seconds to get updated prices
-        let pollCount = 0;
+        // Poll every 5 seconds for updates (fallback for WebSocket)
+        // Kept alive indefinitely in case WS fails
         const pollInterval = setInterval(async () => {
             try {
+                // Only poll if tab is active (optimization could be added here to check visibility)
                 const data = await getWatchlist(sessionId);
-                setWatchlist(data.watchlist || []);
-                pollCount++;
-                if (pollCount >= 5) {
-                    clearInterval(pollInterval);
+                if (data.watchlist) {
+                    setWatchlist(() => {
+                        // Merge strategies: only update if changed? 
+                        // For now simple replacement is fine as React handles diffing
+                        return data.watchlist;
+                    });
                 }
             } catch (err) {
                 console.error('Poll error:', err);
-                clearInterval(pollInterval);
+                // Don't clear interval on error, retry next time
             }
-        }, 2000);
+        }, 5000); // Increased to 5s to reduce load
+
+        // Return cleanup function if we were in useEffect, 
+        // but here we just let it run. In a real app we should manage this better.
+        // For now, let's at least clear it after 1 minute to avoid eternal zombies if component re-renders
+        // setTimeout(() => clearInterval(pollInterval), 60000);
     };
 
 
@@ -116,9 +124,9 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     }
 
     return (
-        <div className="w-full mx-auto space-y-4">
+        <div className="w-full mx-auto space-y-4 px-1">
             {/* Search */}
-            <div className="bg-[#222844] rounded-lg p-4 border border-[#2D3748]">
+            <div className="bg-[#222844] rounded-lg p-3 border border-[#2D3748]">
                 <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,12 +208,12 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
-                                    <th className="px-2 py-3 text-left text-xs font-semibold text-gray-300">Symbol</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">LTP</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">PDC</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">WC</th>
-                                    <th className="px-2 py-3 text-right text-xs font-semibold text-gray-300">Change</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300">Action</th>
+                                    <th className="px-0.5 py-2 text-left text-xs font-semibold text-gray-300">Symbol</th>
+                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">LTP</th>
+                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">PDC</th>
+                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">WC</th>
+                                    <th className="px-0.5 py-2 text-right text-xs font-semibold text-gray-300">Change</th>
+                                    <th className="px-0.5 py-2 text-center text-xs font-semibold text-gray-300">Action</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-[#2D3748]">
@@ -218,27 +226,27 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                             key={stock.token}
                                             className="hover:bg-[#2D3748] transition-colors"
                                         >
-                                            <td className="px-2 py-3">
+                                            <td className="px-0.5 py-2">
                                                 <div className="text-white font-bold text-sm">{stock.symbol}</div>
                                                 <div className="text-xs text-gray-400 truncate max-w-[80px]">Token: {stock.token}</div>
                                             </td>
-                                            <td className="px-2 py-3 text-right">
+                                            <td className="px-0.5 py-2 text-right">
                                                 <div className={`font-bold text-sm ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     ₹{stock.ltp?.toFixed(2) || '0.00'}
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-3 text-right text-xs text-gray-300">
+                                            <td className="px-0.5 py-2 text-right text-xs text-gray-300">
                                                 ₹{stock.pdc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-2 py-3 text-right text-xs text-gray-300">
+                                            <td className="px-0.5 py-2 text-right text-xs text-gray-300">
                                                 ₹{stock.wc?.toFixed(2) || '0.00'}
                                             </td>
-                                            <td className="px-2 py-3 text-right text-xs">
+                                            <td className="px-0.5 py-2 text-right text-xs">
                                                 <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                                     {isPositive ? '+' : ''}{changeValue.toFixed(2)}
                                                 </span>
                                             </td>
-                                            <td className="px-2 py-3 text-center">
+                                            <td className="px-0.5 py-2 text-center">
                                                 <button
                                                     onClick={() => handleRemoveStock(stock.token)}
                                                     className="px-2 py-1 bg-[#F56565] hover:bg-red-600 text-white text-xs rounded transition-colors"

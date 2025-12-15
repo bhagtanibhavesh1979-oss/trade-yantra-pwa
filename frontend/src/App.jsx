@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
-import { getSession, setSession, clearSession, getWatchlist, getAlerts, getLogs } from './services/api';
+import { getSession, setSession, clearSession, getAlerts, getLogs } from './services/api';
 import './App.css';
 
 function App() {
@@ -23,17 +23,7 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
 
-  // Load session on mount
-  useEffect(() => {
-    const savedSession = getSession();
-    if (savedSession) {
-      setSessionState(savedSession);
-      // Watchlist is already initialized from localStorage via useState
 
-      loadData(savedSession.sessionId);
-      connectWebSocket(savedSession.sessionId);
-    }
-  }, []);
 
   // Save watchlist to localStorage whenever it changes
   useEffect(() => {
@@ -70,13 +60,15 @@ function App() {
 
     wsClient.on('price_update', (data) => {
       // Update watchlist with new prices
+      // Backend sends single update: { token, symbol, ltp }
       setWatchlist((prevWatchlist) =>
         prevWatchlist.map((stock) => {
-          if (data.updates && data.updates[stock.token]) {
+          if (String(stock.token) === String(data.token)) {
             return {
               ...stock,
-              ltp: data.updates[stock.token].ltp,
-              wc: data.updates[stock.token].wc || stock.wc,
+              ltp: data.ltp,
+              // Keep old WC if not provided
+              wc: stock.wc,
             };
           }
           return stock;
@@ -138,6 +130,36 @@ function App() {
     // Connect
     wsClient.connect(sessionId);
   };
+
+  // Load session on mount
+  useEffect(() => {
+    const savedSession = getSession();
+    if (savedSession) {
+      setSessionState(savedSession);
+      // Watchlist is already initialized from localStorage via useState
+
+      // Auto-sync local watchlist to backend (if backend restarted)
+      const localWatchlist = JSON.parse(localStorage.getItem('trade_yantra_watchlist') || '[]');
+      if (localWatchlist.length > 0) {
+        localWatchlist.forEach(stock => {
+          // We re-add them silently to ensure subscription
+          // Ideally we should have a bulk sync endpoint, but looping add is okay for now
+          // We can do this in the background
+          import('./services/api').then(({ addToWatchlist }) => {
+            addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg)
+              .catch(err => {
+                // Ignore 'already exists' errors
+                // console.log("Sync stock error", err); 
+              });
+          });
+        });
+      }
+
+      loadData(savedSession.sessionId);
+      connectWebSocket(savedSession.sessionId);
+    }
+  }, []);
+
 
   const handleLoginSuccess = (sessionData) => {
     setSession(sessionData);

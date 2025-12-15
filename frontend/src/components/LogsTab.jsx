@@ -19,7 +19,10 @@ function LogsTab({ logs }) {
                             >
                                 <div className="flex items-start gap-3">
                                     <span className="text-xs text-gray-500 font-mono w-16 flex-shrink-0">
-                                        {log.time}
+                                        {/* Convert to local time if possible, otherwise show as is */}
+                                        {log.time && log.time.includes('T')
+                                            ? new Date(log.time).toLocaleTimeString()
+                                            : log.time}
                                     </span>
                                     <span className="text-sm font-bold text-[#667EEA] w-32 flex-shrink-0">
                                         {log.symbol}

@@ -8,6 +8,7 @@ from typing import List
 from services.session_manager import session_manager
 from services.alert_service import generate_369_levels, create_alert
 import uuid
+import datetime
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
 
@@ -65,6 +66,9 @@ async def create_manual_alert(req: CreateAlertRequest):
     alert = create_alert(req.symbol, req.token, req.condition, req.price, "MANUAL")
     session.alerts.append(alert)
     
+    # Save session
+    session_manager.save_session(req.session_id)
+    
     return {
         "success": True,
         "message": "Alert created",
@@ -115,11 +119,14 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
     # Create log entry
     if count > 0:
         log_entry = {
-            "time": "SYS",
+            "time": datetime.datetime.utcnow().isoformat() + "Z",
             "symbol": "AUTO",
             "msg": f"Generated {count} alerts"
         }
         session.logs.insert(0, log_entry)
+        
+        # Save session
+        session_manager.save_session(req.session_id)
     
     return {
         "success": True,
@@ -143,6 +150,9 @@ async def delete_alert(req: DeleteAlertRequest):
     if len(session.alerts) == initial_len:
         raise HTTPException(status_code=404, detail="Alert not found")
     
+    # Save session
+    session_manager.save_session(req.session_id)
+    
     return {
         "success": True,
         "message": "Alert deleted"
@@ -158,6 +168,9 @@ async def toggle_pause(req: PauseRequest):
         raise HTTPException(status_code=404, detail="Session not found")
     
     session.is_paused = req.paused
+    
+    # Save session
+    session_manager.save_session(req.session_id)
     
     return {
         "success": True,

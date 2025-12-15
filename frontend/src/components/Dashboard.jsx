@@ -42,6 +42,15 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                         >
                             Logout
                         </button>
+                        {/* Notification Permission Button (Mobile mostly) */}
+                        {'Notification' in window && Notification.permission === 'default' && (
+                            <button
+                                onClick={() => Notification.requestPermission()}
+                                className="px-4 py-1.5 bg-[#667EEA] hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                            >
+                                🔔 Enable Alerts
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
@@ -89,7 +98,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 overflow-auto p-4">
+            <div className="flex-1 overflow-auto">
                 {activeTab === 'watchlist' && (
                     <WatchlistTab
                         sessionId={session.sessionId}
