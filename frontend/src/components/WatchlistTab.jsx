@@ -124,7 +124,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
     }
 
     return (
-        <div className="w-full mx-auto space-y-4 px-1">
+        <div className="w-full space-y-4 px-1 md:px-0">
             {/* Search */}
             <div className="bg-[#222844] rounded-lg p-3 border border-[#2D3748]">
                 <div className="relative">

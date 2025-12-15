@@ -87,14 +87,27 @@ function App() {
 
       // Show browser notification
       if (Notification.permission === 'granted') {
-        const alert = data.alert;
-        const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
-        new Notification(`🔔 ${alert.symbol} Alert!`, {
-          body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
-          icon: '/favicon.ico',
-          requireInteraction: false,
-          tag: alert.id,
-        });
+        try {
+          const alert = data.alert;
+          const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
+          // Mobile PWA often requires ServiceWorker for reliable notifications, 
+          // but for open tabs, this should work.
+          const notif = new Notification(`🔔 ${alert.symbol} Alert!`, {
+            body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
+            icon: '/favicon.ico',
+            requireInteraction: false,
+            tag: alert.id,
+            vibrate: [200, 100, 200] // Vibrate on mobile
+          });
+
+          notif.onclick = function () {
+            window.focus();
+            notif.close();
+          };
+        } catch (e) {
+          console.error("Notification creation failed", e);
+          // Fallback: visual alert in app (could use a toast state here)
+        }
       }
 
       // Play sound

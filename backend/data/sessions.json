@@ -9,7 +9,7 @@
         "symbol": "HAVELLS-EQ",
         "token": "9819",
         "exch_seg": "NSE",
-        "ltp": 1411.9,
+        "ltp": 1412.3,
         "pdc": 1409.6,
         "wc": 1409.6,
         "loading": false
@@ -18,23 +18,22 @@
         "symbol": "DLF-EQ",
         "token": "14732",
         "exch_seg": "NSE",
-        "ltp": 697.1,
+        "ltp": 697.9,
         "pdc": 699.4,
         "wc": 699.4,
+        "loading": false
+      },
+      {
+        "symbol": "BAJAJFINSV-EQ",
+        "token": "16675",
+        "exch_seg": "NSE",
+        "ltp": 0.0,
+        "pdc": 0.0,
+        "wc": 0.0,
         "loading": false
       }
     ],
     "alerts": [
-      {
-        "id": "4ab39dba-8a00-4bce-b8b0-60c1afb193fe",
-        "symbol": "HAVELLS-EQ",
-        "token": "9819",
-        "condition": "ABOVE",
-        "price": 1412.6,
-        "active": true,
-        "type": "AUTO",
-        "created_at": "2025-12-15T14:43:21.646366"
-      },
       {
         "id": "824699d2-0854-4394-8d31-0ccbce89a820",
         "symbol": "HAVELLS-EQ",
@@ -428,6 +427,13 @@
     ],
     "logs": [
       {
+        "time": "2025-12-15T09:26:36.977976Z",
+        "symbol": "HAVELLS-EQ",
+        "msg": "HAVELLS-EQ hit 1412.6 (ABOVE)",
+        "price": 1412.6,
+        "alert_id": "4ab39dba-8a00-4bce-b8b0-60c1afb193fe"
+      },
+      {
         "time": "SYS",
         "symbol": "AUTO",
         "msg": "Generated 20 alerts"
@@ -439,6 +445,6 @@
       }
     ],
     "is_paused": false,
-    "last_activity": "2025-12-15T14:44:27.166486"
+    "last_activity": "2025-12-15T15:35:33.507965"
   }
 }
