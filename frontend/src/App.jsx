@@ -3,6 +3,7 @@ import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
 import { getSession, setSession, clearSession, getAlerts, getLogs } from './services/api';
+import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
 import './App.css';
 
 function App() {
@@ -85,30 +86,19 @@ function App() {
       // Add to logs
       setLogs((prevLogs) => [data.log, ...prevLogs]);
 
-      // Show browser notification
-      if (Notification.permission === 'granted') {
-        try {
-          const alert = data.alert;
-          const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
-          // Mobile PWA often requires ServiceWorker for reliable notifications, 
-          // but for open tabs, this should work.
-          const notif = new Notification(`🔔 ${alert.symbol} Alert!`, {
-            body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
-            icon: '/favicon.ico',
-            requireInteraction: false,
-            tag: alert.id,
-            vibrate: [200, 100, 200] // Vibrate on mobile
-          });
+      // Show notification
+      const alert = data.alert;
+      const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
 
-          notif.onclick = function () {
-            window.focus();
-            notif.close();
-          };
-        } catch (e) {
-          console.error("Notification creation failed", e);
-          // Fallback: visual alert in app (could use a toast state here)
-        }
-      }
+      showNotification(`🔔 ${alert.symbol} Alert!`, {
+        body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
+        icon: '/logo.png',
+        badge: '/logo.png', // Android specific
+        tag: `alert-${alert.id}`,
+        vibrate: [200, 100, 200],
+        requireInteraction: true,
+        data: { url: '/' } // Used by SW to navigate
+      });
 
       // Play sound
       try {
@@ -170,7 +160,11 @@ function App() {
 
       loadData(savedSession.sessionId);
       connectWebSocket(savedSession.sessionId);
+      requestNotificationPermission(); // Ask permission on session restore
     }
+
+    // Register SW
+    registerServiceWorker();
   }, []);
 
 
@@ -181,13 +175,7 @@ function App() {
     connectWebSocket(sessionData.sessionId);
 
     // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then((permission) => {
-        if (permission === 'granted') {
-          console.log('Notification permission granted');
-        }
-      });
-    }
+    requestNotificationPermission();
   };
 
   const handleLogout = () => {
