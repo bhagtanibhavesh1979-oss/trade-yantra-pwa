@@ -5,7 +5,7 @@ import IndicesTab from './IndicesTab';
 import LogsTab from './LogsTab';
 import { logout } from '../services/api';
 
-function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, setLogs, isPaused, setIsPaused, wsStatus }) {
+function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, setLogs, isPaused, setIsPaused, referenceDate, setReferenceDate, wsStatus }) {
     const [activeTab, setActiveTab] = useState('watchlist');
 
     const handleLogout = async () => {
@@ -61,6 +61,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                         sessionId={session.sessionId}
                         watchlist={watchlist}
                         setWatchlist={setWatchlist}
+                        referenceDate={referenceDate}
                     />
                 )}
                 {activeTab === 'alerts' && (
@@ -71,6 +72,8 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                         setAlerts={setAlerts}
                         isPaused={isPaused}
                         setIsPaused={setIsPaused}
+                        referenceDate={referenceDate}
+                        setReferenceDate={setReferenceDate}
                     />
                 )}
                 {activeTab === 'indices' && (

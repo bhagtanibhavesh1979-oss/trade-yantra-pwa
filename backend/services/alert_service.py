@@ -20,10 +20,20 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
     try:
         # Parse Dates
         base_date = datetime.datetime.strptime(date, "%Y-%m-%d")
-        from_dt = datetime.datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
-        to_dt = datetime.datetime.strptime(f"{date} {end_time}", "%Y-%m-%d %H:%M")
         
-        interval = "ONE_MINUTE" if is_custom else "ONE_DAY"
+        # For non-custom range, we want ONLY the selected date's High/Low
+        # Set both from and to as the same date to get only that day's data
+        if not is_custom:
+            # Use the full day range for the selected date
+            from_dt = datetime.datetime.strptime(f"{date} 09:15", "%Y-%m-%d %H:%M")
+            to_dt = datetime.datetime.strptime(f"{date} 15:30", "%Y-%m-%d %H:%M")
+            interval = "ONE_MINUTE"  # Use minute data to ensure we get the exact date
+        else:
+            # Custom time range within the selected date
+            from_dt = datetime.datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
+            to_dt = datetime.datetime.strptime(f"{date} {end_time}", "%Y-%m-%d %H:%M")
+            interval = "ONE_MINUTE"
+        
         api_from = from_dt.strftime('%Y-%m-%d %H:%M')
         api_to = to_dt.strftime('%Y-%m-%d %H:%M')
         
@@ -35,6 +45,7 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
             "todate": api_to
         }
         
+        print(f"DEBUG: Fetching candles for {symbol} from {api_from} to {api_to}")
         data = angel_service.fetch_candle_data(smart_api, req)
         
         high = -1.0
@@ -42,19 +53,22 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
         
         if data and data.get('status') and data.get('data'):
             candles = data['data']
-            if not candles: return []
+            if not candles: 
+                print(f"DEBUG: No candle data returned for {symbol}")
+                return []
             
-            if not is_custom:
-                c = candles[0] # [timestamp, open, high, low, close, volume]
-                high = c[2]
-                low = c[3]
-            else:
-                for c in candles:
-                    c_high = c[2]
-                    c_low = c[3]
-                    if c_high > high: high = c_high
-                    if c_low < low: low = c_low
+            print(f"DEBUG: Received {len(candles)} candles for {symbol}")
+            
+            # Calculate High/Low from all candles in the range
+            for c in candles:
+                c_high = c[2]
+                c_low = c[3]
+                if c_high > high: high = c_high
+                if c_low < low: low = c_low
+            
+            print(f"DEBUG: Calculated High={high}, Low={low} for {symbol}")
         else:
+            print(f"DEBUG: API returned no data or error for {symbol}")
             return []
         
         if high <= 0 or low >= 99999999: return []

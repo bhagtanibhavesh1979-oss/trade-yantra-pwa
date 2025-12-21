@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts } from '../services/api';
 
-function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused }) {
+function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
 
@@ -36,25 +36,24 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
 
     const savedSettings = loadSavedSettings();
 
-    // Form state with persistence
+    // Form state with persistence (Note: date is now passed as a prop for global sync)
     const [selectedSymbol, setSelectedSymbol] = useState(safeWatchlist.length > 0 ? safeWatchlist[0].symbol : '');
-    const [date, setDate] = useState(savedSettings.date);
     const [isCustomRange, setIsCustomRange] = useState(savedSettings.isCustomRange);
     const [startTime, setStartTime] = useState(savedSettings.startTime);
     const [endTime, setEndTime] = useState(savedSettings.endTime);
     const [selectedLevels, setSelectedLevels] = useState(savedSettings.selectedLevels);
 
-    // Save settings to localStorage whenever they change
+    // Save other settings to localStorage whenever they change
     useEffect(() => {
         const settings = {
-            date,
+            date: referenceDate,
             isCustomRange,
             startTime,
             endTime,
             selectedLevels
         };
         localStorage.setItem('trade_yantra_alert_settings', JSON.stringify(settings));
-    }, [date, isCustomRange, startTime, endTime, selectedLevels]);
+    }, [referenceDate, isCustomRange, startTime, endTime, selectedLevels]);
 
     const handleLevelToggle = (level) => {
         setSelectedLevels(prev =>
@@ -78,7 +77,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
             setGenerating(true);
             const response = await generateAlerts(sessionId, {
                 symbol: selectedSymbol,
-                date: date,
+                date: referenceDate,
                 start_time: startTime,
                 end_time: endTime,
                 is_custom_range: isCustomRange,
@@ -115,7 +114,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
         try {
             setBulkGenerating(true);
             const response = await generateBulkAlerts(sessionId, {
-                date: date,
+                date: referenceDate,
                 start_time: startTime,
                 end_time: endTime,
                 is_custom_range: isCustomRange,
@@ -213,8 +212,8 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                             <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Calculation Date</label>
                             <input
                                 type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
+                                value={referenceDate}
+                                onChange={(e) => setReferenceDate(e.target.value)}
                                 className="bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-2.5 focus:border-[#667EEA] outline-none transition-all [color-scheme:dark]"
                             />
                         </div>

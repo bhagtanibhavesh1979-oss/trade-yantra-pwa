@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist } from '../services/api';
 
-function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
+function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
@@ -174,8 +174,8 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
             {/* Refresh Button and Sort */}
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <div className="text-gray-400 text-sm">
-                        {watchlist.length} stocks
+                    <div className="text-gray-400 text-xs">
+                        {watchlist.length} stocks • Ref: <span className="text-[#667EEA] font-bold">{referenceDate}</span>
                     </div>
                     <select
                         value={sortBy}
@@ -215,8 +215,8 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-300 w-[30%] border-r border-[#2D3748]">Symbol</th>
                                     <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
                                     <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">PDC</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">High</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">Low</th>
+                                    <th className="px-2 py-3 text-center text-[10px] font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">High<br /><span className="text-[8px] text-[#667EEA]">{new Date(referenceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span></th>
+                                    <th className="px-2 py-3 text-center text-[10px] font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">Low<br /><span className="text-[8px] text-[#667EEA]">{new Date(referenceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span></th>
                                     <th className="px-3 py-3 text-center text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
                                 </tr>
                             </thead>
@@ -298,13 +298,13 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                 </div>
                             </div>
                             <div className="bg-[#1A1F3A] p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs text-center">Prev High</div>
+                                <div className="text-gray-400 text-xs text-center">High ({referenceDate})</div>
                                 <div className="text-lg font-semibold text-white text-center">
                                     ₹{selectedStock.pdh?.toFixed(2)}
                                 </div>
                             </div>
                             <div className="bg-[#1A1F3A] p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs text-center">Prev Low</div>
+                                <div className="text-gray-400 text-xs text-center">Low ({referenceDate})</div>
                                 <div className="text-lg font-semibold text-white text-center">
                                     ₹{selectedStock.pdl?.toFixed(2)}
                                 </div>

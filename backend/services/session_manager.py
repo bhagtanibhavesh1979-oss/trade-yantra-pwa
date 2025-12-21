@@ -20,6 +20,7 @@ class Session:
         self.alerts = []  # List of {id, symbol, token, condition, price, active}
         self.logs = []  # List of {time, symbol, msg}
         self.is_paused = False
+        self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
         self.websocket_clients = []  # List of WebSocket connections

@@ -84,6 +84,14 @@ export const refreshWatchlist = async (sessionId) => {
     return response.data;
 };
 
+export const setWatchlistDate = async (sessionId, date) => {
+    const response = await api.post('/api/watchlist/set-date', {
+        session_id: sessionId,
+        date: date,
+    });
+    return response.data;
+};
+
 export const searchSymbols = async (query) => {
     const response = await api.get(`/api/watchlist/search/${query}`);
     return response.data;

@@ -99,9 +99,12 @@ async def add_stock(req: AddStockRequest):
         if ltp:
             stock_data['ltp'] = ltp
         
-        # Fetch previous day High/Low/Close
-        print(f"DEBUG: Background fetch for {req.symbol} started...")
-        pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(smart_api, req.token)
+        # Fetch High/Low/Close for the session's selected date
+        # If no selected_date, it falls back to previous trading day
+        print(f"DEBUG: Background fetch for {req.symbol} started (Date: {session.selected_date})...")
+        pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
+            smart_api, req.token, specific_date=session.selected_date
+        )
         print(f"DEBUG: Background fetch for {req.symbol} result: PDH={pdh}, PDL={pdl}, PDC={pdc}")
         if pdh is not None: stock_data['pdh'] = pdh
         if pdl is not None: stock_data['pdl'] = pdl
@@ -120,6 +123,27 @@ async def add_stock(req: AddStockRequest):
         "success": True,
         "message": f"Added {req.symbol} to watchlist",
         "stock": stock_data
+    }
+
+class SetDateRequest(BaseModel):
+    session_id: str
+    date: str # YYYY-MM-DD
+
+@router.post("/set-date")
+async def set_watchlist_date(req: SetDateRequest):
+    """
+    Set the reference date for High/Low calculations in the watchlist
+    """
+    session = session_manager.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.selected_date = req.date
+    session_manager.save_session(req.session_id)
+    
+    return {
+        "success": True,
+        "message": f"Watchlist date set to {req.date}"
     }
 
 @router.delete("/remove")
@@ -175,8 +199,10 @@ async def refresh_watchlist(req: RefreshRequest):
             if ltp:
                 stock['ltp'] = ltp
             
-            # Fetch previous day High/Low/Close
-            pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(smart_api, stock['token'])
+            # Fetch High/Low/Close for the session's selected date
+            pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
+                smart_api, stock['token'], specific_date=session.selected_date
+            )
             if pdh is not None: stock['pdh'] = pdh
             if pdl is not None: stock['pdl'] = pdl
             if pdc is not None: stock['pdc'] = pdc

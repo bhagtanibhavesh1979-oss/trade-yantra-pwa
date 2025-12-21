@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
-import { getSession, setSession, clearSession, getAlerts, getLogs } from './services/api';
+import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
 import './App.css';
 
@@ -23,6 +23,36 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
+
+  // Sync reference date across tabs
+  const [referenceDate, setReferenceDate] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trade_yantra_alert_settings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        return settings.date || new Date().toISOString().split('T')[0];
+      }
+    } catch { }
+    return new Date().toISOString().split('T')[0];
+  });
+
+  // Sync reference date to backend and refresh watchlist
+  useEffect(() => {
+    if (!session) return;
+
+    const syncAndRefresh = async () => {
+      try {
+        console.log('📅 Syncing reference date to backend:', referenceDate);
+        await setWatchlistDate(session.sessionId, referenceDate);
+        // Refresh watchlist to get new High/Low for this date
+        await refreshWatchlist(session.sessionId);
+      } catch (err) {
+        console.error('Failed to sync date or refresh watchlist:', err);
+      }
+    };
+
+    syncAndRefresh();
+  }, [referenceDate, session?.sessionId]);
 
 
 
@@ -207,6 +237,8 @@ function App() {
           setLogs={setLogs}
           isPaused={isPaused}
           setIsPaused={setIsPaused}
+          referenceDate={referenceDate}
+          setReferenceDate={setReferenceDate}
           wsStatus={wsStatus}
         />
       )}
