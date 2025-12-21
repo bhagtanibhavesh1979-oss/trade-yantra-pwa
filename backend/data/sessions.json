@@ -10,7 +10,7 @@
         "token": "9819",
         "exch_seg": "NSE",
         "ltp": 1416.9,
-        "pdc": 1401.2,
+        "pdc": 1400.3,
         "wc": 1409.6,
         "loading": false,
         "pdh": 1411.9,
@@ -21,7 +21,7 @@
         "token": "14732",
         "exch_seg": "NSE",
         "ltp": 691.2,
-        "pdc": 679.05,
+        "pdc": 676.0,
         "wc": 699.4,
         "loading": false,
         "pdh": 686.5,
@@ -32,7 +32,7 @@
         "token": "16675",
         "exch_seg": "NSE",
         "ltp": 2043.8,
-        "pdc": 2026.3,
+        "pdc": 2026.0,
         "wc": 2083.1,
         "loading": false,
         "pdh": 2038.0,
@@ -43,7 +43,7 @@
         "token": "8479",
         "exch_seg": "NSE",
         "ltp": 3666.0,
-        "pdc": 3592.2,
+        "pdc": 3600.7,
         "wc": 3655.2,
         "loading": false,
         "pdh": 3652.3,
@@ -54,9 +54,19 @@
         "token": "3405",
         "exch_seg": "NSE",
         "ltp": 761.3,
-        "pdc": 748.9,
+        "pdc": 749.8,
         "pdh": 754.65,
         "pdl": 745.1,
+        "loading": false
+      },
+      {
+        "symbol": "ASIANPAINT-EQ",
+        "token": "236",
+        "exch_seg": "NSE",
+        "ltp": 2799.9,
+        "pdc": 2758.4,
+        "pdh": 2793.8,
+        "pdl": 2755.3,
         "loading": false
       }
     ],
@@ -883,6 +893,100 @@
       }
     ],
     "logs": [
+      {
+        "time": "2025-12-21T19:09:47.988844Z",
+        "symbol": "TATACHEM-EQ",
+        "msg": "TATACHEM-EQ hit 759.42 (ABOVE)",
+        "price": 761.3,
+        "alert_id": "e50ecc06-6ddd-4cfc-8c2f-9f3c32c4cdab"
+      },
+      {
+        "time": "2025-12-21T19:09:47.988216Z",
+        "symbol": "TATACHEM-EQ",
+        "msg": "TATACHEM-EQ hit 754.65 (ABOVE)",
+        "price": 761.3,
+        "alert_id": "1ae5e53e-0a0a-41ec-9d0d-8f54aca3bad8"
+      },
+      {
+        "time": "2025-12-21T19:09:47.984718Z",
+        "symbol": "TVSMOTOR-EQ",
+        "msg": "TVSMOTOR-EQ hit 3652.3 (ABOVE)",
+        "price": 3666.0,
+        "alert_id": "f2385e39-d4be-4c00-a2fc-dad597e1b125"
+      },
+      {
+        "time": "2025-12-21T19:09:47.984718Z",
+        "symbol": "BAJAJFINSV-EQ",
+        "msg": "BAJAJFINSV-EQ hit 2038.0 (ABOVE)",
+        "price": 2043.8,
+        "alert_id": "d02bbb8d-2fcd-483c-af49-4cb09f3230b8"
+      },
+      {
+        "time": "2025-12-21T19:09:47.984718Z",
+        "symbol": "DLF-EQ",
+        "msg": "DLF-EQ hit 686.5 (ABOVE)",
+        "price": 691.2,
+        "alert_id": "f2341f94-ec83-4cf5-8f7d-5ecb843a3bcc"
+      },
+      {
+        "time": "2025-12-21T19:09:47.984718Z",
+        "symbol": "HAVELLS-EQ",
+        "msg": "HAVELLS-EQ hit 1411.9 (ABOVE)",
+        "price": 1416.9,
+        "alert_id": "76eebfec-f4b6-4fc8-9b8a-452106d9b415"
+      },
+      {
+        "time": "2025-12-21T19:09:47.939308Z",
+        "symbol": "BULK",
+        "msg": "Generated 46 alerts for 6 stocks"
+      },
+      {
+        "time": "2025-12-21T19:07:00.265597Z",
+        "symbol": "TATACHEM-EQ",
+        "msg": "TATACHEM-EQ hit 759.42 (ABOVE)",
+        "price": 761.3,
+        "alert_id": "724d666e-a136-4816-bea6-b4c56d69efcf"
+      },
+      {
+        "time": "2025-12-21T19:07:00.265597Z",
+        "symbol": "TATACHEM-EQ",
+        "msg": "TATACHEM-EQ hit 754.65 (ABOVE)",
+        "price": 761.3,
+        "alert_id": "e46b27b5-19cc-4ee5-9813-3e3397b33739"
+      },
+      {
+        "time": "2025-12-21T19:07:00.265597Z",
+        "symbol": "TVSMOTOR-EQ",
+        "msg": "TVSMOTOR-EQ hit 3652.3 (ABOVE)",
+        "price": 3666.0,
+        "alert_id": "a00e321d-2ed7-4bc9-bd72-eef97b832ab4"
+      },
+      {
+        "time": "2025-12-21T19:07:00.265597Z",
+        "symbol": "BAJAJFINSV-EQ",
+        "msg": "BAJAJFINSV-EQ hit 2038.0 (ABOVE)",
+        "price": 2043.8,
+        "alert_id": "128fcdb6-87b8-4d27-88ba-22adb8a84b1a"
+      },
+      {
+        "time": "2025-12-21T19:07:00.263584Z",
+        "symbol": "DLF-EQ",
+        "msg": "DLF-EQ hit 686.5 (ABOVE)",
+        "price": 691.2,
+        "alert_id": "a714e50f-ce76-4e7e-8115-d618bed9cd88"
+      },
+      {
+        "time": "2025-12-21T19:07:00.259560Z",
+        "symbol": "HAVELLS-EQ",
+        "msg": "HAVELLS-EQ hit 1411.9 (ABOVE)",
+        "price": 1416.9,
+        "alert_id": "55a4502e-7c5e-4900-a74b-5168c4f27a08"
+      },
+      {
+        "time": "2025-12-21T19:07:00.186812Z",
+        "symbol": "BULK",
+        "msg": "Generated 20 alerts for 5 stocks"
+      },
       {
         "time": "2025-12-21T11:49:37.104786Z",
         "symbol": "TATACHEM-EQ",
