@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts } from '../services/api';
+import { useState, useEffect } from 'react';
+import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts } from '../services/api';
 
 function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused }) {
     const [generating, setGenerating] = useState(false);
@@ -8,13 +8,53 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
     // Ensure watchlist is always an array
     const safeWatchlist = Array.isArray(watchlist) ? watchlist : [];
 
-    // Form state
+    // Load saved settings from localStorage
+    const loadSavedSettings = () => {
+        try {
+            const saved = localStorage.getItem('trade_yantra_alert_settings');
+            if (saved) {
+                const settings = JSON.parse(saved);
+                return {
+                    date: settings.date || new Date().toISOString().split('T')[0],
+                    isCustomRange: settings.isCustomRange || false,
+                    startTime: settings.startTime || '09:15',
+                    endTime: settings.endTime || '15:30',
+                    selectedLevels: settings.selectedLevels || ['High', 'Low', 'R1', 'S1']
+                };
+            }
+        } catch (e) {
+            console.error('Failed to load saved settings:', e);
+        }
+        return {
+            date: new Date().toISOString().split('T')[0],
+            isCustomRange: false,
+            startTime: '09:15',
+            endTime: '15:30',
+            selectedLevels: ['High', 'Low', 'R1', 'S1']
+        };
+    };
+
+    const savedSettings = loadSavedSettings();
+
+    // Form state with persistence
     const [selectedSymbol, setSelectedSymbol] = useState(safeWatchlist.length > 0 ? safeWatchlist[0].symbol : '');
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [isCustomRange, setIsCustomRange] = useState(false);
-    const [startTime, setStartTime] = useState('09:15');
-    const [endTime, setEndTime] = useState('15:30');
-    const [selectedLevels, setSelectedLevels] = useState(['High', 'Low', 'R1', 'S1']);
+    const [date, setDate] = useState(savedSettings.date);
+    const [isCustomRange, setIsCustomRange] = useState(savedSettings.isCustomRange);
+    const [startTime, setStartTime] = useState(savedSettings.startTime);
+    const [endTime, setEndTime] = useState(savedSettings.endTime);
+    const [selectedLevels, setSelectedLevels] = useState(savedSettings.selectedLevels);
+
+    // Save settings to localStorage whenever they change
+    useEffect(() => {
+        const settings = {
+            date,
+            isCustomRange,
+            startTime,
+            endTime,
+            selectedLevels
+        };
+        localStorage.setItem('trade_yantra_alert_settings', JSON.stringify(settings));
+    }, [date, isCustomRange, startTime, endTime, selectedLevels]);
 
     const handleLevelToggle = (level) => {
         setSelectedLevels(prev =>
@@ -117,6 +157,19 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
             setIsPaused(newValue);
         } catch (err) {
             console.error('Pause alerts error:', err);
+        }
+    };
+
+    const handleClearAllAlerts = async () => {
+        if (!confirm(`Are you sure you want to delete all ${alerts.length} alerts?`)) {
+            return;
+        }
+        try {
+            await clearAllAlerts(sessionId);
+            setAlerts([]);
+        } catch (err) {
+            console.error('Clear all alerts error:', err);
+            alert('Failed to clear alerts');
         }
     };
 
@@ -256,7 +309,12 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 <div className="flex items-center justify-between">
                     <h3 className="text-white font-bold text-lg">Active Alerts ({alerts.length})</h3>
                     {alerts.length > 0 && (
-                        <span className="text-xs text-gray-500">Live monitoring active</span>
+                        <button
+                            onClick={handleClearAllAlerts}
+                            className="px-3 py-1.5 bg-[#F56565] hover:bg-[#E53E3E] text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                        >
+                            🗑️ Clear All
+                        </button>
                     )}
                 </div>
 

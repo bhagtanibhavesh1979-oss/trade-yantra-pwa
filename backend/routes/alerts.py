@@ -191,6 +191,30 @@ async def delete_alert(req: DeleteAlertRequest):
         "message": "Alert deleted"
     }
 
+class ClearAllAlertsRequest(BaseModel):
+    session_id: str
+
+@router.delete("/clear-all")
+async def clear_all_alerts(req: ClearAllAlertsRequest):
+    """
+    Delete all alerts at once
+    """
+    session = session_manager.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    count = len(session.alerts)
+    session.alerts = []
+    
+    # Save session
+    session_manager.save_session(req.session_id)
+    
+    return {
+        "success": True,
+        "message": f"Cleared {count} alerts",
+        "count": count
+    }
+
 @router.post("/pause")
 async def toggle_pause(req: PauseRequest):
     """

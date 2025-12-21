@@ -125,6 +125,15 @@ export const deleteAlert = async (sessionId, alertId) => {
     return response.data;
 };
 
+export const clearAllAlerts = async (sessionId) => {
+    const response = await api.delete('/api/alerts/clear-all', {
+        data: {
+            session_id: sessionId,
+        },
+    });
+    return response.data;
+};
+
 export const pauseAlerts = async (sessionId, isPaused) => {
     const response = await api.post('/api/alerts/pause', {
         session_id: sessionId,
