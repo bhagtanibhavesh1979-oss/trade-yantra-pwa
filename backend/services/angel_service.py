@@ -57,67 +57,76 @@ class AngelService:
         Fetch previous day's closing price
         """
         try:
-            to_date_str = datetime.datetime.now().strftime('%Y-%m-%d 15:30')
-            from_date_str = (datetime.datetime.now() - datetime.timedelta(days=7)).strftime('%Y-%m-%d 09:15')
-            
-            historic_req = {
-                "exchange": "NSE",
-                "symboltoken": token,
-                "interval": "ONE_DAY",
-                "fromdate": from_date_str,
-                "todate": to_date_str
-            }
-            
-            hist_data = self._smart_candle_fetch(smart_api, historic_req)
-            
-            if hist_data and hist_data.get('status') and hist_data.get('data'):
-                candles = hist_data['data']
-                if len(candles) >= 2:
-                    # Get second last candle (previous day)
-                    return candles[-2][4]  # Close price
+            pdh, pdl, pdc = self.fetch_previous_day_high_low(smart_api, token)
+            return pdc
         except Exception as e:
             print(f"PDC fetch error for token {token}: {e}")
         return None
 
-    def fetch_historical_data(self, smart_api: SmartConnect, token: str) -> Optional[float]:
+    def fetch_previous_day_high_low(self, smart_api: SmartConnect, token: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """
-        Fetch weekly close price
-        Returns previous week's closing price
+        Fetch High, Low, and Close for the last completed trading day
+        Returns: (high, low, close)
         """
         try:
-            to_date_str = datetime.datetime.now().strftime('%Y-%m-%d 15:30')
-            from_date_str = (datetime.datetime.now() - datetime.timedelta(days=45)).strftime('%Y-%m-%d 09:15')
+            # Broaden range to 14 days to handle holidays
+            # For ONE_DAY interval, using just date usually works better
+            now = datetime.datetime.now()
+            to_date_str = now.strftime('%Y-%m-%d %H:%M')
+            from_date_str = (now - datetime.timedelta(days=14)).strftime('%Y-%m-%d %H:%M')
             
             historic_req = {
                 "exchange": "NSE",
-                "symboltoken": token,
+                "symboltoken": str(token),
                 "interval": "ONE_DAY",
                 "fromdate": from_date_str,
                 "todate": to_date_str
             }
             
+            # Detailed logging for troubleshooting
+            # print(f"DEBUG: SmartAPI Request: {historic_req}")
             hist_data = self._smart_candle_fetch(smart_api, historic_req)
             
             if hist_data and hist_data.get('status') and hist_data.get('data'):
                 candles = hist_data['data']
-                today = datetime.date.today()
-                current_week_monday = today - datetime.timedelta(days=today.weekday())
+                if not candles: 
+                    print(f"DEBUG: No candles returned for token {token}")
+                    return None, None, None
                 
-                print(f"Debug Hist Data {token}: Found {len(candles)} candles. Mon={current_week_monday}")
+                print(f"DEBUG: Total candles for {token}: {len(candles)}")
+                print(f"DEBUG: First candle raw: {candles[0]}")
                 
-                # Find previous week's close
-                for c in reversed(candles):
-                    try:
-                        c_date_str = c[0].split('T')[0]
-                        c_date = datetime.datetime.strptime(c_date_str, "%Y-%m-%d").date()
-                        if c_date < current_week_monday:
-                            print(f"  Selected WC Candle: {c_date} Close={c[4]}")
-                            return c[4]  # Close price
-                    except:
-                        continue
+                # Get last candle and check if it's today
+                today_str = now.strftime('%Y-%m-%d')
+                last_candle = candles[-1]
+                last_candle_date = last_candle[0].split('T')[0]
+                
+                if last_candle_date == today_str:
+                    if len(candles) >= 2:
+                        target = candles[-2]
+                        # print(f"DEBUG: Last candle is today ({today_str}), using penultimate candle ({target[0]})")
+                    else:
+                        # Only one candle and it's today... maybe first day of trading for this token?
+                        target = last_candle
+                        print(f"DEBUG: Only one candle found and it is today ({today_str}). Using it.")
+                else:
+                    target = last_candle
+                    # print(f"DEBUG: Last candle ({last_candle_date}) is not today ({today_str}). Using last candle.")
+                
+                # [timestamp, open, high, low, close, volume]
+                return float(target[2]), float(target[3]), float(target[4])
+            else:
+                status_msg = hist_data.get('message', 'No message') if hist_data else 'No response'
+                print(f"DEBUG: SmartAPI Error for token {token}: {status_msg}")
         except Exception as e:
-            print(f"Historical data error for token {token}: {e}")
-        return None
+            print(f"PDH/L fetch error for token {token}: {e}")
+        return None, None, None
+
+    def fetch_candle_data(self, smart_api: SmartConnect, req: Dict) -> Optional[Dict]:
+        """
+        Public wrapper to fetch candle data
+        """
+        return self._smart_candle_fetch(smart_api, req)
 
     def _smart_candle_fetch(self, smart_api: SmartConnect, req: Dict, retries: int = 3) -> Optional[Dict]:
         """

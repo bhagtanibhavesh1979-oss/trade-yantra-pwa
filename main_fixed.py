@@ -78,7 +78,7 @@ def send_telegram_alert(message):
     threading.Thread(target=_send, daemon=True).start()
 
 def load_config():
-    default = {"api_key": "", "client_id": "", "watchlist": [], "telegram_bot_token": "", "telegram_chat_id": ""}
+    default = {"api_key": "", "client_id": "", "watchlist": [], "telegram_bot_token": "", "telegram_chat_id": "", "alerts": []}
     if not os.path.exists(CONFIG_FILE): return default
     try:
         with open(CONFIG_FILE, 'r') as f:
@@ -86,6 +86,7 @@ def load_config():
             if "watchlist" not in data: data["watchlist"] = []
             if "telegram_bot_token" not in data: data["telegram_bot_token"] = ""
             if "telegram_chat_id" not in data: data["telegram_chat_id"] = ""
+            if "alerts" not in data: data["alerts"] = []
             return data
     except: return default
 
@@ -99,7 +100,8 @@ def save_config():
         "client_id": state.client_id,
         "watchlist": clean_watchlist,
         "telegram_bot_token": state.telegram_bot_token,
-        "telegram_chat_id": state.telegram_chat_id
+        "telegram_chat_id": state.telegram_chat_id,
+        "alerts": state.alerts
     }
     try:
         with open(CONFIG_FILE, 'w') as f: json.dump(data, f, indent=4)
@@ -305,19 +307,7 @@ def check_alerts(stock, page):
                 send_telegram_alert(telegram_msg)
                 if alert in state.alerts: state.alerts.remove(alert)
 
-def generate_369_levels(ltp, weekly_close):
-    if weekly_close <= 0: return []
-    levels = []
-    pattern = [30, 60, 90] if weekly_close > 3333 else [3, 6, 9]
-    curr = weekly_close
-    for i in range(10):
-        curr += pattern[i % 3]
-        if curr > ltp: levels.append({"price": round(curr, 2), "type": "ABOVE"})
-    curr = weekly_close
-    for i in range(10):
-        curr -= pattern[i % 3]
-        if curr < ltp: levels.append({"price": round(curr, 2), "type": "BELOW"})
-    return levels
+
 
 def main(page: ft.Page):
     page.title = "Trade Yantra"
@@ -331,6 +321,7 @@ def main(page: ft.Page):
     state.watchlist = config.get("watchlist", [])
     state.telegram_bot_token = config.get("telegram_bot_token", "")
     state.telegram_chat_id = config.get("telegram_chat_id", "")
+    state.alerts = config.get("alerts", [])
     load_scrips(page)
     
     api_input = ft.TextField(label="API Key", password=True, value=state.api_key)
@@ -424,8 +415,8 @@ def main(page: ft.Page):
         controls = []
         controls.append(ft.Container(
             content=ft.Column([
-                ft.Text("Strategy: 3-6-9 Logic", weight="bold"),
-                ft.ElevatedButton("Auto-Generate Levels", on_click=generate_alerts_ui, bgcolor="#667EEA", color="white"),
+                ft.Text("Strategy: High/Low Support & Resistance", weight="bold"),
+                ft.ElevatedButton("Add H/L Alerts", on_click=open_hl_alert_modal, bgcolor="#667EEA", color="white"),
                 ft.Switch(label="Pause Monitoring", value=state.is_paused, on_change=toggle_pause, active_color="#667EEA")
             ], spacing=10),
             padding=12, bgcolor="#222844", border_radius=10, border=ft.border.all(1, "#2D3748")
@@ -449,17 +440,170 @@ def main(page: ft.Page):
         controls.append(lv)
         return ft.Column(controls, expand=True)
     
-    def generate_alerts_ui(e):
-        count = 0
-        for stock in state.watchlist:
-            if stock.get('wc', 0) > 0:
-                lvls = generate_369_levels(stock.get('ltp', 0), stock['wc'])
-                for l in lvls:
-                    if not any(a['token'] == stock['token'] and a['price'] == l['price'] for a in state.alerts):
-                        state.alerts.append({"id": str(uuid.uuid4()), "symbol": stock['symbol'], "token": stock['token'], "price": l['price'], "condition": l['type']})
-                        count += 1
-        if count > 0: state.logs.insert(0, {"time": "SYS", "symbol": "AUTO", "msg": f"Generated {count} alerts"})
-        update_view()
+    def open_hl_alert_modal(e):
+        # UI Components
+        stock_dd = ft.Dropdown(label="Select Stock", options=[ft.dropdown.Option(s['symbol']) for s in state.watchlist], expand=True)
+        if state.watchlist: stock_dd.value = state.watchlist[0]['symbol']
+        
+        date_input = ft.TextField(label="Date (YYYY-MM-DD)", value=datetime.date.today().strftime("%Y-%m-%d"), expand=True)
+        
+        use_custom_time = ft.Checkbox(label="Custom Time Range", value=False, on_change=lambda e: toggle_time_inputs(e.control.value))
+        start_time_input = ft.TextField(label="Start (HH:MM)", value="09:15", visible=False, width=100)
+        end_time_input = ft.TextField(label="End (HH:MM)", value="15:30", visible=False, width=100)
+        
+        status_text = ft.Text("", color="orange")
+        
+        def toggle_time_inputs(visible):
+            start_time_input.visible = visible
+            end_time_input.visible = visible
+            bs.update()
+            
+        def run_calc(e):
+            symbol = stock_dd.value
+            date_str = date_input.value
+            if not symbol or not date_str:
+                status_text.value = "Please select stock and date"
+                bs.update()
+                return
+            
+            status_text.value = "Fetching Data..."
+            status_text.color = "blue"
+            bs.update()
+            
+            # Find token
+            token = next((s['token'] for s in state.watchlist if s['symbol'] == symbol), None)
+            if not token:
+                status_text.value = "Stock not found"
+                bs.update()
+                return
+
+            # Helper to run in thread
+            def _calc_thread():
+                try:
+                    is_custom = use_custom_time.value
+                    s_time = start_time_input.value if is_custom else "09:15"
+                    e_time = end_time_input.value if is_custom else "15:30"
+                    
+                    alerts = generate_high_low_alerts(symbol, token, date_str, s_time, e_time, is_custom)
+                    if alerts:
+                        for a in alerts:
+                            state.alerts.append(a)
+                        save_config()
+                        update_view()
+                        page.close(bs)
+                        page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Added {len(alerts)} alerts for {symbol}")))
+                    else:
+                        status_text.value = "No data found or API error"
+                        status_text.color = "red"
+                        try: bs.update()
+                        except: pass
+                except Exception as ex:
+                    status_text.value = f"Error: {str(ex)}"
+                    status_text.color = "red"
+                    try: bs.update()
+                    except: pass
+            
+            threading.Thread(target=_calc_thread, daemon=True).start()
+
+        bs = ft.BottomSheet(
+            ft.Container(
+                ft.Column([
+                    ft.Text("Add High/Low Alerts", size=20, weight="bold"),
+                    stock_dd,
+                    date_input,
+                    use_custom_time,
+                    ft.Row([start_time_input, end_time_input]),
+                    ft.ElevatedButton("Generate Alerts", on_click=run_calc, bgcolor="#667EEA", color="white"),
+                    status_text
+                ], spacing=15),
+                padding=20, height=500
+            ),
+            open=True
+        )
+        page.overlay.append(bs)
+        page.update()
+
+    def generate_high_low_alerts(symbol, token, date_str, start_time, end_time, is_custom):
+        if not state.smart_api: return []
+        
+        try:
+            # Parse Dates
+            base_date = datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            from_dt = datetime.datetime.strptime(f"{date_str} {start_time}", "%Y-%m-%d %H:%M")
+            to_dt = datetime.datetime.strptime(f"{date_str} {end_time}", "%Y-%m-%d %H:%M")
+            
+            # API Format
+            # ONE_DAY fetch for full day (more reliable for H/L than iterating minutes)
+            # ONE_MINUTE for custom range
+            
+            interval = "ONE_MINUTE" if is_custom else "ONE_DAY"
+            # For API 'todate' is inclusive, usually we want the end of the period
+            api_from = from_dt.strftime('%Y-%m-%d %H:%M')
+            api_to = to_dt.strftime('%Y-%m-%d %H:%M')
+            
+            req = {
+                "exchange": "NSE",
+                "symboltoken": token,
+                "interval": interval,
+                "fromdate": api_from,
+                "todate": api_to
+            }
+            
+            print(f"Fetching {interval} for {symbol}: {api_from} to {api_to}")
+            data = state.smart_api.getCandleData(req)
+            
+            high = -1.0
+            low = 99999999.0
+            
+            if data and data.get('status') and data.get('data'):
+                candles = data['data']
+                if not candles: return []
+                
+                # If ONE_DAY, we get one candle (usually)
+                if not is_custom:
+                    c = candles[0] # [timestamp, open, high, low, close, volume]
+                    high = c[2]
+                    low = c[3]
+                else:
+                    # Iterate minute candles
+                    for c in candles:
+                        c_high = c[2]
+                        c_low = c[3]
+                        if c_high > high: high = c_high
+                        if c_low < low: low = c_low
+            else:
+                return []
+            
+            if high <= 0 or low >= 99999999: return []
+            
+            diff = high - low
+            res_price = round(high + diff, 2)
+            sup_price = round(low - diff, 2)
+            
+            new_alerts = []
+            # Resistance Alert (ABOVE)
+            new_alerts.append({
+                "id": str(uuid.uuid4()),
+                "symbol": symbol,
+                "token": token,
+                "price": res_price,
+                "condition": "ABOVE"
+            })
+            # Support Alert (BELOW)
+            new_alerts.append({
+                "id": str(uuid.uuid4()),
+                "symbol": symbol,
+                "token": token,
+                "price": sup_price,
+                "condition": "BELOW"
+            })
+            
+            print(f"Generated Levels for {symbol}: H={high}, L={low}, Diff={diff}, Res={res_price}, Sup={sup_price}")
+            return new_alerts
+            
+        except Exception as e:
+            print(f"Gen Alert Error: {e}")
+            return []
     
     def delete_alert(uid):
         state.alerts = [a for a in state.alerts if a['id'] != uid]

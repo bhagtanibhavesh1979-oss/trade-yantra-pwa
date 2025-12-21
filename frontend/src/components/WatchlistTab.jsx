@@ -45,7 +45,9 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                 token: stock.token,
                 exch_seg: stock.exch_seg,
                 ltp: 0,
-                wc: 0,
+                pdc: 0,
+                pdh: 0,
+                pdl: 0,
             }]);
 
             setSearchQuery('');
@@ -212,8 +214,9 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                 <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
                                     <th className="px-3 py-3 text-left text-xs font-semibold text-gray-300 w-[30%] border-r border-[#2D3748]">Symbol</th>
                                     <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">PDC</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[15%] border-r border-[#2D3748]">WC</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">PDC</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">High</th>
+                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">Low</th>
                                     <th className="px-3 py-3 text-center text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
                                 </tr>
                             </thead>
@@ -241,7 +244,10 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                                 {stock.pdc?.toFixed(2) || '0.00'}
                                             </td>
                                             <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
-                                                {stock.wc?.toFixed(2) || '0.00'}
+                                                {stock.pdh?.toFixed(2) || '0.00'}
+                                            </td>
+                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
+                                                {stock.pdl?.toFixed(2) || '0.00'}
                                             </td>
                                             <td className="px-3 py-3 text-center text-xs">
                                                 <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
@@ -292,9 +298,15 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist }) {
                                 </div>
                             </div>
                             <div className="bg-[#1A1F3A] p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs text-center">Weekly Close</div>
+                                <div className="text-gray-400 text-xs text-center">Prev High</div>
                                 <div className="text-lg font-semibold text-white text-center">
-                                    ₹{selectedStock.wc?.toFixed(2)}
+                                    ₹{selectedStock.pdh?.toFixed(2)}
+                                </div>
+                            </div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                                <div className="text-gray-400 text-xs text-center">Prev Low</div>
+                                <div className="text-lg font-semibold text-white text-center">
+                                    ₹{selectedStock.pdl?.toFixed(2)}
                                 </div>
                             </div>
                         </div>

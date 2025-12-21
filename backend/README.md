@@ -6,7 +6,7 @@ Progressive Web App Trading Backend with Angel One SmartAPI Integration
 - ✅ Manual login (no credential storage)
 - ✅ Real-time WebSocket streaming
 - ✅ Watchlist management
-- ✅ 3-6-9 alert system
+- ✅ High/Low based Alert system
 - ✅ Auto-reconnect on Railway sleep
 - ✅ In-memory session storage
 
@@ -41,49 +41,19 @@ Once running, visit:
 - `GET /api/watchlist/{session_id}` - Get watchlist
 - `POST /api/watchlist/add` - Add stock to watchlist
 - `DELETE /api/watchlist/remove` - Remove stock
-- `POST /api/watchlist/refresh` - Refresh LTP and weekly close
+- `POST /api/watchlist/refresh` - Refresh LTP, High/Low and PDC
 - `GET /api/watchlist/search/{query}` - Search symbols
 
 ### Alerts
 - `GET /api/alerts/{session_id}` - Get all alerts
 - `POST /api/alerts/create` - Create manual alert
-- `POST /api/alerts/generate` - Auto-generate 3-6-9 alerts
+- `POST /api/alerts/generate` - Auto-generate High/Low alerts
 - `DELETE /api/alerts/delete` - Delete alert
 - `POST /api/alerts/pause` - Pause/resume monitoring
 - `GET /api/alerts/logs/{session_id}` - Get alert logs
 
 ### WebSocket
 - `WS /ws/stream/{session_id}` - Real-time data stream
-
-## Deployment on Railway
-
-1. **Push to GitHub**
-   ```bash
-   git add .
-   git commit -m "Backend ready for deployment"
-   git push
-   ```
-
-2. **Connect to Railway**
-   - Login to [railway.app](https://railway.app)
-   - Create new project from GitHub repo
-   - Select `backend` folder as root directory
-
-3. **Set Environment Variables**
-   ```
-   CORS_ORIGINS=https://your-frontend.vercel.app
-   ```
-
-4. **Deploy**
-   - Railway will automatically deploy using `Procfile`
-
-## Important Notes
-
-⚠️ **No Credential Storage**: API credentials are never stored. Users must login manually each time.
-
-⚠️ **Railway Free Tier**: Backend sleeps after 10-15 minutes of inactivity. Cold start takes 15-40 seconds.
-
-⚠️ **Session Storage**: All sessions are stored in RAM only. They are deleted on server restart.
 
 ## Architecture
 

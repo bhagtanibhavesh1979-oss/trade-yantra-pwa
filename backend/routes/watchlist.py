@@ -9,8 +9,24 @@ from services.session_manager import session_manager
 from services.angel_service import angel_service
 from services.websocket_manager import ws_manager
 import threading
+import time
 
 router = APIRouter(prefix="/api/watchlist", tags=["Watchlist"])
+
+@router.get("/debug/all")
+async def debug_all():
+    """
+    Debug: Return all sessions and their watchlists
+    """
+    sessions = session_manager.get_all_sessions()
+    debug_data = {}
+    for sid, s in sessions.items():
+        debug_data[sid] = {
+            "client_id": s.client_id,
+            "watchlist": s.watchlist,
+            "alerts_count": len(s.alerts)
+        }
+    return debug_data
 
 class AddStockRequest(BaseModel):
     session_id: str
@@ -59,7 +75,8 @@ async def add_stock(req: AddStockRequest):
         "exch_seg": req.exch_seg,
         "ltp": 0.0,
         "pdc": 0.0,
-        "wc": 0.0,
+        "pdh": 0.0,
+        "pdl": 0.0,
         "loading": True
     }
     
@@ -82,17 +99,17 @@ async def add_stock(req: AddStockRequest):
         if ltp:
             stock_data['ltp'] = ltp
         
-        # Fetch previous day close
-        pdc = angel_service.fetch_previous_day_close(smart_api, req.token)
-        if pdc:
-            stock_data['pdc'] = pdc
-        
-        # Fetch weekly close
-        wc = angel_service.fetch_historical_data(smart_api, req.token)
-        if wc:
-            stock_data['wc'] = wc
+        # Fetch previous day High/Low/Close
+        print(f"DEBUG: Background fetch for {req.symbol} started...")
+        pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(smart_api, req.token)
+        print(f"DEBUG: Background fetch for {req.symbol} result: PDH={pdh}, PDL={pdl}, PDC={pdc}")
+        if pdh is not None: stock_data['pdh'] = pdh
+        if pdl is not None: stock_data['pdl'] = pdl
+        if pdc is not None: stock_data['pdc'] = pdc
         
         stock_data['loading'] = False
+        # Save session after update
+        session_manager.save_session(req.session_id)
     
     threading.Thread(target=fetch_data, daemon=True).start()
     
@@ -158,17 +175,18 @@ async def refresh_watchlist(req: RefreshRequest):
             if ltp:
                 stock['ltp'] = ltp
             
-            # Fetch previous day close
-            pdc = angel_service.fetch_previous_day_close(smart_api, stock['token'])
-            if pdc:
-                stock['pdc'] = pdc
-            
-            # Fetch weekly close
-            wc = angel_service.fetch_historical_data(smart_api, stock['token'])
-            if wc:
-                stock['wc'] = wc
+            # Fetch previous day High/Low/Close
+            pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(smart_api, stock['token'])
+            if pdh is not None: stock['pdh'] = pdh
+            if pdl is not None: stock['pdl'] = pdl
+            if pdc is not None: stock['pdc'] = pdc
             
             stock['loading'] = False
+            # Small sleep to respect rate limits during bulk refresh
+            time.sleep(0.5)
+            
+        # Save session after all updates
+        session_manager.save_session(req.session_id)
     
     threading.Thread(target=refresh_all, daemon=True).start()
     
@@ -190,3 +208,4 @@ async def search_symbols(query: str):
     return {
         "results": results
     }
+

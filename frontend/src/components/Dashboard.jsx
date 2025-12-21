@@ -66,6 +66,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                 {activeTab === 'alerts' && (
                     <AlertsTab
                         sessionId={session.sessionId}
+                        watchlist={watchlist}
                         alerts={alerts}
                         setAlerts={setAlerts}
                         isPaused={isPaused}

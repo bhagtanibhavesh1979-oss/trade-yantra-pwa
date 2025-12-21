@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts } from '../services/api';
 
-function AlertsTab({ sessionId, watchlist, alerts, setAlerts, isPaused, setIsPaused }) {
+function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
 
+    // Ensure watchlist is always an array
+    const safeWatchlist = Array.isArray(watchlist) ? watchlist : [];
+
     // Form state
-    const [selectedSymbol, setSelectedSymbol] = useState(watchlist.length > 0 ? watchlist[0].symbol : '');
+    const [selectedSymbol, setSelectedSymbol] = useState(safeWatchlist.length > 0 ? safeWatchlist[0].symbol : '');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isCustomRange, setIsCustomRange] = useState(false);
     const [startTime, setStartTime] = useState('09:15');
@@ -60,7 +63,7 @@ function AlertsTab({ sessionId, watchlist, alerts, setAlerts, isPaused, setIsPau
     };
 
     const handleGenerateBulkAlerts = async () => {
-        if (watchlist.length === 0) {
+        if (safeWatchlist.length === 0) {
             alert('Watchlist is empty');
             return;
         }
@@ -148,7 +151,7 @@ function AlertsTab({ sessionId, watchlist, alerts, setAlerts, isPaused, setIsPau
                                 className="bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-2.5 focus:border-[#667EEA] focus:ring-1 focus:ring-[#667EEA] outline-none transition-all"
                             >
                                 <option value="">Select a stock...</option>
-                                {watchlist.map(s => (
+                                {safeWatchlist.map(s => (
                                     <option key={s.token} value={s.symbol}>{s.symbol}</option>
                                 ))}
                             </select>
@@ -233,16 +236,16 @@ function AlertsTab({ sessionId, watchlist, alerts, setAlerts, isPaused, setIsPau
 
                     <button
                         onClick={handleGenerateBulkAlerts}
-                        disabled={generating || bulkGenerating || watchlist.length === 0}
+                        disabled={generating || bulkGenerating || safeWatchlist.length === 0}
                         className="py-3 bg-[#48BB78] hover:bg-[#38A169] text-white font-bold rounded-lg shadow-lg hover:shadow-[#48BB7844] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {bulkGenerating ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Processing {watchlist.length} stocks...
+                                Processing {safeWatchlist.length} stocks...
                             </>
                         ) : (
-                            `🚀 Generate for All Watchlist (${watchlist.length})`
+                            `🚀 Generate for All Watchlist (${safeWatchlist.length})`
                         )}
                     </button>
                 </div>

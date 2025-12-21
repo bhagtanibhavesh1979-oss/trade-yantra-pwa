@@ -68,8 +68,10 @@ function App() {
             return {
               ...stock,
               ltp: data.ltp,
-              // Keep old WC if not provided
-              wc: stock.wc,
+              // Preserve pdc, pdh, pdl
+              pdc: stock.pdc,
+              pdh: stock.pdh,
+              pdl: stock.pdl,
             };
           }
           return stock;
