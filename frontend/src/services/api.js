@@ -95,9 +95,22 @@ export const getAlerts = async (sessionId) => {
     return response.data;
 };
 
-export const generateAlerts = async (sessionId) => {
+// Generate High/Low alerts
+export const generateAlerts = async (sessionId, params) => {
+    // params: { symbol, date, start_time, end_time, is_custom_range }
     const response = await api.post('/api/alerts/generate', {
         session_id: sessionId,
+        ...params
+    });
+    return response.data;
+};
+
+// Generate High/Low alerts for ALL watchlist stocks
+export const generateBulkAlerts = async (sessionId, params) => {
+    // params: { date, start_time, end_time, is_custom_range, levels }
+    const response = await api.post('/api/alerts/generate-bulk', {
+        session_id: sessionId,
+        ...params
     });
     return response.data;
 };

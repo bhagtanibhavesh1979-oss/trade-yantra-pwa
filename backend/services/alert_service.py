@@ -1,45 +1,101 @@
 """
-Alert Service - 3-6-9 Trading Logic
+Alert Service - High/Low Alert Strategy
+Handles calculation of High, Low, Resistance and Support levels
 """
 from typing import List, Dict
 import datetime
 import uuid
 
-def generate_369_levels(ltp: float, weekly_close: float) -> List[Dict]:
+from services.angel_service import angel_service
+from SmartApi import SmartConnect
+
+def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, date: str, start_time: str, end_time: str, is_custom: bool) -> List[Dict]:
     """
-    Generate 3-6-9 alert levels based on weekly close
-    Pattern: [3,6,9] for stocks < 3333, [30,60,90] for stocks > 3333
+    Generate Alerts based on High/Low of a specific period.
+    Formula:
+    Diff = High - Low
+    Resistance = High + Diff
+    Support = Low - Diff
     """
-    if weekly_close <= 0:
+    try:
+        # Parse Dates
+        base_date = datetime.datetime.strptime(date, "%Y-%m-%d")
+        from_dt = datetime.datetime.strptime(f"{date} {start_time}", "%Y-%m-%d %H:%M")
+        to_dt = datetime.datetime.strptime(f"{date} {end_time}", "%Y-%m-%d %H:%M")
+        
+        interval = "ONE_MINUTE" if is_custom else "ONE_DAY"
+        api_from = from_dt.strftime('%Y-%m-%d %H:%M')
+        api_to = to_dt.strftime('%Y-%m-%d %H:%M')
+        
+        req = {
+            "exchange": "NSE",
+            "symboltoken": token,
+            "interval": interval,
+            "fromdate": api_from,
+            "todate": api_to
+        }
+        
+        data = angel_service.fetch_candle_data(smart_api, req)
+        
+        high = -1.0
+        low = 99999999.0
+        
+        if data and data.get('status') and data.get('data'):
+            candles = data['data']
+            if not candles: return []
+            
+            if not is_custom:
+                c = candles[0] # [timestamp, open, high, low, close, volume]
+                high = c[2]
+                low = c[3]
+            else:
+                for c in candles:
+                    c_high = c[2]
+                    c_low = c[3]
+                    if c_high > high: high = c_high
+                    if c_low < low: low = c_low
+        else:
+            return []
+        
+        if high <= 0 or low >= 99999999: return []
+        
+        # Calculate half-difference for multi-level support/resistance
+        diff = (high - low) / 2
+        
+        # Generate 4 resistance levels: R1, R2, R3, R4
+        r1 = round(high + diff, 2)
+        r2 = round(high + (2 * diff), 2)
+        r3 = round(high + (3 * diff), 2)
+        r4 = round(high + (4 * diff), 2)
+        
+        # Generate 4 support levels: S1, S2, S3, S4
+        s1 = round(low - diff, 2)
+        s2 = round(low - (2 * diff), 2)
+        s3 = round(low - (3 * diff), 2)
+        s4 = round(low - (4 * diff), 2)
+        
+        # Return 10 levels: High, Low, R1-R4, S1-S4
+        levels = [
+            {"price": high, "type": "ABOVE", "label": "High"},
+            {"price": low, "type": "BELOW", "label": "Low"},
+            {"price": r1, "type": "ABOVE", "label": "R1"},
+            {"price": r2, "type": "ABOVE", "label": "R2"},
+            {"price": r3, "type": "ABOVE", "label": "R3"},
+            {"price": r4, "type": "ABOVE", "label": "R4"},
+            {"price": s1, "type": "BELOW", "label": "S1"},
+            {"price": s2, "type": "BELOW", "label": "S2"},
+            {"price": s3, "type": "BELOW", "label": "S3"},
+            {"price": s4, "type": "BELOW", "label": "S4"}
+        ]
+        
+        print(f"Generated Levels for {symbol}: H={high}, L={low}, Diff={diff}")
+        print(f"  Resistance: R1={r1}, R2={r2}, R3={r3}, R4={r4}")
+        print(f"  Support: S1={s1}, S2={s2}, S3={s3}, S4={s4}")
+        return levels
+        
+    except Exception as e:
+        print(f"Gen Alert Error: {e}")
         return []
-    
-    levels = []
-    pattern = [30, 60, 90] if weekly_close > 3333 else [3, 6, 9]
-    
-    # Generate potential UP levels (Resistance flow)
-    curr = weekly_close
-    for i in range(10):
-        curr += pattern[i % 3]
-        price = round(curr, 2)
-        
-        if price > ltp:
-            levels.append({"price": price, "type": "ABOVE"})
-        elif price < ltp:
-            levels.append({"price": price, "type": "BELOW"})
-    
-    # Generate potential DOWN levels (Support flow)
-    curr = weekly_close
-    for i in range(10):
-        curr -= pattern[i % 3]
-        price = round(curr, 2)
-        
-        # Dynamic typing: If price is ABOVE ltp, it's resistance. If BELOW, it's support.
-        if price > ltp:
-            levels.append({"price": price, "type": "ABOVE"})
-        elif price < ltp:
-            levels.append({"price": price, "type": "BELOW"})
-    
-    return levels
 
 def check_alert_trigger(alert: Dict, stock: Dict) -> bool:
     """

@@ -45,19 +45,19 @@ npm-debug.log*
 backend/logs/
 
 # Flet app files (exclude from web version)
-/main.py
-main.py.backup
-main_complete.py
-main_fixed.py
-main_fixed_backup.py
-test_main.py
-/components/
-/services/
-assets/
-.fletignore
-flet_info.txt
-MOBILE_BUILD_GUIDE.md
-metadata.json
+# /main.py
+# main.py.backup
+# main_complete.py
+# main_fixed.py
+# main_fixed_backup.py
+# test_main.py
+# /components/
+# /services/
+# assets/
+# .fletignore
+# flet_info.txt
+# MOBILE_BUILD_GUIDE.md
+# metadata.json
 
 # Debug/test files
 debug_*.py

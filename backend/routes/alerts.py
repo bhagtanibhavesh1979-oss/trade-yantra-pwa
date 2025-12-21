@@ -1,12 +1,12 @@
 """
 Alerts Routes
-Alert management and 3-6-9 level generation
+API endpoints for alert management and High/Low level generation
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List
 from services.session_manager import session_manager
-from services.alert_service import generate_369_levels, create_alert
+from services.alert_service import create_alert
 import uuid
 import datetime
 
@@ -21,6 +21,12 @@ class CreateAlertRequest(BaseModel):
 
 class GenerateAlertsRequest(BaseModel):
     session_id: str
+    symbol: str  # Required now
+    date: str    # "YYYY-MM-DD"
+    start_time: str = "09:15"
+    end_time: str = "15:30"
+    is_custom_range: bool = False
+    levels: List[str] = ["High", "Low"] # Default targets
 
 class DeleteAlertRequest(BaseModel):
     session_id: str
@@ -29,6 +35,14 @@ class DeleteAlertRequest(BaseModel):
 class PauseRequest(BaseModel):
     session_id: str
     paused: bool
+
+class GenerateBulkAlertsRequest(BaseModel):
+    session_id: str
+    date: str    # "YYYY-MM-DD"
+    start_time: str = "09:15"
+    end_time: str = "15:30"
+    is_custom_range: bool = False
+    levels: List[str] = ["High", "Low", "R1", "S1"]  # Default targets
 
 @router.get("/{session_id}")
 async def get_alerts(session_id: str):
@@ -75,64 +89,83 @@ async def create_manual_alert(req: CreateAlertRequest):
         "alert": alert
     }
 
+from services.alert_service import generate_high_low_alerts
+
 @router.post("/generate")
 async def generate_auto_alerts(req: GenerateAlertsRequest):
     """
-    Auto-generate 3-6-9 alerts for all watchlist stocks
+    Generate High/Low alerts for a specific stock
     """
     session = session_manager.get_session(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    count = 0
-    new_alerts = []
+    if not session.smart_api:
+        raise HTTPException(status_code=400, detail="Angel One not connected")
+
+    # Find token
+    stock = next((s for s in session.watchlist if s['symbol'] == req.symbol), None)
+    if not stock:
+        raise HTTPException(status_code=404, detail="Stock not in watchlist")
+
+    print(f"DEBUG: Generating H/L Alerts for {req.symbol} on {req.date}")
+    print(f"DEBUG: Levels requested: {req.levels}")
     
-    for stock in session.watchlist:
-        wc = stock.get('wc', 0)
-        ltp = stock.get('ltp', 0)
+    new_alert_data = generate_high_low_alerts(
+        session.smart_api, 
+        req.symbol, 
+        stock['token'], 
+        req.date, 
+        req.start_time, 
+        req.end_time, 
+        req.is_custom_range
+    )
+    
+    count = 0
+    added_alerts = []
+    
+    for alert_data in new_alert_data:
+        # Filter by selected levels
+        if alert_data.get('label') not in req.levels:
+            continue
+
+        # Check duplicate
+        is_duplicate = any(
+            a['token'] == stock['token'] and 
+            a['price'] == alert_data['price'] and 
+            a['condition'] == alert_data['type']
+            for a in session.alerts
+        )
         
-        if wc > 0 and ltp > 0:
-            print(f"Generating 3-6-9 for {stock['symbol']}: LTP={ltp}, WC={wc}")
-            levels = generate_369_levels(ltp, wc)
-            
-            for level in levels:
-                # Check for duplicates
-                is_duplicate = any(
-                    a['token'] == stock['token'] and 
-                    a['price'] == level['price'] and 
-                    a['condition'] == level['type']
-                    for a in session.alerts
-                )
-                
-                if not is_duplicate:
-                    alert = create_alert(
-                        stock['symbol'],
-                        stock['token'],
-                        level['type'],
-                        level['price'],
-                        "AUTO"
-                    )
-                    session.alerts.append(alert)
-                    new_alerts.append(alert)
-                    count += 1
+        if not is_duplicate:
+            alert = create_alert(
+                req.symbol,
+                stock['token'],
+                alert_data['type'],
+                alert_data['price'],
+                f"AUTO_{alert_data.get('label', 'HL').upper()}"
+            )
+            session.alerts.append(alert)
+            added_alerts.append(alert)
+            count += 1
+    
+    print(f"DEBUG: Successfully added {count} alerts: {[a['price'] for a in added_alerts]}")
     
     # Create log entry
     if count > 0:
         log_entry = {
             "time": datetime.datetime.utcnow().isoformat() + "Z",
-            "symbol": "AUTO",
-            "msg": f"Generated {count} alerts"
+            "symbol": req.symbol,
+            "msg": f"Generated {count} H/L alerts"
         }
         session.logs.insert(0, log_entry)
-        
-        # Save session
         session_manager.save_session(req.session_id)
     
     return {
         "success": True,
         "message": f"Generated {count} new alerts",
         "count": count,
-        "alerts": new_alerts
+        "alerts": added_alerts
     }
 
 @router.delete("/delete")
@@ -176,6 +209,105 @@ async def toggle_pause(req: PauseRequest):
         "success": True,
         "is_paused": session.is_paused,
         "message": f"Alerts {'paused' if req.paused else 'resumed'}"
+    }
+
+@router.post("/generate-bulk")
+async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
+    """
+    Generate High/Low alerts for ALL stocks in watchlist
+    """
+    session = session_manager.get_session(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.smart_api:
+        raise HTTPException(status_code=400, detail="Angel One not connected")
+    
+    if not session.watchlist or len(session.watchlist) == 0:
+        raise HTTPException(status_code=400, detail="Watchlist is empty")
+    
+    print(f"DEBUG: Bulk generating alerts for {len(session.watchlist)} stocks")
+    print(f"DEBUG: Date={req.date}, Levels={req.levels}")
+    
+    total_alerts = 0
+    results = []
+    
+    for stock in session.watchlist:
+        try:
+            symbol = stock['symbol']
+            token = stock['token']
+            
+            new_alert_data = generate_high_low_alerts(
+                session.smart_api,
+                symbol,
+                token,
+                req.date,
+                req.start_time,
+                req.end_time,
+                req.is_custom_range
+            )
+            
+            stock_alerts_count = 0
+            added_alerts = []
+            
+            for alert_data in new_alert_data:
+                # Filter by selected levels
+                if alert_data.get('label') not in req.levels:
+                    continue
+                
+                # Check duplicate
+                is_duplicate = any(
+                    a['token'] == token and
+                    a['price'] == alert_data['price'] and
+                    a['condition'] == alert_data['type']
+                    for a in session.alerts
+                )
+                
+                if not is_duplicate:
+                    alert = create_alert(
+                        symbol,
+                        token,
+                        alert_data['type'],
+                        alert_data['price'],
+                        f"AUTO_{alert_data.get('label', 'HL').upper()}"
+                    )
+                    session.alerts.append(alert)
+                    added_alerts.append(alert)
+                    stock_alerts_count += 1
+            
+            total_alerts += stock_alerts_count
+            results.append({
+                "symbol": symbol,
+                "success": True,
+                "count": stock_alerts_count
+            })
+            
+            print(f"DEBUG: {symbol} - Generated {stock_alerts_count} alerts")
+            
+        except Exception as e:
+            print(f"ERROR: Failed to generate alerts for {stock['symbol']}: {e}")
+            results.append({
+                "symbol": stock['symbol'],
+                "success": False,
+                "error": str(e)
+            })
+    
+    # Create log entry
+    if total_alerts > 0:
+        log_entry = {
+            "time": datetime.datetime.utcnow().isoformat() + "Z",
+            "symbol": "BULK",
+            "msg": f"Generated {total_alerts} alerts for {len(session.watchlist)} stocks"
+        }
+        session.logs.insert(0, log_entry)
+        session_manager.save_session(req.session_id)
+    
+    return {
+        "success": True,
+        "message": f"Generated {total_alerts} alerts for {len(session.watchlist)} stocks",
+        "total_alerts": total_alerts,
+        "total_stocks": len(session.watchlist),
+        "results": results
     }
 
 @router.get("/logs/{session_id}")

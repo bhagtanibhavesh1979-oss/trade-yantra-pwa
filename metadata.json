@@ -1,0 +1,5 @@
+{
+  "name": "Trade Yantra",
+  "description": "A real-time stock monitoring dashboard by Trade Yantra featuring authentication, live watchlist updates, and technical price alerts.",
+  "requestFramePermissions": []
+}
