@@ -105,7 +105,10 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
                 console.error('Poll error:', err);
                 // Don't clear interval on error, retry next time
             }
-        }, 5000); // Increased to 5s to reduce load
+        }, 5000);
+
+        // Cleanup on unmount
+        return () => clearInterval(pollInterval);
 
         // Return cleanup function if we were in useEffect, 
         // but here we just let it run. In a real app we should manage this better.

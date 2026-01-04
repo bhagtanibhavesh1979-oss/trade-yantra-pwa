@@ -5,7 +5,7 @@ import IndicesTab from './IndicesTab';
 import LogsTab from './LogsTab';
 import { logout } from '../services/api';
 
-function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, setLogs, isPaused, setIsPaused, referenceDate, setReferenceDate, wsStatus }) {
+function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, isPaused, setIsPaused, referenceDate, setReferenceDate, wsStatus }) {
     const [activeTab, setActiveTab] = useState('watchlist');
 
     // Theme State

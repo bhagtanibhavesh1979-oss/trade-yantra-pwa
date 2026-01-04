@@ -32,7 +32,9 @@ function App() {
         const settings = JSON.parse(saved);
         return settings.date || new Date().toISOString().split('T')[0];
       }
-    } catch { }
+    } catch (e) {
+      console.error('Failed to parse settings:', e);
+    }
     return new Date().toISOString().split('T')[0];
   });
 
@@ -134,19 +136,7 @@ function App() {
 
       // Play sound
       try {
-        const audio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // Short beep placeholder
-        // Better beep sound (Base64 for a simple chime)
-        const chime = new Audio("data:audio/mp3;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84000000000000000000000000000000000000000000000000//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAG84000000000000000000000000000000000000000000000000");
-        // Using a comprehensive beep url or local file is better, but this is a start.
-        // Let's use a standard accessible URL or just a simple beep logic if possible.
-        // Since I cannot upload a file easily, I will trust the user to replace it or I will use a public URL if allowed. 
-        // Reverting to a simple console log placeholder for sound for now to avoid broken base64, 
-        // but wait, I can write a valid base64 short beep.
-
         // Simple Beep Base64
-        const beep = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
-        // beep.play().catch(e => console.log('Audio play failed:', e));
-
         // BETTER: Use the browser's SpeechSynthesis for a spoken alert if audio fails? No, standard sound is better.
         // Let's add a log and a real placeholder specific for "alert.mp3" that the user can fill, or a base64.
 
@@ -182,7 +172,7 @@ function App() {
           // We can do this in the background
           import('./services/api').then(({ addToWatchlist }) => {
             addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg)
-              .catch(err => {
+              .catch(() => {
                 // Ignore 'already exists' errors
                 // console.log("Sync stock error", err); 
               });
