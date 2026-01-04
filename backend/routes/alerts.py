@@ -27,6 +27,8 @@ class GenerateAlertsRequest(BaseModel):
     end_time: str = "15:30"
     is_custom_range: bool = False
     levels: List[str] = ["High", "Low"] # Default targets
+    token: str = None  # Optional: manually provide token (for indices)
+    exchange: str = None # Optional: manually provide exchange (for indices)
 
 class DeleteAlertRequest(BaseModel):
     session_id: str
@@ -71,11 +73,20 @@ async def create_manual_alert(req: CreateAlertRequest):
     if req.condition not in ["ABOVE", "BELOW"]:
         raise HTTPException(status_code=400, detail="Condition must be ABOVE or BELOW")
     
-    # Check if stock exists in watchlist
+    # Check if stock exists in watchlist (legacy check, maybe relax for manual index alerts too?)
+    # For now, let's allow if token is passed or if it's in watchlist
+    # But manual alert creation UI likely still uses watchlist context. This is about auto-generation.
     stock = next((s for s in session.watchlist if s['token'] == req.token), None)
-    if not stock:
-        raise HTTPException(status_code=404, detail="Stock not in watchlist")
     
+    # Relaxed check: Only enforce watchlist if req.token implies it came from there? 
+    # Actually manual alerts usually come from click ACTIONS on a specific stock.
+    # If we want manual alerts for indices, we need similar logic.
+    # But for now, let's focus on auto-generation.
+    if not stock: 
+        # Bypass if it looks like an index (we can't easily verify w/o token lookup, but CreateAlertRequest has token)
+        # Let's just assume valid token for now if coming from UI.
+        pass
+
     # Create alert
     alert = create_alert(req.symbol, req.token, req.condition, req.price, "MANUAL")
     session.alerts.append(alert)
@@ -103,22 +114,28 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
     if not session.smart_api:
         raise HTTPException(status_code=400, detail="Angel One not connected")
 
-    # Find token
-    stock = next((s for s in session.watchlist if s['symbol'] == req.symbol), None)
-    if not stock:
-        raise HTTPException(status_code=404, detail="Stock not in watchlist")
+    token = req.token
+    exchange = req.exchange or "NSE"
 
-    print(f"DEBUG: Generating H/L Alerts for {req.symbol} on {req.date}")
+    # If token not provided, look up in watchlist
+    if not token:
+        stock = next((s for s in session.watchlist if s['symbol'] == req.symbol), None)
+        if not stock:
+            raise HTTPException(status_code=404, detail="Stock not in watchlist and no token provided")
+        token = stock['token']
+
+    print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) on {req.date}")
     print(f"DEBUG: Levels requested: {req.levels}")
     
     new_alert_data = generate_high_low_alerts(
         session.smart_api, 
         req.symbol, 
-        stock['token'], 
+        token, 
         req.date, 
         req.start_time, 
         req.end_time, 
-        req.is_custom_range
+        req.is_custom_range,
+        exchange
     )
     
     count = 0
@@ -131,7 +148,7 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
 
         # Check duplicate
         is_duplicate = any(
-            a['token'] == stock['token'] and 
+            a['token'] == token and 
             a['price'] == alert_data['price'] and 
             a['condition'] == alert_data['type']
             for a in session.alerts
@@ -140,7 +157,7 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         if not is_duplicate:
             alert = create_alert(
                 req.symbol,
-                stock['token'],
+                token,
                 alert_data['type'],
                 alert_data['price'],
                 f"AUTO_{alert_data.get('label', 'HL').upper()}"

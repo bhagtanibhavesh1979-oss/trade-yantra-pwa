@@ -9,7 +9,7 @@ import uuid
 from services.angel_service import angel_service
 from SmartApi import SmartConnect
 
-def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, date: str, start_time: str, end_time: str, is_custom: bool) -> List[Dict]:
+def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, date: str, start_time: str, end_time: str, is_custom: bool, exchange: str = "NSE") -> List[Dict]:
     """
     Generate Alerts based on High/Low of a specific period.
     Formula:
@@ -38,7 +38,7 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
         api_to = to_dt.strftime('%Y-%m-%d %H:%M')
         
         req = {
-            "exchange": "NSE",
+            "exchange": exchange,
             "symboltoken": token,
             "interval": interval,
             "fromdate": api_from,

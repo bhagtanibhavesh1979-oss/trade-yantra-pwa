@@ -24,6 +24,9 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
 
+  const [activeTab, setActiveTab] = useState('watchlist');
+  const [preSelectedAlertSymbol, setPreSelectedAlertSymbol] = useState(null);
+
   // Sync reference date across tabs
   const [referenceDate, setReferenceDate] = useState(() => {
     try {
@@ -57,12 +60,10 @@ function App() {
   }, [referenceDate, session?.sessionId]);
 
 
-
   // Save watchlist to localStorage whenever it changes
   useEffect(() => {
     // Allows saving empty list if user intentionally clears it
     localStorage.setItem('trade_yantra_watchlist', JSON.stringify(watchlist));
-    console.log('💾 Saved watchlist to localStorage:', watchlist.length, 'stocks');
   }, [watchlist]);
 
   const loadData = async (sessionId) => {
@@ -101,6 +102,7 @@ function App() {
               ...stock,
               ltp: data.ltp,
               // Preserve pdc, pdh, pdl
+              // Note: If backend sends full object, we could use that, but usually it's just LTP
               pdc: stock.pdc,
               pdh: stock.pdh,
               pdl: stock.pdl,
@@ -136,13 +138,8 @@ function App() {
 
       // Play sound
       try {
-        // Simple Beep Base64
-        // BETTER: Use the browser's SpeechSynthesis for a spoken alert if audio fails? No, standard sound is better.
-        // Let's add a log and a real placeholder specific for "alert.mp3" that the user can fill, or a base64.
-
         const notificationSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
         notificationSound.play().catch(e => console.error("Error playing sound:", e));
-
       } catch (e) {
         console.error("Audio error:", e);
       }
@@ -167,15 +164,10 @@ function App() {
       const localWatchlist = JSON.parse(localStorage.getItem('trade_yantra_watchlist') || '[]');
       if (localWatchlist.length > 0) {
         localWatchlist.forEach(stock => {
-          // We re-add them silently to ensure subscription
-          // Ideally we should have a bulk sync endpoint, but looping add is okay for now
-          // We can do this in the background
+          // Re-subscribe silently
           import('./services/api').then(({ addToWatchlist }) => {
             addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg)
-              .catch(() => {
-                // Ignore 'already exists' errors
-                // console.log("Sync stock error", err); 
-              });
+              .catch(() => { });
           });
         });
       }
@@ -189,9 +181,8 @@ function App() {
     registerServiceWorker();
   }, []);
 
-
   const handleLoginSuccess = (sessionData) => {
-    setSession(sessionData);
+    setSession(sessionData); // Saves to storage via api.js setSession
     setSessionState(sessionData);
     loadData(sessionData.sessionId);
     connectWebSocket(sessionData.sessionId);
@@ -209,6 +200,7 @@ function App() {
     setLogs([]);
     setIsPaused(false);
     setWsStatus('disconnected');
+    setActiveTab('watchlist');
   };
 
   return (
@@ -230,6 +222,10 @@ function App() {
           referenceDate={referenceDate}
           setReferenceDate={setReferenceDate}
           wsStatus={wsStatus}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          preSelectedAlertSymbol={preSelectedAlertSymbol}
+          setPreSelectedAlertSymbol={setPreSelectedAlertSymbol}
         />
       )}
     </div>

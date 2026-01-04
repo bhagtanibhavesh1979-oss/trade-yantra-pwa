@@ -53,6 +53,7 @@ function LoginPage({ onLoginSuccess }) {
         <div className="min-h-screen bg-[#0A0E27] flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
+                    <img src="/logo.png" alt="Trade Yantra Logo" className="w-20 h-20 mx-auto mb-4 rounded-xl shadow-lg" />
                     <h1 className="text-4xl font-bold text-[#667EEA] mb-2">Trade Yantra</h1>
                     <p className="text-gray-400">Smart Trading Alerts</p>
                 </div>

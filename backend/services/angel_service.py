@@ -52,18 +52,18 @@ class AngelService:
             print(f"LTP fetch error for {symbol}: {e}")
         return None
 
-    def fetch_previous_day_close(self, smart_api: SmartConnect, token: str) -> Optional[float]:
+    def fetch_previous_day_close(self, smart_api: SmartConnect, token: str, exchange: str = "NSE") -> Optional[float]:
         """
         Fetch previous day's closing price
         """
         try:
-            pdh, pdl, pdc = self.fetch_previous_day_high_low(smart_api, token)
+            pdh, pdl, pdc = self.fetch_previous_day_high_low(smart_api, token, exchange)
             return pdc
         except Exception as e:
             print(f"PDC fetch error for token {token}: {e}")
         return None
 
-    def fetch_previous_day_high_low(self, smart_api: SmartConnect, token: str, specific_date: Optional[str] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    def fetch_previous_day_high_low(self, smart_api: SmartConnect, token: str, exchange: str = "NSE", specific_date: Optional[str] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """
         Fetch High, Low, and Close for a specific date OR the last completed trading day
         Returns: (high, low, close)
@@ -83,7 +83,7 @@ class AngelService:
                 interval = "ONE_DAY"
             
             historic_req = {
-                "exchange": "NSE",
+                "exchange": exchange,
                 "symboltoken": str(token),
                 "interval": interval,
                 "fromdate": from_date_str,

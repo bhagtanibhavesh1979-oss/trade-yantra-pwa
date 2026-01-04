@@ -20,6 +20,8 @@ class WebSocketClient {
     connect(sessionId) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.log('WebSocket already connected');
+            // Emit connected event immediately for new listeners (e.g., on React re-mount)
+            this.emit('connected', { sessionId: this.sessionId });
             return;
         }
 

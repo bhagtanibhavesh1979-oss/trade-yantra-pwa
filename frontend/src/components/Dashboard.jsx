@@ -3,10 +3,31 @@ import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
 import IndicesTab from './IndicesTab';
 import LogsTab from './LogsTab';
+import MarketOverview from './MarketOverview';
 import { logout } from '../services/api';
 
-function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, isPaused, setIsPaused, referenceDate, setReferenceDate, wsStatus }) {
-    const [activeTab, setActiveTab] = useState('watchlist');
+function Dashboard({
+    session,
+    onLogout,
+    watchlist,
+    setWatchlist,
+    alerts,
+    setAlerts,
+    logs,
+    isPaused,
+    setIsPaused,
+    referenceDate,
+    setReferenceDate,
+    wsStatus,
+    activeTab: propActiveTab, // Receive from parent
+    setActiveTab: propSetActiveTab, // Receive from parent
+    preSelectedAlertSymbol,
+    setPreSelectedAlertSymbol
+}) {
+    // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
+    const [localActiveTab, setLocalActiveTab] = useState('watchlist');
+    const activeTab = propActiveTab || localActiveTab;
+    const setActiveTab = propSetActiveTab || setLocalActiveTab;
 
     // Theme State
     const [theme, setTheme] = useState(() => {
@@ -44,9 +65,12 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
             {/* Top Bar */}
             <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 sticky top-0 z-20 shadow-sm">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-xl font-bold text-white">Trade Yantra</h1>
-                        <p className="text-xs text-gray-400">Client: {session.clientId}</p>
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg" />
+                        <div>
+                            <h1 className="text-xl font-bold text-white">Trade Yantra</h1>
+                            <p className="text-xs text-gray-400">Client: {session.clientId}</p>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {/* WebSocket Status */}
@@ -94,6 +118,17 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
 
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
+                {/* Market Status Header */}
+                <div className="px-4 pt-4">
+                    <MarketOverview
+                        sessionId={session.sessionId}
+                        onAlertClick={(symbol, token, exchange) => {
+                            setPreSelectedAlertSymbol && setPreSelectedAlertSymbol({ symbol, token, exchange });
+                            setActiveTab('alerts');
+                        }}
+                    />
+                </div>
+
                 {activeTab === 'watchlist' && (
                     <WatchlistTab
                         sessionId={session.sessionId}
@@ -112,6 +147,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                         setIsPaused={setIsPaused}
                         referenceDate={referenceDate}
                         setReferenceDate={setReferenceDate}
+                        preSelectedSymbol={preSelectedAlertSymbol}
                     />
                 )}
                 {activeTab === 'indices' && (

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts } from '../services/api';
 
-function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate }) {
+function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
 
@@ -37,7 +37,22 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
     const savedSettings = loadSavedSettings();
 
     // Form state with persistence (Note: date is now passed as a prop for global sync)
+    const INDICES = [
+        { symbol: 'NIFTY 50', token: '99926000', exch: 'NSE' },
+        { symbol: 'NIFTY BANK', token: '99926009', exch: 'NSE' },
+        { symbol: 'SENSEX', token: '99919000', exch: 'BSE' },
+        { symbol: 'NIFTY FIN SERVICE', token: '99926012', exch: 'NSE' }
+    ];
+
     const [selectedSymbol, setSelectedSymbol] = useState(safeWatchlist.length > 0 ? safeWatchlist[0].symbol : '');
+
+    // Handle pre-selection from dashboard
+    useEffect(() => {
+        if (preSelectedSymbol && preSelectedSymbol.symbol) {
+            setSelectedSymbol(preSelectedSymbol.symbol);
+        }
+    }, [preSelectedSymbol]);
+
     const [isCustomRange, setIsCustomRange] = useState(savedSettings.isCustomRange);
     const [startTime, setStartTime] = useState(savedSettings.startTime);
     const [endTime, setEndTime] = useState(savedSettings.endTime);
@@ -65,7 +80,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
 
     const handleGenerateAlerts = async () => {
         if (!selectedSymbol) {
-            alert('Please select a stock');
+            alert('Please select a stock or index');
             return;
         }
         if (selectedLevels.length === 0) {
@@ -75,13 +90,27 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
 
         try {
             setGenerating(true);
+
+            // Find selected item (stock or index)
+            let selectedItem = safeWatchlist.find(s => s.symbol === selectedSymbol);
+            if (!selectedItem) {
+                selectedItem = INDICES.find(i => i.symbol === selectedSymbol);
+            }
+
+            // If pre-selected passed down, it might have details not in our static lists?
+            if (!selectedItem && preSelectedSymbol && preSelectedSymbol.symbol === selectedSymbol) {
+                selectedItem = preSelectedSymbol;
+            }
+
             const response = await generateAlerts(sessionId, {
                 symbol: selectedSymbol,
                 date: referenceDate,
                 start_time: startTime,
                 end_time: endTime,
                 is_custom_range: isCustomRange,
-                levels: selectedLevels
+                levels: selectedLevels,
+                token: selectedItem?.token,     // Pass token explicitly
+                exchange: selectedItem?.exch || selectedItem?.exchange || 'NSE' // Pass exchange explicitly
             });
 
             // Alerts will be updated via parent state triggered by backend refresh/websocket, 
@@ -203,9 +232,16 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                                 className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)] outline-none transition-all"
                             >
                                 <option value="">Select a stock...</option>
-                                {safeWatchlist.map(s => (
-                                    <option key={s.token} value={s.symbol}>{s.symbol}</option>
-                                ))}
+                                <optgroup label="Indices">
+                                    {INDICES.map(i => (
+                                        <option key={i.token} value={i.symbol}>{i.symbol}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="Watchlist">
+                                    {safeWatchlist.map(s => (
+                                        <option key={s.token} value={s.symbol}>{s.symbol}</option>
+                                    ))}
+                                </optgroup>
                             </select>
                         </div>
                         <div className="flex flex-col gap-1.5">
