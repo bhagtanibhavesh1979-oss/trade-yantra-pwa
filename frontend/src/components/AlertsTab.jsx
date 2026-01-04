@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts } from '../services/api';
+import toast from 'react-hot-toast';
+import { Skeleton } from './Skeleton';
 
-function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol }) {
+function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
 
@@ -80,11 +82,11 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
 
     const handleGenerateAlerts = async () => {
         if (!selectedSymbol) {
-            alert('Please select a stock or index');
+            toast.error('Please select a stock or index');
             return;
         }
         if (selectedLevels.length === 0) {
-            alert('Please select at least one level');
+            toast.error('Please select at least one level');
             return;
         }
 
@@ -121,10 +123,10 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
             if (response.alerts) {
                 setAlerts(prev => [...prev, ...response.alerts]);
             }
-            alert(`Generated ${response.count || 0} alerts`);
+            toast.success(`Generated ${response.count || 0} alerts for ${selectedSymbol}`);
         } catch (err) {
             console.error('Generate alerts error:', err);
-            alert(err.response?.data?.detail || 'Failed to generate alerts');
+            toast.error(err.response?.data?.detail || 'Failed to generate alerts');
         } finally {
             setGenerating(false);
         }
@@ -132,22 +134,28 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
 
     const handleGenerateBulkAlerts = async () => {
         if (safeWatchlist.length === 0) {
-            alert('Watchlist is empty');
+            toast.error('Watchlist is empty');
             return;
         }
         if (selectedLevels.length === 0) {
-            alert('Please select at least one level');
+            toast.error('Please select at least one level');
             return;
         }
 
         try {
             setBulkGenerating(true);
-            const response = await generateBulkAlerts(sessionId, {
+            const promise = generateBulkAlerts(sessionId, {
                 date: referenceDate,
                 start_time: startTime,
                 end_time: endTime,
                 is_custom_range: isCustomRange,
                 levels: selectedLevels
+            });
+
+            const response = await toast.promise(promise, {
+                loading: `Generating alerts for ${safeWatchlist.length} stocks...`,
+                success: 'Bulk generation complete!',
+                error: 'Failed to generate bulk alerts'
             });
 
             // Update alerts state
@@ -158,13 +166,16 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 setAlerts(alertsData.alerts);
             }
 
-            // Show detailed summary
+            // Show detailed summary via toast
             const successCount = response.results.filter(r => r.success).length;
             const failCount = response.results.filter(r => !r.success).length;
-            alert(`Bulk Generation Complete!\n\nTotal Alerts: ${response.total_alerts}\nStocks Processed: ${successCount}/${response.total_stocks}\n${failCount > 0 ? `Failed: ${failCount}` : ''}`);
+            if (failCount > 0) {
+                toast(`Processed: ${successCount}/${response.total_stocks} (Failed: ${failCount})`, { icon: '⚠️' });
+            }
+
         } catch (err) {
             console.error('Bulk generate alerts error:', err);
-            alert(err.response?.data?.detail || 'Failed to generate bulk alerts');
+            // Error toast handled by toast.promise
         } finally {
             setBulkGenerating(false);
         }
@@ -174,8 +185,10 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
         try {
             await deleteAlert(sessionId, alertId);
             setAlerts(alerts.filter(a => a.id !== alertId));
+            toast.success('Alert deleted');
         } catch (err) {
             console.error('Delete alert error:', err);
+            toast.error('Failed to delete alert');
         }
     };
 
@@ -183,8 +196,10 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
         try {
             await pauseAlerts(sessionId, newValue);
             setIsPaused(newValue);
+            toast.success(newValue ? 'Alerts Paused' : 'Monitoring Resumed');
         } catch (err) {
             console.error('Pause alerts error:', err);
+            toast.error('Failed to update pause status');
         }
     };
 
@@ -195,9 +210,10 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
         try {
             await clearAllAlerts(sessionId);
             setAlerts([]);
+            toast.success('All alerts cleared');
         } catch (err) {
             console.error('Clear all alerts error:', err);
-            alert('Failed to clear alerts');
+            toast.error('Failed to clear alerts');
         }
     };
 
@@ -353,7 +369,25 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                     )}
                 </div>
 
-                {alerts.length === 0 ? (
+                {isLoadingData && alerts.length === 0 ? (
+                    <div className="space-y-3">
+                        {/* Skeleton Items */}
+                        {Array(3).fill(0).map((_, i) => (
+                            <div key={i} className="glass-card rounded-xl p-4 border-l-4 border-[var(--border-color)]">
+                                <div className="flex items-center gap-4">
+                                    <Skeleton className="h-10 w-10 rounded-lg" />
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2">
+                                            <Skeleton className="h-4 w-24" />
+                                            <Skeleton className="h-4 w-12" />
+                                        </div>
+                                        <Skeleton className="h-6 w-32" />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : alerts.length === 0 ? (
                     <div className="glass-card rounded-xl p-10 border-dashed text-center">
                         <div className="text-4xl mb-3">🔔</div>
                         <p className="text-[var(--text-muted)]">No active alerts.</p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -58,9 +59,10 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
             setTimeout(() => {
                 handleRefresh();
             }, 500);
+            toast.success(`${stock.symbol} added to watchlist`);
         } catch (err) {
             console.error('Add stock error:', err);
-            alert(err.response?.data?.detail || 'Failed to add stock');
+            toast.error(err.response?.data?.detail || 'Failed to add stock');
         }
     };
 

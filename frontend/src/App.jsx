@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
 import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
+import { Toaster } from 'react-hot-toast';
 import './App.css';
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
   const [logs, setLogs] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const [activeTab, setActiveTab] = useState('watchlist');
   const [preSelectedAlertSymbol, setPreSelectedAlertSymbol] = useState(null);
@@ -44,7 +46,6 @@ function App() {
   // Sync reference date to backend and refresh watchlist
   useEffect(() => {
     if (!session) return;
-
     const syncAndRefresh = async () => {
       try {
         console.log('📅 Syncing reference date to backend:', referenceDate);
@@ -55,7 +56,6 @@ function App() {
         console.error('Failed to sync date or refresh watchlist:', err);
       }
     };
-
     syncAndRefresh();
   }, [referenceDate, session?.sessionId]);
 
@@ -67,6 +67,7 @@ function App() {
   }, [watchlist]);
 
   const loadData = async (sessionId) => {
+    setIsLoadingData(true);
     try {
       const [alertsData, logsData] = await Promise.all([
         getAlerts(sessionId),
@@ -79,6 +80,8 @@ function App() {
       setIsPaused(alertsData.is_paused || false);
     } catch (err) {
       console.error('Failed to load data:', err);
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
@@ -206,27 +209,54 @@ function App() {
   return (
     <div className="min-h-screen">
       {!session ? (
-        <LoginPage onLoginSuccess={handleLoginSuccess} />
+        <>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className: '',
+              style: {
+                background: '#1F2937',
+                color: '#fff',
+                border: '1px solid #374151',
+              },
+            }}
+          />
+          <LoginPage onLoginSuccess={handleLoginSuccess} />
+        </>
       ) : (
-        <Dashboard
-          session={session}
-          onLogout={handleLogout}
-          watchlist={watchlist}
-          setWatchlist={setWatchlist}
-          alerts={alerts}
-          setAlerts={setAlerts}
-          logs={logs}
-          setLogs={setLogs}
-          isPaused={isPaused}
-          setIsPaused={setIsPaused}
-          referenceDate={referenceDate}
-          setReferenceDate={setReferenceDate}
-          wsStatus={wsStatus}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          preSelectedAlertSymbol={preSelectedAlertSymbol}
-          setPreSelectedAlertSymbol={setPreSelectedAlertSymbol}
-        />
+        <>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              className: '',
+              style: {
+                background: '#1F2937',
+                color: '#fff',
+                border: '1px solid #374151',
+              },
+            }}
+          />
+          <Dashboard
+            session={session}
+            onLogout={handleLogout}
+            watchlist={watchlist}
+            setWatchlist={setWatchlist}
+            alerts={alerts}
+            setAlerts={setAlerts}
+            logs={logs}
+            setLogs={setLogs}
+            isPaused={isPaused}
+            setIsPaused={setIsPaused}
+            referenceDate={referenceDate}
+            setReferenceDate={setReferenceDate}
+            wsStatus={wsStatus}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            preSelectedAlertSymbol={preSelectedAlertSymbol}
+            setPreSelectedAlertSymbol={setPreSelectedAlertSymbol}
+            isLoadingData={isLoadingData}
+          />
+        </>
       )}
     </div>
   );

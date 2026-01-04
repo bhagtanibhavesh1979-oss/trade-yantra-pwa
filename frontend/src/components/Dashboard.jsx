@@ -22,7 +22,8 @@ function Dashboard({
     activeTab: propActiveTab, // Receive from parent
     setActiveTab: propSetActiveTab, // Receive from parent
     preSelectedAlertSymbol,
-    setPreSelectedAlertSymbol
+    setPreSelectedAlertSymbol,
+    isLoadingData
 }) {
     // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
@@ -36,6 +37,8 @@ function Dashboard({
         }
         return 'dark';
     });
+
+    // ... existing useEffect ...
 
     useEffect(() => {
         localStorage.setItem('trade_yantra_theme', theme);
@@ -148,6 +151,7 @@ function Dashboard({
                         referenceDate={referenceDate}
                         setReferenceDate={setReferenceDate}
                         preSelectedSymbol={preSelectedAlertSymbol}
+                        isLoadingData={isLoadingData}
                     />
                 )}
                 {activeTab === 'indices' && (
