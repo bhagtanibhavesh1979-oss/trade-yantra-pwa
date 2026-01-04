@@ -173,13 +173,13 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-4 pb-20">
+        <div className="w-full space-y-4 pb-20">
             {/* Strategy Control Panel */}
-            <div className="bg-[#222844] rounded-lg p-5 border border-[#2D3748] shadow-xl">
+            <div className="glass-card rounded-xl p-5 shadow-xl">
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h3 className="text-white font-bold text-xl">High/Low Alert Strategy</h3>
-                        <p className="text-gray-400 text-sm">Target historical Highs, Lows and S/R levels</p>
+                        <h3 className="text-[var(--text-primary)] font-bold text-xl">High/Low Alert Strategy</h3>
+                        <p className="text-[var(--text-muted)] text-sm">Target historical Highs, Lows and S/R levels</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
                         <span className="text-xs text-gray-500 font-medium">Monitoring</span>
@@ -196,11 +196,11 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                     {/* Stock & Date Selection */}
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Select Stock</label>
+                            <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Select Stock</label>
                             <select
                                 value={selectedSymbol}
                                 onChange={(e) => setSelectedSymbol(e.target.value)}
-                                className="bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-2.5 focus:border-[#667EEA] focus:ring-1 focus:ring-[#667EEA] outline-none transition-all"
+                                className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] focus:ring-1 focus:ring-[var(--accent-blue)] outline-none transition-all"
                             >
                                 <option value="">Select a stock...</option>
                                 {safeWatchlist.map(s => (
@@ -209,12 +209,12 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                             </select>
                         </div>
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Calculation Date</label>
+                            <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Calculation Date</label>
                             <input
                                 type="date"
                                 value={referenceDate}
                                 onChange={(e) => setReferenceDate(e.target.value)}
-                                className="bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-2.5 focus:border-[#667EEA] outline-none transition-all [color-scheme:dark]"
+                                className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
                             />
                         </div>
                     </div>
@@ -222,15 +222,15 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                     {/* Levels & Time Options */}
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
-                            <label className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Alert Levels</label>
+                            <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Alert Levels</label>
                             <div className="flex flex-wrap gap-2">
                                 {['High', 'Low', 'R1', 'R2', 'R3', 'R4', 'S1', 'S2', 'S3', 'S4'].map(level => (
                                     <button
                                         key={level}
                                         onClick={() => handleLevelToggle(level)}
                                         className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all border ${selectedLevels.includes(level)
-                                            ? 'bg-[#667EEA] border-[#667EEA] text-white shadow-lg shadow-[#667EEA22]'
-                                            : 'bg-transparent border-[#2D3748] text-gray-400 hover:border-gray-500'
+                                            ? 'bg-[var(--accent-blue)] border-[var(--accent-blue)] text-white shadow-lg shadow-indigo-500/20'
+                                            : 'bg-transparent border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
                                             }`}
                                     >
                                         {level}
@@ -245,9 +245,9 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                                     type="checkbox"
                                     checked={isCustomRange}
                                     onChange={(e) => setIsCustomRange(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-[#667EEA] focus:ring-[#667EEA] bg-[#1A1F3A]"
+                                    className="w-4 h-4 rounded border-gray-300 text-[var(--accent-blue)] focus:ring-[var(--accent-blue)] bg-[var(--bg-secondary)]"
                                 />
-                                <span className="text-gray-300 text-sm group-hover:text-white transition-colors">Custom Time Range</span>
+                                <span className="text-[var(--text-primary)] text-sm group-hover:text-[var(--text-primary)] transition-colors">Custom Time Range</span>
                             </label>
 
                             {isCustomRange && (
@@ -256,13 +256,13 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                                         type="time"
                                         value={startTime}
                                         onChange={(e) => setStartTime(e.target.value)}
-                                        className="flex-1 bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
+                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
                                     />
                                     <input
                                         type="time"
                                         value={endTime}
                                         onChange={(e) => setEndTime(e.target.value)}
-                                        className="flex-1 bg-[#1A1F3A] text-white border border-[#2D3748] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
+                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
                                     />
                                 </div>
                             )}
@@ -274,7 +274,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                     <button
                         onClick={handleGenerateAlerts}
                         disabled={generating || bulkGenerating || !selectedSymbol}
-                        className="py-3 bg-[#667EEA] hover:bg-[#5568D3] text-white font-bold rounded-lg shadow-lg hover:shadow-[#667EEA44] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="py-3 bg-[var(--accent-blue)] hover:brightness-110 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {generating ? (
                             <>
@@ -289,7 +289,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                     <button
                         onClick={handleGenerateBulkAlerts}
                         disabled={generating || bulkGenerating || safeWatchlist.length === 0}
-                        className="py-3 bg-[#48BB78] hover:bg-[#38A169] text-white font-bold rounded-lg shadow-lg hover:shadow-[#48BB7844] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="py-3 bg-[var(--success-neon)] hover:brightness-110 text-white font-bold rounded-lg shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {bulkGenerating ? (
                             <>
@@ -306,11 +306,11 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
             {/* Active Alerts List */}
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-white font-bold text-lg">Active Alerts ({alerts.length})</h3>
+                    <h3 className="text-[var(--text-primary)] font-bold text-lg">Active Alerts ({alerts.length})</h3>
                     {alerts.length > 0 && (
                         <button
                             onClick={handleClearAllAlerts}
-                            className="px-3 py-1.5 bg-[#F56565] hover:bg-[#E53E3E] text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                            className="px-3 py-1.5 bg-[var(--danger-neon)] hover:brightness-110 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
                         >
                             🗑️ Clear All
                         </button>
@@ -318,32 +318,32 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 </div>
 
                 {alerts.length === 0 ? (
-                    <div className="bg-[#222844] rounded-lg p-10 border border-[#2D3748] text-center border-dashed">
+                    <div className="glass-card rounded-xl p-10 border-dashed text-center">
                         <div className="text-4xl mb-3">🔔</div>
-                        <p className="text-gray-400">No active alerts.</p>
-                        <p className="text-gray-500 text-sm mt-1">Select a stock and click generate above to get started.</p>
+                        <p className="text-[var(--text-muted)]">No active alerts.</p>
+                        <p className="text-[var(--text-secondary)] text-sm mt-1">Select a stock and click generate above to get started.</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-3">
                         {alerts.map((alert) => {
                             const isAbove = alert.condition === 'ABOVE';
-                            const colorClass = isAbove ? 'text-[#48BB78]' : 'text-[#F56565]';
-                            const bgColorClass = isAbove ? 'border-l-[#48BB78]' : 'border-l-[#F56565]';
+                            const colorClass = isAbove ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]';
+                            const borderColorClass = isAbove ? 'border-l-[var(--success-neon)]' : 'border-l-[var(--danger-neon)]';
                             const icon = isAbove ? '📈' : '📉';
                             const typeLabel = alert.type?.replace('AUTO_', '') || 'MANUAL';
 
                             return (
                                 <div
                                     key={alert.id}
-                                    className={`bg-[#222844] rounded-lg p-4 border border-[#2D3748] border-l-4 ${bgColorClass} hover:border-[#667EEA] transition-all duration-300 group shadow-sm`}
+                                    className={`glass-card rounded-xl p-4 border-l-4 ${borderColorClass} hover:border-[var(--accent-blue)] transition-all duration-300 group shadow-sm`}
                                 >
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-4">
-                                            <span className="text-2xl bg-[#1A1F3A] p-2 rounded-lg">{icon}</span>
+                                            <span className="text-2xl bg-[var(--bg-secondary)] p-2 rounded-lg">{icon}</span>
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <h4 className="text-white font-bold text-base">{alert.symbol}</h4>
-                                                    <span className="text-[10px] bg-[#2D3748] text-gray-400 px-1.5 py-0.5 rounded font-mono uppercase">
+                                                    <h4 className="text-[var(--text-primary)] font-bold text-base">{alert.symbol}</h4>
+                                                    <span className="text-[10px] bg-[var(--bg-secondary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded font-mono uppercase">
                                                         {typeLabel}
                                                     </span>
                                                 </div>
@@ -351,7 +351,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                                                     <span className={`font-mono font-bold text-lg ${colorClass}`}>
                                                         ₹{alert.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                                     </span>
-                                                    <span className="text-gray-500 text-xs font-medium uppercase tracking-tighter">
+                                                    <span className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-tighter">
                                                         {alert.condition}
                                                     </span>
                                                 </div>
@@ -359,7 +359,7 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                                         </div>
                                         <button
                                             onClick={() => handleDeleteAlert(alert.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-white hover:bg-[#F56565] rounded-lg transition-all duration-200"
+                                            className="opacity-0 group-hover:opacity-100 p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger-neon)] rounded-lg transition-all duration-200"
                                             title="Delete Alert"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

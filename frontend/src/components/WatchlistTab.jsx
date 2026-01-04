@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist } from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -202,63 +203,88 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
             </div>
 
             {/* Watchlist */}
-            <div className="bg-[#222844] md:rounded-lg border-t border-b md:border border-[#2D3748] overflow-hidden w-full md:max-w-4xl mx-auto">
+            <div className="w-full">
                 {filteredWatchlist.length === 0 ? (
-                    <div className="p-8 text-center">
+                    <div className="p-8 text-center bg-[#222844] rounded-xl border border-[#2D3748] m-2">
                         <p className="text-gray-400">No stocks in watchlist. Search and add symbols above.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="bg-[#1A1F3A] border-b border-[#2D3748]">
-                                    <th className="px-3 py-3 text-left text-xs font-semibold text-gray-300 w-[30%] border-r border-[#2D3748]">Symbol</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[20%] border-r border-[#2D3748]">LTP</th>
-                                    <th className="px-2 py-3 text-center text-xs font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">PDC</th>
-                                    <th className="px-2 py-3 text-center text-[10px] font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">High<br /><span className="text-[8px] text-[#667EEA]">{new Date(referenceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span></th>
-                                    <th className="px-2 py-3 text-center text-[10px] font-semibold text-gray-300 w-[12%] border-r border-[#2D3748]">Low<br /><span className="text-[8px] text-[#667EEA]">{new Date(referenceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</span></th>
-                                    <th className="px-3 py-3 text-center text-xs font-semibold text-gray-300 w-[20%]">Chg</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[#2D3748]">
-                                {filteredWatchlist.map((stock) => {
-                                    const changeValue = stock.ltp - stock.pdc;
-                                    const isPositive = changeValue >= 0;
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-2">
+                        <AnimatePresence mode="popLayout">
+                            {filteredWatchlist.map((stock) => {
+                                const changeValue = stock.ltp - stock.pdc;
+                                const changePercent = stock.pdc ? (changeValue / stock.pdc) * 100 : 0;
+                                const isPositive = changeValue >= 0;
 
-                                    return (
-                                        <tr
-                                            key={stock.token}
-                                            onClick={() => setSelectedStock(stock)}
-                                            className="hover:bg-[#2D3748] transition-colors cursor-pointer active:bg-[#4A5568]"
-                                        >
-                                            <td className="px-3 py-3 text-left border-r border-[#2D3748]">
-                                                <div className="text-white font-bold text-sm">{stock.symbol}</div>
-                                                <div className="text-[10px] text-gray-400">T: {stock.token}</div>
-                                            </td>
-                                            <td className="px-2 py-3 text-center border-r border-[#2D3748]">
-                                                <div className={`font-bold text-sm ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
-                                                    ₹{stock.ltp?.toFixed(2) || '0.00'}
+                                return (
+                                    <motion.div
+                                        key={stock.token}
+                                        layout
+                                        initial={{ opacity: 0, scale: 0.95 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        onClick={() => setSelectedStock(stock)}
+                                        className="glass-card p-4 rounded-xl shadow-lg hover:border-[#667EEA]/50 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98]"
+                                    >
+                                        {/* Background Glow Effect on Hover */}
+                                        <div className="absolute inset-0 bg-gradient-to-br from-[#667EEA]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                        <div className="flex justify-between items-start relative z-10">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-[var(--text-primary)] font-bold text-lg leading-tight">{stock.symbol}</h3>
+                                                    <a
+                                                        href={`https://www.tradingview.com/chart/?symbol=NSE:${stock.symbol.replace('-EQ', '')}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-gray-400 hover:text-[#667EEA] transition-colors p-1"
+                                                        title="Open TradingView"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M14 3h7v7h-2V6.41l-9 9L8.59 14l9-9H14V3zM5 5h5V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H5V5z" />
+                                                        </svg>
+                                                    </a>
                                                 </div>
-                                            </td>
-                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
-                                                {stock.pdc?.toFixed(2) || '0.00'}
-                                            </td>
-                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
-                                                {stock.pdh?.toFixed(2) || '0.00'}
-                                            </td>
-                                            <td className="px-2 py-3 text-center text-[11px] text-gray-300 border-r border-[#2D3748]">
-                                                {stock.pdl?.toFixed(2) || '0.00'}
-                                            </td>
-                                            <td className="px-3 py-3 text-center text-xs">
-                                                <span className={`font-semibold ${isPositive ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
-                                                    {isPositive ? '+' : ''}{changeValue.toFixed(2)}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                                                <div className="text-[10px] text-gray-400 font-mono">TOKEN: {stock.token}</div>
+                                            </div>
+
+                                            <div className="text-right">
+                                                <motion.div
+                                                    key={stock.ltp}
+                                                    initial={{ color: isPositive ? '#00FF94' : '#FF4D4D' }}
+                                                    animate={{
+                                                        scale: [1, 1.05, 1],
+                                                        transition: { duration: 0.3 }
+                                                    }}
+                                                    className={`text-xl font-black ${isPositive ? 'price-up' : 'price-down'}`}
+                                                >
+                                                    ₹{stock.ltp?.toFixed(2) || '0.00'}
+                                                </motion.div>
+                                                <div className={`text-xs font-semibold ${isPositive ? 'text-[#00FF94]/80' : 'text-[#FF4D4D]/80'}`}>
+                                                    {isPositive ? '▲' : '▼'} {Math.abs(changeValue).toFixed(2)} ({Math.abs(changePercent).toFixed(2)}%)
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-[#2D3748]/50 relative z-10">
+                                            <div className="text-center">
+                                                <div className="text-[9px] text-gray-500 uppercase tracking-wider">P.Close</div>
+                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdc?.toFixed(2) || '0.00'}</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-[9px] text-[#667EEA] uppercase tracking-wider">High</div>
+                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdh?.toFixed(2) || '0.00'}</div>
+                                            </div>
+                                            <div className="text-center">
+                                                <div className="text-[9px] text-[#667EEA] uppercase tracking-wider">Low</div>
+                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdl?.toFixed(2) || '0.00'}</div>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </AnimatePresence>
                     </div>
                 )}
             </div>
@@ -271,55 +297,81 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
                                 <h3 className="text-xl font-bold text-white">{selectedStock.symbol}</h3>
                                 <p className="text-sm text-gray-400">Token: {selectedStock.token}</p>
                             </div>
-                            <button onClick={() => setSelectedStock(null)} className="text-gray-400 hover:text-white p-1">
+                            <button onClick={() => setSelectedStock(null)} className="text-gray-400 hover:text-white p-1 bg-white/5 rounded-full transition-colors">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>
                         </div>
 
+                        {/* TradingView Mini Chart Widget */}
+                        <div className="w-full h-48 bg-[#1A1F3A] rounded-xl overflow-hidden border border-[#2D3748] relative">
+                            <iframe
+                                key={selectedStock.token}
+                                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76230&symbol=NSE%3A${encodeURIComponent(selectedStock.symbol.replace(/-EQ$/, ''))}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FKolkata&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=in&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=NSE%3A${encodeURIComponent(selectedStock.symbol.replace(/-EQ$/, ''))}`}
+                                width="100%"
+                                height="100%"
+                                frameBorder="0"
+                                allowTransparency="true"
+                                scrolling="no"
+                                allowFullScreen
+                            ></iframe>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4 py-2">
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
                                 <div className="text-gray-400 text-xs text-center">LTP</div>
                                 <div className={`text-xl font-bold text-center ${selectedStock.ltp - selectedStock.pdc >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                     ₹{selectedStock.ltp?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
                                 <div className="text-gray-400 text-xs text-center">Change</div>
                                 <div className={`text-xl font-bold text-center ${(selectedStock.ltp - selectedStock.pdc) >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                     {selectedStock.ltp - selectedStock.pdc >= 0 ? '+' : ''}{(selectedStock.ltp - selectedStock.pdc).toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
                                 <div className="text-gray-400 text-xs text-center">PDC</div>
                                 <div className="text-lg font-semibold text-white text-center">
                                     ₹{selectedStock.pdc?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs text-center">High ({referenceDate})</div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
+                                <div className="text-gray-400 text-xs text-center uppercase tracking-tighter">High ({referenceDate})</div>
                                 <div className="text-lg font-semibold text-white text-center">
                                     ₹{selectedStock.pdh?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg">
-                                <div className="text-gray-400 text-xs text-center">Low ({referenceDate})</div>
+                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748] col-span-2">
+                                <div className="text-gray-400 text-xs text-center uppercase tracking-tighter">Low ({referenceDate})</div>
                                 <div className="text-lg font-semibold text-white text-center">
                                     ₹{selectedStock.pdl?.toFixed(2)}
                                 </div>
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => handleRemoveStock(selectedStock.token)}
-                            className="w-full py-3 bg-[#F56565] hover:bg-red-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Remove from Watchlist
-                        </button>
+                        <div className="flex gap-2">
+                            <a
+                                href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace('-EQ', '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-3 bg-[#667EEA] hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                </svg>
+                                TradingView
+                            </a>
+                            <button
+                                onClick={() => handleRemoveStock(selectedStock.token)}
+                                className="px-4 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg font-semibold transition-all flex items-center justify-center border border-red-500/20"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

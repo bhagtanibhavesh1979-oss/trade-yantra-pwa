@@ -8,13 +8,66 @@
   font-weight: 400;
 
   color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0A0E27;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Theme Variables - Dark Mode (Default) */
+  --bg-primary: #0A0E27;
+  --bg-secondary: #0F172A;
+  /* Slightly lighter for contrast in dark mode */
+  --bg-card: rgba(26, 31, 58, 0.7);
+  --bg-glass: rgba(26, 31, 58, 0.7);
+  --border-color: #2D3748;
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+
+  --accent-blue: #667EEA;
+  --success-neon: #00FF94;
+  --danger-neon: #FF4D4D;
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+}
+
+/* Light Mode Overrides */
+.light-theme {
+  --bg-primary: #F3F4F6;
+  --bg-secondary: #FFFFFF;
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  --border-color: #E5E7EB;
+  --text-primary: #000000;
+  --text-secondary: #374151;
+  --text-muted: #6B7280;
+
+  --accent-blue: #4F46E5;
+  --success-neon: #15803d;
+  /* Darker green for white bg visibility */
+  --danger-neon: #DC2626;
+  /* Darker red for white bg visibility */
+  --glass-border: rgba(0, 0, 0, 0.05);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+}
+
+.glass-card {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px var(--shadow-color);
+}
+
+.price-up {
+  color: var(--success-neon);
+}
+
+.price-down {
+  color: var(--danger-neon);
 }
 
 * {

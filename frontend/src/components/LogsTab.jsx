@@ -1,38 +1,46 @@
 function LogsTab({ logs }) {
     return (
-        <div className="max-w-4xl mx-auto">
-            <div className="bg-[#222844] rounded-lg border border-[#2D3748] overflow-hidden">
-                <div className="bg-[#1A1F3A] px-4 py-3 border-b border-[#2D3748]">
-                    <h3 className="text-white font-bold">Activity Log</h3>
+        <div className="w-full">
+            <div className="glass-card rounded-xl overflow-hidden shadow-lg border-opacity-50">
+                <div className="bg-[var(--bg-secondary)] px-4 py-3 border-b border-[var(--border-color)] flex justify-between items-center">
+                    <h3 className="text-[var(--text-primary)] font-bold flex items-center gap-2">
+                        <span className="text-[var(--accent-blue)]">❯_</span> Activity Log
+                    </h3>
+                    <span className="text-xs text-[var(--text-muted)] font-mono">{logs.length} entries</span>
                 </div>
 
-                <div className="divide-y divide-[#2D3748] max-h-[600px] overflow-y-auto">
+                <div className="max-h-[600px] overflow-y-auto font-mono text-sm">
                     {logs.length === 0 ? (
-                        <div className="p-8 text-center">
-                            <p className="text-gray-400">No activity yet. Alerts will appear here when triggered.</p>
+                        <div className="p-12 text-center">
+                            <div className="text-4xl mb-2 opacity-50">📝</div>
+                            <p className="text-[var(--text-muted)]">No activity recorded yet.</p>
                         </div>
                     ) : (
-                        logs.map((log, index) => (
-                            <div
-                                key={index}
-                                className="px-4 py-3 hover:bg-[#2D3748] transition-colors"
-                            >
-                                <div className="flex items-start gap-3">
-                                    <span className="text-xs text-gray-500 font-mono w-16 flex-shrink-0">
-                                        {/* Convert to local time if possible, otherwise show as is */}
+                        <div className="divide-y divide-[var(--border-color)]">
+                            {[...logs].reverse().map((log, index) => (
+                                <div
+                                    key={index}
+                                    className="px-4 py-3 hover:bg-[var(--bg-primary)] transition-colors flex gap-4"
+                                >
+                                    <div className="text-[var(--text-muted)] text-xs whitespace-nowrap pt-0.5">
                                         {log.time && log.time.includes('T')
                                             ? new Date(log.time).toLocaleTimeString()
                                             : log.time}
-                                    </span>
-                                    <span className="text-sm font-bold text-[#667EEA] w-32 flex-shrink-0">
-                                        {log.symbol}
-                                    </span>
-                                    <p className="text-sm text-gray-300 flex-1">
-                                        {log.msg}
-                                    </p>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="font-bold text-[var(--accent-blue)]">{log.symbol}</span>
+                                            {log.msg.toLowerCase().includes('triggered') && (
+                                                <span className="text-[10px] bg-[var(--bg-primary)] px-1.5 rounded text-[var(--text-secondary)] border border-[var(--border-color)]">ALERT</span>
+                                            )}
+                                        </div>
+                                        <p className="text-[var(--text-secondary)] break-words leading-relaxed">
+                                            {log.msg}
+                                        </p>
+                                    </div>
                                 </div>
-                            </div>
-                        ))
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>

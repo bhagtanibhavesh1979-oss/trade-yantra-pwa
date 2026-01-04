@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
 import IndicesTab from './IndicesTab';
@@ -7,6 +7,27 @@ import { logout } from '../services/api';
 
 function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAlerts, logs, setLogs, isPaused, setIsPaused, referenceDate, setReferenceDate, wsStatus }) {
     const [activeTab, setActiveTab] = useState('watchlist');
+
+    // Theme State
+    const [theme, setTheme] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('trade_yantra_theme') || 'dark';
+        }
+        return 'dark';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('trade_yantra_theme', theme);
+        if (theme === 'light') {
+            document.documentElement.classList.add('light-theme');
+        } else {
+            document.documentElement.classList.remove('light-theme');
+        }
+    }, [theme]);
+
+    const toggleTheme = () => {
+        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    };
 
     const handleLogout = async () => {
         try {
@@ -19,9 +40,9 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
     };
 
     return (
-        <div className="min-h-screen bg-[#0A0E27] flex flex-col pb-16 md:pb-0">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 flex flex-col pb-16 md:pb-0">
             {/* Top Bar */}
-            <div className="bg-[#1A1F3A] border-b border-[#2D3748] px-4 py-3 sticky top-0 z-20">
+            <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-3 sticky top-0 z-20 shadow-sm">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-xl font-bold text-white">Trade Yantra</h1>
@@ -31,11 +52,28 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
                         {/* WebSocket Status */}
                         <div className={`w-2 h-2 rounded-full ${wsStatus === 'connected' ? 'bg-[#48BB78]' : 'bg-[#F56565]'} animate-pulse`} />
 
+                        {/* Theme Toggle */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 text-gray-400 hover:text-[var(--text-primary)] bg-[var(--bg-primary)] hover:bg-[var(--bg-card)] rounded-lg transition-all"
+                            title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+                        >
+                            {theme === 'dark' ? (
+                                <svg className="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            ) : (
+                                <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                </svg>
+                            )}
+                        </button>
+
                         {/* Notification Permission Button */}
                         {'Notification' in window && Notification.permission === 'default' && (
                             <button
                                 onClick={() => Notification.requestPermission()}
-                                className="p-2 bg-[#667EEA] hover:bg-blue-600 text-white rounded-lg transition-colors"
+                                className="p-2 bg-[var(--accent-blue)] hover:brightness-110 text-white rounded-lg transition-colors"
                             >
                                 🔔
                             </button>
@@ -55,7 +93,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-0 md:p-4">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
                 {activeTab === 'watchlist' && (
                     <WatchlistTab
                         sessionId={session.sessionId}
@@ -85,7 +123,7 @@ function Dashboard({ session, onLogout, watchlist, setWatchlist, alerts, setAler
             </div>
 
             {/* Bottom Navigation (Fixed) */}
-            <div className="fixed bottom-0 left-0 right-0 bg-[#1A1F3A] border-t border-[#2D3748] z-30">
+            <div className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] z-30">
                 <div className="flex justify-around items-center h-16">
                     <button
                         onClick={() => setActiveTab('watchlist')}
