@@ -9,6 +9,9 @@ load_dotenv()
 # The connection string will be provided by the user or set in env
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 if not DATABASE_URL:
     # Fallback to local sqlite for development if no Postgres URL provided
     DATABASE_URL = "sqlite:///./trade_yantra.db"
