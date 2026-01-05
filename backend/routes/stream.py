@@ -90,7 +90,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     async def send_heartbeat():
         while session_id in active_connections:
             try:
-                await asyncio.sleep(30)
+                await asyncio.sleep(15) # Heartbeat every 15s (was 30s)
                 await websocket.send_json({
                     "type": "heartbeat",
                     "data": {"timestamp": asyncio.get_event_loop().time()}

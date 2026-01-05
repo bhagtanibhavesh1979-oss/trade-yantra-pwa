@@ -39,6 +39,7 @@ class WebSocketClient {
         };
 
         this.ws.onmessage = (event) => {
+            this.lastSeen = Date.now(); // Update last seen timestamp
             try {
                 const message = JSON.parse(event.data);
                 this.handleMessage(message);
@@ -98,16 +99,33 @@ class WebSocketClient {
 
     startHeartbeat() {
         this.stopHeartbeat();
-        // Ping every 10 seconds to keep connection alive better on mobile (was 20s)
+        this.lastSeen = Date.now();
+
+        // Ping every 15 seconds to keep connection alive better on mobile
         this.pingInterval = setInterval(() => {
             this.ping();
-        }, 10000);
+        }, 15000);
+
+        // Dead Man's Switch: Check if we haven't heard from server in 45s
+        this.watchdogInterval = setInterval(() => {
+            const idleTime = Date.now() - this.lastSeen;
+            if (idleTime > 45000) {
+                console.warn(`WebSocket dead man's switch triggered (idle: ${Math.round(idleTime / 1000)}s). Forcing reconnect...`);
+                if (this.ws) {
+                    this.ws.close(); // Triggers onclose -> attemptReconnect
+                }
+            }
+        }, 5000); // Check every 5s
     }
 
     stopHeartbeat() {
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
+        }
+        if (this.watchdogInterval) {
+            clearInterval(this.watchdogInterval);
+            this.watchdogInterval = null;
         }
     }
 

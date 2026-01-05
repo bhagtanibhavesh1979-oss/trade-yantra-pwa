@@ -80,33 +80,25 @@ function App() {
       setLogs(logsData.logs || []);
       setIsPaused(alertsData.is_paused || false);
     } catch (err) {
-      console.error('Failed to load data:', err);
     } finally {
       setIsLoadingData(false);
     }
   };
 
-  const connectWebSocket = (sessionId) => {
-    // WebSocket event listeners
-    wsClient.on('connected', () => {
-      setWsStatus('connected');
-    });
+  // Stability: Define WebSocket listeners once outside the component's main flow
+  // to avoid duplication on every reconnect
+  useEffect(() => {
+    if (!session) return;
 
-    wsClient.on('disconnected', () => {
-      setWsStatus('disconnected');
-    });
-
-    wsClient.on('price_update', (data) => {
-      // Update watchlist with new prices
-      // Backend sends single update: { token, symbol, ltp }
+    const handleConnected = () => setWsStatus('connected');
+    const handleDisconnected = () => setWsStatus('disconnected');
+    const handlePriceUpdate = (data) => {
       setWatchlist((prevWatchlist) =>
         prevWatchlist.map((stock) => {
           if (String(stock.token) === String(data.token)) {
             return {
               ...stock,
               ltp: data.ltp,
-              // Preserve pdc, pdh, pdl
-              // Note: If backend sends full object, we could use that, but usually it's just LTP
               pdc: stock.pdc,
               pdh: stock.pdh,
               pdl: stock.pdl,
@@ -115,9 +107,9 @@ function App() {
           return stock;
         })
       );
-    });
+    };
 
-    wsClient.on('alert_triggered', (data) => {
+    const handleAlertTriggered = (data) => {
       // Remove triggered alert
       setAlerts((prevAlerts) =>
         prevAlerts.filter((alert) => alert.id !== data.alert.id)
@@ -133,11 +125,11 @@ function App() {
       showNotification(`🔔 ${alert.symbol} Alert!`, {
         body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
         icon: '/logo.png',
-        badge: '/logo.png', // Android specific
+        badge: '/logo.png',
         tag: `alert-${alert.id}`,
         vibrate: [200, 100, 200],
         requireInteraction: true,
-        data: { url: '/' } // Used by SW to navigate
+        data: { url: '/' }
       });
 
       // Show Toast backup
@@ -155,17 +147,32 @@ function App() {
         },
       });
 
-      // Feedback
+      // Vibration Feedback
       if ('vibrate' in navigator) {
         navigator.vibrate([200, 100, 200]);
       }
-    });
+    };
 
+    wsClient.on('connected', handleConnected);
+    wsClient.on('disconnected', handleDisconnected);
+    wsClient.on('price_update', handlePriceUpdate);
+    wsClient.on('alert_triggered', handleAlertTriggered);
     wsClient.on('error', (error) => {
       console.error('WebSocket error:', error);
     });
 
-    // Connect
+    return () => {
+      wsClient.off('connected', handleConnected);
+      wsClient.off('disconnected', handleDisconnected);
+      wsClient.off('price_update', handlePriceUpdate);
+      wsClient.off('alert_triggered', handleAlertTriggered);
+      wsClient.off('error', (error) => {
+        console.error('WebSocket error:', error);
+      });
+    };
+  }, [session]);
+
+  const connectWebSocket = (sessionId) => {
     wsClient.connect(sessionId);
   };
 
