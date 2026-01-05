@@ -9,8 +9,19 @@ load_dotenv()
 # The connection string will be provided by the user or set in env
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# Clean common copy-paste errors (like including the 'psql' command or quotes)
+if DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.strip()
+    if DATABASE_URL.startswith("psql "):
+        DATABASE_URL = DATABASE_URL.replace("psql ", "", 1)
+    # Remove surrounding single or double quotes
+    if (DATABASE_URL.startswith("'") and DATABASE_URL.endswith("'")) or \
+       (DATABASE_URL.startswith('"') and DATABASE_URL.endswith('"')):
+        DATABASE_URL = DATABASE_URL[1:-1]
+    
+    # SQLAlchemy 2.0+ requires postgresql://
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 if not DATABASE_URL:
     # Fallback to local sqlite for development if no Postgres URL provided
