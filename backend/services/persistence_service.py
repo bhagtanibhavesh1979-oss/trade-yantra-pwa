@@ -1,66 +1,150 @@
 """
-Persistence Service
-Handles saving and loading session data to/from disk
+Persistence Service (SQL)
+Handles saving and loading session data to/from PostgreSQL (or local SQLite)
 """
-import json
-import os
-import threading
-from typing import Dict, List, Optional
+from sqlalchemy.orm import Session
+from database import engine, SessionLocal, Base
+from models import UserSession, WatchlistItem, AlertItem, LogItem, ScripMaster
 from datetime import datetime
-
-DATA_FILE = "data/sessions.json"
+from typing import Dict, List, Optional
+import threading
 
 class PersistenceService:
     def __init__(self):
         self.lock = threading.Lock()
-        self._ensure_data_dir()
-
-    def _ensure_data_dir(self):
-        if not os.path.exists("data"):
-            os.makedirs("data")
+        # Initialize tables on startup
+        Base.metadata.create_all(bind=engine)
+        print("SQL Database Initialized")
 
     def save_sessions(self, sessions_data: Dict):
         """
-        Save all sessions to disk
+        Save all sessions to the database
         """
+        db = SessionLocal()
         try:
             with self.lock:
-                # Convert sessions to serializable format
-                serializable_data = {}
                 for session_id, session in sessions_data.items():
-                    serializable_data[session_id] = {
-                        "client_id": session.client_id,
-                        "jwt_token": session.jwt_token,
-                        "feed_token": session.feed_token,
-                        "api_key": session.api_key,
-                        "watchlist": session.watchlist,
-                        "alerts": session.alerts,
-                        "logs": session.logs[-50:],  # Keep last 50 logs
-                        "is_paused": session.is_paused,
-                        "last_activity": session.last_activity.isoformat() if session.last_activity else None
-                    }
-                
-                with open(DATA_FILE, 'w') as f:
-                    json.dump(serializable_data, f, indent=2)
-                
-                print(f"Saved {len(sessions_data)} sessions to disk")
+                    # 1. Update/Create UserSession
+                    db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
+                    if not db_session:
+                        db_session = UserSession(id=session_id)
+                        db.add(db_session)
+                    
+                    db_session.client_id = session.client_id
+                    db_session.jwt_token = session.jwt_token
+                    db_session.feed_token = session.feed_token
+                    db_session.api_key = session.api_key
+                    db_session.is_paused = session.is_paused
+                    db_session.last_activity = session.last_activity or datetime.utcnow()
+
+                    # 2. Sync Watchlist
+                    # For simplicity, clear and recreate (or we could merge)
+                    db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
+                    for item in session.watchlist:
+                        db.add(WatchlistItem(
+                            session_id=session_id,
+                            symbol=item['symbol'],
+                            token=item['token'],
+                            exch_seg=item['exch_seg'],
+                            pdc=item.get('pdc'),
+                            pdh=item.get('pdh'),
+                            pdl=item.get('pdl')
+                        ))
+
+                    # 3. Sync Alerts
+                    db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
+                    for alert in session.alerts:
+                        db.add(AlertItem(
+                            id=alert['id'],
+                            session_id=session_id,
+                            symbol=alert['symbol'],
+                            token=alert['token'],
+                            condition=alert['condition'],
+                            price=alert['price'],
+                            active=alert.get('active', True)
+                        ))
+
+                    # 4. Sync Logs (Keep last 50)
+                    db.query(LogItem).filter(LogItem.session_id == session_id).delete()
+                    for log in session.logs[-50:]:
+                        db.add(LogItem(
+                            session_id=session_id,
+                            timestamp=datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
+                            symbol=log['symbol'],
+                            message=log['msg'],
+                            type=log.get('type', 'info'),
+                            current_price=log.get('current_price'),
+                            target_price=log.get('target_price')
+                        ))
+
+                db.commit()
+                print(f"Saved {len(sessions_data)} sessions to SQL database")
         except Exception as e:
-            print(f"Failed to save sessions: {e}")
+            db.rollback()
+            print(f"Failed to save sessions to SQL: {e}")
+        finally:
+            db.close()
 
     def load_sessions(self) -> Dict:
         """
-        Load sessions from disk
+        Load all sessions from the database
         """
-        if not os.path.exists(DATA_FILE):
-            return {}
-            
+        db = SessionLocal()
+        sessions_dict = {}
         try:
-            with self.lock:
-                with open(DATA_FILE, 'r') as f:
-                    return json.load(f)
+            db_sessions = db.query(UserSession).all()
+            for db_session in db_sessions:
+                s_data = {
+                    "client_id": db_session.client_id,
+                    "jwt_token": db_session.jwt_token,
+                    "feed_token": db_session.feed_token,
+                    "api_key": db_session.api_key,
+                    "is_paused": db_session.is_paused,
+                    "last_activity": db_session.last_activity.isoformat(),
+                    "watchlist": [],
+                    "alerts": [],
+                    "logs": []
+                }
+                
+                # Fetch related data
+                for item in db_session.watchlist:
+                    s_data['watchlist'].append({
+                        "symbol": item.symbol,
+                        "token": item.token,
+                        "exch_seg": item.exch_seg,
+                        "pdc": item.pdc,
+                        "pdh": item.pdh,
+                        "pdl": item.pdl
+                    })
+                
+                for alert in db_session.alerts:
+                    s_data['alerts'].append({
+                        "id": alert.id,
+                        "symbol": alert.symbol,
+                        "token": alert.token,
+                        "condition": alert.condition,
+                        "price": alert.price,
+                        "active": alert.active
+                    })
+                
+                for log in db_session.logs:
+                    s_data['logs'].append({
+                        "time": log.timestamp.isoformat(),
+                        "symbol": log.symbol,
+                        "msg": log.message,
+                        "type": log.type,
+                        "current_price": log.current_price,
+                        "target_price": log.target_price
+                    })
+                
+                sessions_dict[db_session.id] = s_data
+            
+            return sessions_dict
         except Exception as e:
-            print(f"Failed to load sessions: {e}")
+            print(f"Failed to load sessions from SQL: {e}")
             return {}
+        finally:
+            db.close()
 
 # Global instance
 persistence_service = PersistenceService()

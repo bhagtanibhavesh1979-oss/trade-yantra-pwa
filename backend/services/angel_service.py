@@ -152,37 +152,113 @@ class AngelService:
 
     def load_scrip_master(self):
         """
-        Load NSE scrip master (cached for 24 hours)
+        Load NSE scrip master (DB first, then fallback to JSON, then download)
         """
+        from database import SessionLocal
+        from models import ScripMaster, SystemMetadata
+        from sqlalchemy import delete
+        
+        db = SessionLocal()
         try:
-            # Check if file exists and is fresh
+            # 1. Check DB for metadata
+            meta = db.query(SystemMetadata).filter(SystemMetadata.key == "scripmaster_updated").first()
+            if meta:
+                # Check if fresh (24h)
+                age = (datetime.datetime.utcnow() - meta.updated_at).total_seconds()
+                if age < 86400:
+                    print("Loading Scrip Master from SQL Cache...")
+                    db_scrips = db.query(ScripMaster).all()
+                    if db_scrips:
+                        self.scrips = [
+                            {
+                                "token": s.token,
+                                "symbol": s.symbol,
+                                "name": s.name,
+                                "exch_seg": s.exch_seg,
+                                "expiry": s.expiry,
+                                "strike": s.strike,
+                                "lotsize": s.lotsize,
+                                "instrumenttype": s.instrumenttype,
+                                "tick_size": s.tick_size
+                            } for s in db_scrips
+                        ]
+                        self.master_loaded = True
+                        print(f"Master Data Ready (SQL): {len(self.scrips)} symbols.")
+                        return
+
+            # 2. Fallback to scripmaster.json for local development speed
             if os.path.exists(SCRIPMASTER_FILE):
                 file_age = time.time() - os.path.getmtime(SCRIPMASTER_FILE)
-                if file_age < 86400:  # 24 hours
-                    print("Loading Scrips from cache...")
+                if file_age < 86400:
+                    print("Loading Scrip Master from JSON fallback...")
                     with open(SCRIPMASTER_FILE, 'r') as f:
                         self.scrips = json.load(f)
                     self.master_loaded = True
-                    print(f"Master Data Ready: {len(self.scrips)} symbols loaded.")
+                    print(f"Master Data Ready (JSON): {len(self.scrips)} symbols.")
+                    # Sync to DB if DB was empty
+                    if not meta:
+                        self._sync_scrips_to_db(db)
                     return
             
-            # Download fresh data
-            print("Downloading Scrip Master...")
+            # 3. Download fresh data
+            print("Downloading Scrip Master from Angel One...")
             r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json")
             data = r.json()
             
             # Filter NSE equity only
             self.scrips = [s for s in data if s.get('exch_seg') == 'NSE' and '-EQ' in s.get('symbol', '')]
             
-            # Cache to file
+            # Cache to file (fallback)
             with open(SCRIPMASTER_FILE, 'w') as f:
                 json.dump(self.scrips, f)
             
+            # Sync to Database
+            self._sync_scrips_to_db(db)
+            
             self.master_loaded = True
-            print(f"Master Data Ready: {len(self.scrips)} symbols loaded.")
+            print(f"Master Data Ready (Download): {len(self.scrips)} symbols.")
             
         except Exception as e:
             print(f"Failed to load scrips: {e}")
+        finally:
+            db.close()
+
+    def _sync_scrips_to_db(self, db):
+        """Helper to bulk insert scrips into DB"""
+        from models import ScripMaster, SystemMetadata
+        from sqlalchemy import delete
+        try:
+            print("Syncing Scrips to SQL Database...")
+            db.execute(delete(ScripMaster))
+            
+            # Bulk insert
+            db.bulk_insert_mappings(ScripMaster, [
+                {
+                    "token": s.get('token'),
+                    "symbol": s.get('symbol'),
+                    "name": s.get('name'),
+                    "exch_seg": s.get('exch_seg'),
+                    "expiry": s.get('expiry'),
+                    "strike": s.get('strike'),
+                    "lotsize": s.get('lotsize'),
+                    "instrumenttype": s.get('instrumenttype'),
+                    "tick_size": s.get('tick_size')
+                } for s in self.scrips
+            ])
+            
+            # Update metadata
+            meta = db.query(SystemMetadata).filter(SystemMetadata.key == "scripmaster_updated").first()
+            if not meta:
+                meta = SystemMetadata(key="scripmaster_updated")
+                db.add(meta)
+            meta.value = str(len(self.scrips))
+            meta.updated_at = datetime.datetime.utcnow()
+            
+            db.commit()
+            print("Sync Complete.")
+        except Exception as e:
+            db.rollback()
+            print(f"Sync failed: {e}")
 
     def search_symbols(self, query: str, limit: int = 15) -> List[Dict]:
         """
