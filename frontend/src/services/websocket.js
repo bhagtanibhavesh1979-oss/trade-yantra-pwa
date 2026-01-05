@@ -8,6 +8,8 @@ class WebSocketClient {
         this.maxReconnectAttempts = 15; // Increased for mobile resilience
         this.reconnectDelay = 3000;
         this.pingInterval = null;
+        this.lastSeen = Date.now();
+        this.watchdogInterval = null;
         this.listeners = {
             price_update: [],
             alert_triggered: [],
