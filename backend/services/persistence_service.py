@@ -16,74 +16,79 @@ class PersistenceService:
         Base.metadata.create_all(bind=engine)
         print("SQL Database Initialized")
 
-    def save_sessions(self, sessions_data: Dict):
+    def save_session(self, session_id: str, session):
         """
-        Save all sessions to the database
+        Save a single session to the database
         """
         db = SessionLocal()
         try:
             with self.lock:
-                for session_id, session in sessions_data.items():
-                    # 1. Update/Create UserSession
-                    db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
-                    if not db_session:
-                        db_session = UserSession(id=session_id)
-                        db.add(db_session)
-                    
-                    db_session.client_id = session.client_id
-                    db_session.jwt_token = session.jwt_token
-                    db_session.feed_token = session.feed_token
-                    db_session.api_key = session.api_key
-                    db_session.is_paused = session.is_paused
-                    db_session.last_activity = session.last_activity or datetime.utcnow()
+                # 1. Update/Create UserSession
+                db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
+                if not db_session:
+                    db_session = UserSession(id=session_id)
+                    db.add(db_session)
+                
+                db_session.client_id = session.client_id
+                db_session.jwt_token = session.jwt_token
+                db_session.feed_token = session.feed_token
+                db_session.api_key = session.api_key
+                db_session.is_paused = session.is_paused
+                db_session.last_activity = session.last_activity or datetime.utcnow()
 
-                    # 2. Sync Watchlist
-                    # For simplicity, clear and recreate (or we could merge)
-                    db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
-                    for item in session.watchlist:
-                        db.add(WatchlistItem(
-                            session_id=session_id,
-                            symbol=item['symbol'],
-                            token=item['token'],
-                            exch_seg=item['exch_seg'],
-                            pdc=item.get('pdc'),
-                            pdh=item.get('pdh'),
-                            pdl=item.get('pdl')
-                        ))
+                # 2. Sync Watchlist
+                db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
+                for item in session.watchlist:
+                    db.add(WatchlistItem(
+                        session_id=session_id,
+                        symbol=item['symbol'],
+                        token=item['token'],
+                        exch_seg=item['exch_seg'],
+                        pdc=item.get('pdc'),
+                        pdh=item.get('pdh'),
+                        pdl=item.get('pdl')
+                    ))
 
-                    # 3. Sync Alerts
-                    db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
-                    for alert in session.alerts:
-                        db.add(AlertItem(
-                            id=alert['id'],
-                            session_id=session_id,
-                            symbol=alert['symbol'],
-                            token=alert['token'],
-                            condition=alert['condition'],
-                            price=alert['price'],
-                            active=alert.get('active', True)
-                        ))
+                # 3. Sync Alerts
+                db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
+                for alert in session.alerts:
+                    db.add(AlertItem(
+                        id=alert['id'],
+                        session_id=session_id,
+                        symbol=alert['symbol'],
+                        token=alert['token'],
+                        condition=alert['condition'],
+                        price=alert['price'],
+                        active=alert.get('active', True)
+                    ))
 
-                    # 4. Sync Logs (Keep last 50)
-                    db.query(LogItem).filter(LogItem.session_id == session_id).delete()
-                    for log in session.logs[-50:]:
-                        db.add(LogItem(
-                            session_id=session_id,
-                            timestamp=datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
-                            symbol=log['symbol'],
-                            message=log['msg'],
-                            type=log.get('type', 'info'),
-                            current_price=log.get('current_price'),
-                            target_price=log.get('target_price')
-                        ))
+                # 4. Sync Logs (Keep last 50)
+                db.query(LogItem).filter(LogItem.session_id == session_id).delete()
+                for log in session.logs[-50:]:
+                    db.add(LogItem(
+                        session_id=session_id,
+                        timestamp=datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
+                        symbol=log['symbol'],
+                        message=log['msg'],
+                        type=log.get('type', 'info'),
+                        current_price=log.get('current_price'),
+                        target_price=log.get('target_price')
+                    ))
 
-                db.commit()
-                print(f"Saved {len(sessions_data)} sessions to SQL database")
+            db.commit()
+            print(f"Saved session {session_id} to SQL database")
         except Exception as e:
             db.rollback()
-            print(f"Failed to save sessions to SQL: {e}")
+            print(f"Failed to save session {session_id} to SQL: {e}")
         finally:
             db.close()
+
+    def save_sessions(self, sessions_data: Dict):
+        """
+        Save all sessions to the database (Maintenance/Legacy)
+        """
+        for session_id, session in sessions_data.items():
+            self.save_session(session_id, session)
 
     def load_sessions(self) -> Dict:
         """

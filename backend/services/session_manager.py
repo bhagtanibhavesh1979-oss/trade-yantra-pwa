@@ -60,8 +60,11 @@ class SessionManager:
         print(f"Loaded {len(self.sessions)} sessions from disk")
 
     def save_session(self, session_id: str):
-        """Trigger save for a specific session (saves all currently)"""
-        persistence_service.save_sessions(self.sessions)
+        """Trigger save for a specific session"""
+        with self.lock:
+            session = self.sessions.get(session_id)
+            if session:
+                persistence_service.save_session(session_id, session)
 
     def create_session(self, client_id: str, jwt_token: str, feed_token: str, api_key: str) -> Session:
         """Create a new session"""
