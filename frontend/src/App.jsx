@@ -80,6 +80,10 @@ function App() {
       setLogs(logsData.logs || []);
       setIsPaused(alertsData.is_paused || false);
     } catch (err) {
+      if (err.response?.status === 404 || err.response?.status === 401) {
+        console.warn('Session expired or not found. Logging out...');
+        handleLogout();
+      }
     } finally {
       setIsLoadingData(false);
     }
@@ -180,20 +184,27 @@ function App() {
   useEffect(() => {
     const savedSession = getSession();
     if (savedSession) {
+      // Set local state temporarily for fast UI load
       setSessionState(savedSession);
-      // Watchlist is already initialized from localStorage via useState
 
-      // Auto-sync local watchlist to backend (if backend restarted)
-      const localWatchlist = JSON.parse(localStorage.getItem('trade_yantra_watchlist') || '[]');
-      if (localWatchlist.length > 0) {
-        localWatchlist.forEach(stock => {
-          // Re-subscribe silently
-          import('./services/api').then(({ addToWatchlist }) => {
-            addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg)
-              .catch(() => { });
-          });
+      // Verify with backend
+      import('./services/api').then(({ checkSession }) => {
+        checkSession(savedSession.sessionId).then((data) => {
+          console.log('✅ Session verified:', data);
+          // Auto-sync local watchlist to backend (if backend restarted)
+          const localWatchlist = JSON.parse(localStorage.getItem('trade_yantra_watchlist') || '[]');
+          if (localWatchlist.length > 0) {
+            localWatchlist.forEach(stock => {
+              import('./services/api').then(({ addToWatchlist }) => {
+                addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg).catch(() => { });
+              });
+            });
+          }
+        }).catch((err) => {
+          console.error('❌ Session invalid:', err);
+          handleLogout();
         });
-      }
+      });
 
       loadData(savedSession.sessionId);
       connectWebSocket(savedSession.sessionId);
@@ -235,23 +246,27 @@ function App() {
   };
 
   const handleLogout = async () => {
-    try {
-      if (session) {
-        await logout(session.sessionId);
-      }
-    } catch (err) {
-      console.error('Backend logout failed:', err);
-    }
-
+    // 1. Clear locally FIRST - instant UI reaction
     wsClient.disconnect();
     clearSession();
-    // DON'T clear watchlist - it should persist across logins
     setSessionState(null);
     setAlerts([]);
     setLogs([]);
     setIsPaused(false);
     setWsStatus('disconnected');
     setActiveTab('watchlist');
+
+    // 2. Notify backend in background (don't block UI)
+    try {
+      if (session) {
+        import('./services/api').then(({ logout }) => {
+          logout(session.sessionId).catch(e => console.warn('Backend logout failed:', e));
+        });
+      }
+    } catch (err) {
+      console.error('Logout handler cleanup error:', err);
+    }
+
     toast.success('Logged out successfully');
   };
 

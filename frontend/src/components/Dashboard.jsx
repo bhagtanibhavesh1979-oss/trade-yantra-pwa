@@ -56,14 +56,8 @@ function Dashboard({
         setTheme(prev => prev === 'dark' ? 'light' : 'dark');
     };
 
-    const handleLogout = async () => {
-        try {
-            await logout(session.sessionId);
-        } catch (err) {
-            console.error('Logout error:', err);
-        } finally {
-            onLogout();
-        }
+    const handleLogout = () => {
+        onLogout();
     };
 
     return (
