@@ -186,5 +186,64 @@ class PersistenceService:
         finally:
             db.close()
 
+    def get_session_by_client(self, client_id: str) -> Dict:
+        """Get the most recent session data for a specific client_id"""
+        from sqlalchemy.orm import joinedload
+        db = SessionLocal()
+        try:
+            # Find the most recent session for this client
+            db_session = db.query(UserSession).options(
+                joinedload(UserSession.watchlist),
+                joinedload(UserSession.alerts),
+                joinedload(UserSession.logs)
+            ).filter(UserSession.client_id == client_id).order_by(UserSession.last_activity.desc()).first()
+            
+            if not db_session:
+                return {}
+            
+            s_data = {
+                "watchlist": [],
+                "alerts": [],
+                "logs": [],
+                "is_paused": db_session.is_paused
+            }
+            
+            for item in db_session.watchlist:
+                s_data['watchlist'].append({
+                    "symbol": item.symbol,
+                    "token": item.token,
+                    "exch_seg": item.exch_seg,
+                    "pdc": item.pdc,
+                    "pdh": item.pdh,
+                    "pdl": item.pdl
+                })
+            
+            for alert in db_session.alerts:
+                s_data['alerts'].append({
+                    "id": alert.id,
+                    "symbol": alert.symbol,
+                    "token": alert.token,
+                    "condition": alert.condition,
+                    "price": alert.price,
+                    "active": alert.active
+                })
+            
+            for log in db_session.logs:
+                s_data['logs'].append({
+                    "time": log.timestamp.isoformat(),
+                    "symbol": log.symbol,
+                    "msg": log.message,
+                    "type": log.type,
+                    "current_price": log.current_price,
+                    "target_price": log.target_price
+                })
+            
+            return s_data
+        except Exception as e:
+            print(f"Failed to load session for client {client_id}: {e}")
+            return {}
+        finally:
+            db.close()
+
 # Global instance
 persistence_service = PersistenceService()
