@@ -1,7 +1,3 @@
-"""
-Authentication Routes
-Manual login with Angel One credentials
-"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from services.session_manager import session_manager
@@ -27,6 +23,7 @@ class LogoutRequest(BaseModel):
 class LogoutResponse(BaseModel):
     success: bool
     message: str
+
 
 @router.post("/login", response_model=LoginResponse)
 async def login(req: LoginRequest):

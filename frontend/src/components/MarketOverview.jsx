@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from './Skeleton';
 
-const MarketOverview = ({ sessionId, onAlertClick }) => {
+const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
     const [indices, setIndices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedChartIndex, setSelectedChartIndex] = useState(null);
@@ -71,20 +71,22 @@ const MarketOverview = ({ sessionId, onAlertClick }) => {
     };
 
     useEffect(() => {
-        if (sessionId) {
+        if (sessionId && isVisible) {
             // Initial load
-            setIndices([
-                { symbol: 'NIFTY 50', token: '99926000', ltp: 0, pdc: 0, exch: 'NSE' },
-                { symbol: 'NIFTY BANK', token: '99926009', ltp: 0, pdc: 0, exch: 'NSE' },
-                { symbol: 'SENSEX', token: '99919000', ltp: 0, pdc: 0, exch: 'BSE' },
-                { symbol: 'NIFTY FIN SERVICE', token: '99926012', ltp: 0, pdc: 0, exch: 'NSE' },
-            ]);
+            if (indices.length === 0) {
+                setIndices([
+                    { symbol: 'NIFTY 50', token: '99926000', ltp: 0, pdc: 0, exch: 'NSE' },
+                    { symbol: 'NIFTY BANK', token: '99926009', ltp: 0, pdc: 0, exch: 'NSE' },
+                    { symbol: 'SENSEX', token: '99919000', ltp: 0, pdc: 0, exch: 'BSE' },
+                    { symbol: 'NIFTY FIN SERVICE', token: '99926012', ltp: 0, pdc: 0, exch: 'NSE' },
+                ]);
+            }
 
             fetchIndices();
-            const interval = setInterval(fetchIndices, 10000); // Update every 10s for header
+            const interval = setInterval(fetchIndices, 10000);
             return () => clearInterval(interval);
         }
-    }, [sessionId]);
+    }, [sessionId, isVisible]);
 
     return (
         <>

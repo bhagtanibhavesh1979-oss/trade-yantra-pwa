@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-function IndicesTab({ sessionId }) {
+function IndicesTab({ sessionId, isVisible = true }) {
     const [indices, setIndices] = useState([
         { symbol: 'NIFTY 50', token: '99926000', ltp: 0, pdc: 0 },
         { symbol: 'NIFTY BANK', token: '99926009', ltp: 0, pdc: 0 },
@@ -32,13 +32,13 @@ function IndicesTab({ sessionId }) {
     };
 
     useEffect(() => {
-        if (sessionId) {
+        if (sessionId && isVisible) {
             fetchIndices();
-            // Refresh every 30 seconds
+            // Refresh every 60 seconds (reduced frequency)
             const interval = setInterval(fetchIndices, 30000);
             return () => clearInterval(interval);
         }
-    }, [sessionId]);
+    }, [sessionId, isVisible]);
 
     return (
         <div className="w-full space-y-4">

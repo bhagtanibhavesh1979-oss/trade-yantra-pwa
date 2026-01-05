@@ -5,6 +5,8 @@ import IndicesTab from './IndicesTab';
 import LogsTab from './LogsTab';
 import MarketOverview from './MarketOverview';
 import { logout } from '../services/api';
+import { showNotification } from '../services/notifications';
+import toast from 'react-hot-toast';
 
 function Dashboard({
     session,
@@ -23,7 +25,8 @@ function Dashboard({
     setActiveTab: propSetActiveTab, // Receive from parent
     preSelectedAlertSymbol,
     setPreSelectedAlertSymbol,
-    isLoadingData
+    isLoadingData,
+    isVisible
 }) {
     // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
@@ -106,6 +109,24 @@ function Dashboard({
                             </button>
                         )}
 
+                        {/* Test Notification Button */}
+                        <button
+                            onClick={() => {
+                                toast.success('Test Toast! 🔔');
+                                showNotification('Test Alert!', {
+                                    body: 'This is a test notification from Trade Yantra.',
+                                    icon: '/logo.png',
+                                    vibrate: [200, 100, 200]
+                                });
+                            }}
+                            className="p-2 text-gray-400 hover:text-white transition-colors"
+                            title="Test Notification"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                            </svg>
+                        </button>
+
                         {/* Logout Button */}
                         <button
                             onClick={handleLogout}
@@ -129,6 +150,7 @@ function Dashboard({
                             setPreSelectedAlertSymbol && setPreSelectedAlertSymbol({ symbol, token, exchange });
                             setActiveTab('alerts');
                         }}
+                        isVisible={isVisible}
                     />
                 </div>
 
@@ -138,6 +160,7 @@ function Dashboard({
                         watchlist={watchlist}
                         setWatchlist={setWatchlist}
                         referenceDate={referenceDate}
+                        isVisible={isVisible}
                     />
                 )}
                 {activeTab === 'alerts' && (
@@ -155,7 +178,7 @@ function Dashboard({
                     />
                 )}
                 {activeTab === 'indices' && (
-                    <IndicesTab sessionId={session.sessionId} />
+                    <IndicesTab sessionId={session.sessionId} isVisible={isVisible} />
                 )}
                 {activeTab === 'logs' && (
                     <LogsTab logs={logs} />

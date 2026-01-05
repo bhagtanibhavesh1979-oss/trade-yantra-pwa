@@ -15,16 +15,16 @@ const SESSION_KEY = 'trade_yantra_session';
 
 // Session helpers
 export const getSession = () => {
-    const sessionData = sessionStorage.getItem(SESSION_KEY);
+    const sessionData = localStorage.getItem(SESSION_KEY);
     return sessionData ? JSON.parse(sessionData) : null;
 };
 
 export const setSession = (sessionData) => {
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
 };
 
 export const clearSession = () => {
-    sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_KEY);
 };
 
 // Auth APIs

@@ -3,7 +3,7 @@ import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, g
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
+function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVisible = true }) {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
@@ -80,8 +80,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
         try {
             setRefreshing(true);
             await refreshWatchlist(sessionId);
-            // Poll for updated prices
-            pollForUpdates();
+            // Watchlist will be updated by the useEffect polling
         } catch (err) {
             console.error('Refresh error:', err);
         } finally {
@@ -89,34 +88,23 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate }) {
         }
     };
 
-    const pollForUpdates = () => {
-        // Poll every 5 seconds for updates (fallback for WebSocket)
-        // Kept alive indefinitely in case WS fails
+    // Corrected polling logic using useEffect
+    useEffect(() => {
+        if (!sessionId || !isVisible) return;
+
         const pollInterval = setInterval(async () => {
             try {
-                // Only poll if tab is active (optimization could be added here to check visibility)
                 const data = await getWatchlist(sessionId);
                 if (data.watchlist) {
-                    setWatchlist(() => {
-                        // Merge strategies: only update if changed? 
-                        // For now simple replacement is fine as React handles diffing
-                        return data.watchlist;
-                    });
+                    setWatchlist(data.watchlist);
                 }
             } catch (err) {
-                console.error('Poll error:', err);
-                // Don't clear interval on error, retry next time
+                console.error('Watchlist Poll error:', err);
             }
-        }, 5000);
+        }, 10000); // Poll every 10s (increased from 5s for mobile efficiency)
 
-        // Cleanup on unmount
         return () => clearInterval(pollInterval);
-
-        // Return cleanup function if we were in useEffect, 
-        // but here we just let it run. In a real app we should manage this better.
-        // For now, let's at least clear it after 1 minute to avoid eternal zombies if component re-renders
-        // setTimeout(() => clearInterval(pollInterval), 60000);
-    };
+    }, [sessionId, setWatchlist, isVisible]);
 
 
     // Apply sorting only

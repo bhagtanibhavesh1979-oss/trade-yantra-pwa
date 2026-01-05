@@ -98,10 +98,10 @@ class WebSocketClient {
 
     startHeartbeat() {
         this.stopHeartbeat();
-        // Ping every 20 seconds to keep Render/Mobile connection alive
+        // Ping every 10 seconds to keep connection alive better on mobile (was 20s)
         this.pingInterval = setInterval(() => {
             this.ping();
-        }, 20000);
+        }, 10000);
     }
 
     stopHeartbeat() {
@@ -118,8 +118,13 @@ class WebSocketClient {
         }
 
         this.reconnectAttempts++;
-        // Implement simple backoff or keep it linear
-        const delay = this.reconnectDelay * (1 + (this.reconnectAttempts * 0.2)); // Slight backoff
+        // Fast reconnect for first 3 attempts (1s), then backoff
+        let delay;
+        if (this.reconnectAttempts <= 3) {
+            delay = 1000;
+        } else {
+            delay = this.reconnectDelay * (1 + (this.reconnectAttempts * 0.2));
+        }
 
         console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`);
 

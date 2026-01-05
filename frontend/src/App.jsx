@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
 import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
 import './App.css';
 
 function App() {
@@ -25,6 +25,7 @@ function App() {
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
 
   const [activeTab, setActiveTab] = useState('watchlist');
   const [preSelectedAlertSymbol, setPreSelectedAlertSymbol] = useState(null);
@@ -139,12 +140,24 @@ function App() {
         data: { url: '/' } // Used by SW to navigate
       });
 
-      // Play sound
-      try {
-        const notificationSound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-        notificationSound.play().catch(e => console.error("Error playing sound:", e));
-      } catch (e) {
-        console.error("Audio error:", e);
+      // Show Toast backup
+      toast.success(`🔔 ${alert.symbol}: Crossed ${alert.price.toFixed(2)}`, {
+        duration: 6000,
+        style: {
+          border: '1px solid #667EEA',
+          padding: '16px',
+          color: '#fff',
+          background: '#1F2937',
+        },
+        iconTheme: {
+          primary: '#667EEA',
+          secondary: '#FFFAEE',
+        },
+      });
+
+      // Feedback
+      if ('vibrate' in navigator) {
+        navigator.vibrate([200, 100, 200]);
       }
     });
 
@@ -182,6 +195,26 @@ function App() {
 
     // Register SW
     registerServiceWorker();
+
+    // Visibility API listener
+    const handleVisibilityChange = () => {
+      const visible = document.visibilityState === 'visible';
+      setIsVisible(visible);
+
+      // If we become visible and session exists, ensure WS is connected
+      if (visible) {
+        const savedSession = getSession();
+        if (savedSession && wsClient.ws?.readyState !== WebSocket.OPEN) {
+          console.log('🔄 App became visible, ensuring WebSocket connection...');
+          wsClient.connect(savedSession.sessionId);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const handleLoginSuccess = (sessionData) => {
@@ -255,6 +288,7 @@ function App() {
             preSelectedAlertSymbol={preSelectedAlertSymbol}
             setPreSelectedAlertSymbol={setPreSelectedAlertSymbol}
             isLoadingData={isLoadingData}
+            isVisible={isVisible}
           />
         </>
       )}
