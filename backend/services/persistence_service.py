@@ -38,42 +38,48 @@ class PersistenceService:
 
                 # 2. Sync Watchlist
                 db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
-                for item in session.watchlist:
-                    db.add(WatchlistItem(
-                        session_id=session_id,
-                        symbol=item['symbol'],
-                        token=item['token'],
-                        exch_seg=item['exch_seg'],
-                        pdc=item.get('pdc'),
-                        pdh=item.get('pdh'),
-                        pdl=item.get('pdl')
-                    ))
+                if session.watchlist:
+                    db.bulk_insert_mappings(WatchlistItem, [
+                        {
+                            "session_id": session_id,
+                            "symbol": item['symbol'],
+                            "token": item['token'],
+                            "exch_seg": item['exch_seg'],
+                            "pdc": item.get('pdc'),
+                            "pdh": item.get('pdh'),
+                            "pdl": item.get('pdl')
+                        } for item in session.watchlist
+                    ])
 
                 # 3. Sync Alerts
                 db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
-                for alert in session.alerts:
-                    db.add(AlertItem(
-                        id=alert['id'],
-                        session_id=session_id,
-                        symbol=alert['symbol'],
-                        token=alert['token'],
-                        condition=alert['condition'],
-                        price=alert['price'],
-                        active=alert.get('active', True)
-                    ))
+                if session.alerts:
+                    db.bulk_insert_mappings(AlertItem, [
+                        {
+                            "id": alert['id'],
+                            "session_id": session_id,
+                            "symbol": alert['symbol'],
+                            "token": alert['token'],
+                            "condition": alert['condition'],
+                            "price": alert['price'],
+                            "active": alert.get('active', True)
+                        } for alert in session.alerts
+                    ])
 
                 # 4. Sync Logs (Keep last 50)
                 db.query(LogItem).filter(LogItem.session_id == session_id).delete()
-                for log in session.logs[-50:]:
-                    db.add(LogItem(
-                        session_id=session_id,
-                        timestamp=datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
-                        symbol=log['symbol'],
-                        message=log['msg'],
-                        type=log.get('type', 'info'),
-                        current_price=log.get('current_price'),
-                        target_price=log.get('target_price')
-                    ))
+                if session.logs:
+                    db.bulk_insert_mappings(LogItem, [
+                        {
+                            "session_id": session_id,
+                            "timestamp": datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
+                            "symbol": log['symbol'],
+                            "message": log['msg'],
+                            "type": log.get('type', 'info'),
+                            "current_price": log.get('current_price'),
+                            "target_price": log.get('target_price')
+                        } for log in session.logs[-50:]
+                    ])
 
             db.commit()
             print(f"Saved session {session_id} to SQL database")

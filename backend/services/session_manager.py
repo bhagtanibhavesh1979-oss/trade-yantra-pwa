@@ -84,7 +84,10 @@ class SessionManager:
         with self.lock:
             self.sessions[session_id] = session
         
-        self.save_session(session_id)
+        # Save in background to avoid blocking login response
+        import threading
+        threading.Thread(target=self.save_session, args=(session_id,), daemon=True).start()
+        
         return session
 
     def get_session(self, session_id: str) -> Optional[Session]:

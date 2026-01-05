@@ -6,6 +6,7 @@ import { Skeleton } from './Skeleton';
 function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(50);
 
     // Ensure watchlist is always an array
     const safeWatchlist = Array.isArray(watchlist) ? watchlist : [];
@@ -394,53 +395,63 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                         <p className="text-[var(--text-secondary)] text-sm mt-1">Select a stock and click generate above to get started.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-3">
-                        {alerts.map((alert) => {
-                            const isAbove = alert.condition === 'ABOVE';
-                            const colorClass = isAbove ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]';
-                            const borderColorClass = isAbove ? 'border-l-[var(--success-neon)]' : 'border-l-[var(--danger-neon)]';
-                            const icon = isAbove ? '📈' : '📉';
-                            const typeLabel = alert.type?.replace('AUTO_', '') || 'MANUAL';
+                    <>
+                        <div className="grid grid-cols-1 gap-3">
+                            {alerts.slice(0, visibleCount).map((alert) => {
+                                const isAbove = alert.condition === 'ABOVE';
+                                const colorClass = isAbove ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]';
+                                const borderColorClass = isAbove ? 'border-l-[var(--success-neon)]' : 'border-l-[var(--danger-neon)]';
+                                const icon = isAbove ? '📈' : '📉';
+                                const typeLabel = alert.type?.replace('AUTO_', '') || 'MANUAL';
 
-                            return (
-                                <div
-                                    key={alert.id}
-                                    className={`glass-card rounded-xl p-4 border-l-4 ${borderColorClass} hover:border-[var(--accent-blue)] transition-all duration-300 group shadow-sm`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-2xl bg-[var(--bg-secondary)] p-2 rounded-lg">{icon}</span>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <h4 className="text-[var(--text-primary)] font-bold text-base">{alert.symbol}</h4>
-                                                    <span className="text-[10px] bg-[var(--bg-secondary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded font-mono uppercase">
-                                                        {typeLabel}
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className={`font-mono font-bold text-lg ${colorClass}`}>
-                                                        ₹{alert.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                    </span>
-                                                    <span className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-tighter">
-                                                        {alert.condition}
-                                                    </span>
+                                return (
+                                    <div
+                                        key={alert.id}
+                                        className={`glass-card rounded-xl p-4 border-l-4 ${borderColorClass} hover:border-[var(--accent-blue)] transition-all duration-300 group shadow-sm`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <span className="text-2xl bg-[var(--bg-secondary)] p-2 rounded-lg">{icon}</span>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="text-[var(--text-primary)] font-bold text-base">{alert.symbol}</h4>
+                                                        <span className="text-[10px] bg-[var(--bg-secondary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded font-mono uppercase">
+                                                            {typeLabel}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className={`font-mono font-bold text-lg ${colorClass}`}>
+                                                            ₹{alert.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                        </span>
+                                                        <span className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-tighter">
+                                                            {alert.condition}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
+                                            <button
+                                                onClick={() => handleDeleteAlert(alert.id)}
+                                                className="opacity-0 group-hover:opacity-100 p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger-neon)] rounded-lg transition-all duration-200"
+                                                title="Delete Alert"
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteAlert(alert.id)}
-                                            className="opacity-0 group-hover:opacity-100 p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger-neon)] rounded-lg transition-all duration-200"
-                                            title="Delete Alert"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                            </svg>
-                                        </button>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                        {alerts.length > visibleCount && (
+                            <button
+                                onClick={() => setVisibleCount(prev => prev + 50)}
+                                className="w-full py-3 mt-4 text-[var(--text-secondary)] hover:text-white font-medium border border-dashed border-[var(--border-color)] rounded-xl transition-all"
+                            >
+                                Load More (+50)
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </div>
