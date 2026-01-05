@@ -35,6 +35,7 @@ class SessionManager:
 
     def _load_from_disk(self):
         """Load sessions from disk on startup"""
+        persistence_service.cleanup_old_sessions()
         data = persistence_service.load_sessions()
         for session_id, s_data in data.items():
             try:

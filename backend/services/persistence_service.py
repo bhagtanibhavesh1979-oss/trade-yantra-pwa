@@ -99,11 +99,23 @@ class PersistenceService:
     def load_sessions(self) -> Dict:
         """
         Load all sessions from the database
+        Optimized with joinedload to prevent N+1 query problem
         """
+        from sqlalchemy.orm import joinedload
         db = SessionLocal()
         sessions_dict = {}
         try:
-            db_sessions = db.query(UserSession).all()
+            # Delete sessions with no client_id (orphans) first
+            db.query(UserSession).filter(UserSession.client_id == None).delete()
+            db.commit()
+
+            # Join all relations in one or two efficient queries
+            db_sessions = db.query(UserSession).options(
+                joinedload(UserSession.watchlist),
+                joinedload(UserSession.alerts),
+                joinedload(UserSession.logs)
+            ).all()
+
             for db_session in db_sessions:
                 s_data = {
                     "client_id": db_session.client_id,
@@ -117,7 +129,7 @@ class PersistenceService:
                     "logs": []
                 }
                 
-                # Fetch related data
+                # Fetch related data (now pre-loaded)
                 for item in db_session.watchlist:
                     s_data['watchlist'].append({
                         "symbol": item.symbol,
@@ -154,6 +166,23 @@ class PersistenceService:
         except Exception as e:
             print(f"Failed to load sessions from SQL: {e}")
             return {}
+        finally:
+            db.close()
+
+    def cleanup_old_sessions(self, days: int = 3):
+        """Delete sessions older than N days to keep DB lean"""
+        db = SessionLocal()
+        try:
+            from datetime import datetime, timedelta
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            # Cascade delete will handle related items if configured in models.py
+            deleted = db.query(UserSession).filter(UserSession.last_activity < cutoff).delete()
+            db.commit()
+            if deleted > 0:
+                print(f"Cleaned up {deleted} old sessions from database")
+        except Exception as e:
+            db.rollback()
+            print(f"Cleanup failed: {e}")
         finally:
             db.close()
 
