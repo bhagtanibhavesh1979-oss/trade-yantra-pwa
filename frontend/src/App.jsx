@@ -234,7 +234,15 @@ function App() {
     requestNotificationPermission();
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      if (session) {
+        await logout(session.sessionId);
+      }
+    } catch (err) {
+      console.error('Backend logout failed:', err);
+    }
+
     wsClient.disconnect();
     clearSession();
     // DON'T clear watchlist - it should persist across logins
@@ -244,6 +252,7 @@ function App() {
     setIsPaused(false);
     setWsStatus('disconnected');
     setActiveTab('watchlist');
+    toast.success('Logged out successfully');
   };
 
   return (

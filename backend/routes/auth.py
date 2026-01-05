@@ -62,6 +62,10 @@ async def logout(req: LogoutRequest):
     """
     Logout and clear session
     """
+    session = session_manager.get_session(req.session_id)
+    if session and session.smart_api:
+        angel_service.logout(session.smart_api)
+        
     success = session_manager.delete_session(req.session_id)
     
     if not success:

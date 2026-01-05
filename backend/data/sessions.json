@@ -10,44 +10,44 @@
         "token": "9819",
         "exch_seg": "NSE",
         "ltp": 1451.4,
-        "pdc": 1440.9,
+        "pdc": 1400.3,
         "wc": 1409.6,
         "loading": false,
-        "pdh": 1445.6,
-        "pdl": 1417.7
+        "pdh": 1411.9,
+        "pdl": 1389.2
       },
       {
         "symbol": "DLF-EQ",
         "token": "14732",
         "exch_seg": "NSE",
         "ltp": 711.35,
-        "pdc": 698.3,
+        "pdc": 676.0,
         "wc": 699.4,
         "loading": false,
-        "pdh": 707.45,
-        "pdl": 692.65
+        "pdh": 686.5,
+        "pdl": 672.0
       },
       {
         "symbol": "BAJAJFINSV-EQ",
         "token": "16675",
         "exch_seg": "NSE",
         "ltp": 2039.2,
-        "pdc": 2039.5,
+        "pdc": 2026.0,
         "wc": 2083.1,
         "loading": false,
-        "pdh": 2050.0,
-        "pdl": 2026.6
+        "pdh": 2038.0,
+        "pdl": 2012.6
       },
       {
         "symbol": "TVSMOTOR-EQ",
         "token": "8479",
         "exch_seg": "NSE",
         "ltp": 3864.2,
-        "pdc": 3874.5,
+        "pdc": 3600.7,
         "wc": 3655.2,
         "loading": false,
-        "pdh": 3897.5,
-        "pdl": 3825.7
+        "pdh": 3652.3,
+        "pdl": 3561.4
       },
       {
         "symbol": "TATACHEM-EQ",
@@ -64,9 +64,9 @@
         "token": "236",
         "exch_seg": "NSE",
         "ltp": 2815.6,
-        "pdc": 2771.6,
-        "pdh": 2799.0,
-        "pdl": 2755.8,
+        "pdc": 2758.4,
+        "pdh": 2793.8,
+        "pdl": 2755.3,
         "loading": false
       },
       {
@@ -74,9 +74,9 @@
         "token": "13538",
         "exch_seg": "NSE",
         "ltp": 1596.9,
-        "pdc": 1612.2,
-        "pdh": 1619.1,
-        "pdl": 1601.9,
+        "pdc": 1605.0,
+        "pdh": 1608.8,
+        "pdl": 1574.6,
         "loading": false
       },
       {
@@ -84,9 +84,9 @@
         "token": "341",
         "exch_seg": "NSE",
         "ltp": 440.45,
-        "pdc": 439.3,
-        "pdh": 442.6,
-        "pdl": 437.45,
+        "pdc": 450.0,
+        "pdh": 458.0,
+        "pdl": 435.0,
         "loading": false
       },
       {
@@ -94,9 +94,9 @@
         "token": "5097",
         "exch_seg": "NSE",
         "ltp": 281.8,
-        "pdc": 284.1,
-        "pdh": 287.75,
-        "pdl": 283.25,
+        "pdc": 285.0,
+        "pdh": 285.5,
+        "pdl": 281.7,
         "loading": false
       },
       {
@@ -104,9 +104,9 @@
         "token": "3499",
         "exch_seg": "NSE",
         "ltp": 185.72,
-        "pdc": 182.8,
-        "pdh": 183.85,
-        "pdl": 181.6,
+        "pdc": 167.95,
+        "pdh": 170.45,
+        "pdl": 167.56,
         "loading": false
       },
       {
@@ -114,9 +114,9 @@
         "token": "11723",
         "exch_seg": "NSE",
         "ltp": 1185.9,
-        "pdc": 1178.1,
-        "pdh": 1184.0,
-        "pdl": 1169.1,
+        "pdc": 1081.5,
+        "pdh": 1091.5,
+        "pdl": 1073.2,
         "loading": false
       },
       {
@@ -124,9 +124,9 @@
         "token": "3426",
         "exch_seg": "NSE",
         "ltp": 388.85,
-        "pdc": 392.65,
-        "pdh": 393.65,
-        "pdl": 381.25,
+        "pdc": 374.35,
+        "pdh": 377.65,
+        "pdl": 373.0,
         "loading": false
       },
       {
@@ -134,9 +134,9 @@
         "token": "275",
         "exch_seg": "NSE",
         "ltp": 1207.4,
-        "pdc": 1215.0,
-        "pdh": 1217.5,
-        "pdl": 1192.0,
+        "pdc": 1210.5,
+        "pdh": 1213.7,
+        "pdl": 1176.6,
         "loading": false
       },
       {
@@ -144,9 +144,9 @@
         "token": "5900",
         "exch_seg": "NSE",
         "ltp": 1285.8,
-        "pdc": 1269.0,
-        "pdh": 1281.8,
-        "pdl": 1264.3,
+        "pdc": 1229.8,
+        "pdh": 1238.5,
+        "pdl": 1220.2,
         "loading": false
       },
       {
@@ -154,9 +154,9 @@
         "token": "4963",
         "exch_seg": "NSE",
         "ltp": 1371.5,
-        "pdc": 1355.1,
-        "pdh": 1356.9,
-        "pdl": 1336.3,
+        "pdc": 1357.0,
+        "pdh": 1369.5,
+        "pdl": 1345.5,
         "loading": false
       },
       {
@@ -164,9 +164,9 @@
         "token": "5258",
         "exch_seg": "NSE",
         "ltp": 899.95,
-        "pdc": 901.85,
-        "pdh": 909.75,
-        "pdl": 890.25,
+        "pdc": 833.0,
+        "pdh": 842.5,
+        "pdl": 826.0,
         "loading": false
       }
     ],
@@ -20398,44 +20398,44 @@
         "token": "9819",
         "exch_seg": "NSE",
         "ltp": 1451.4,
-        "pdc": 1440.9,
+        "pdc": 1400.3,
         "wc": 1409.6,
         "loading": false,
-        "pdh": 1445.6,
-        "pdl": 1417.7
+        "pdh": 1411.9,
+        "pdl": 1389.2
       },
       {
         "symbol": "DLF-EQ",
         "token": "14732",
         "exch_seg": "NSE",
         "ltp": 711.35,
-        "pdc": 698.3,
+        "pdc": 676.0,
         "wc": 699.4,
         "loading": false,
-        "pdh": 707.45,
-        "pdl": 692.65
+        "pdh": 686.5,
+        "pdl": 672.0
       },
       {
         "symbol": "BAJAJFINSV-EQ",
         "token": "16675",
         "exch_seg": "NSE",
         "ltp": 2039.2,
-        "pdc": 2039.5,
+        "pdc": 2026.0,
         "wc": 2083.1,
         "loading": false,
-        "pdh": 2050.0,
-        "pdl": 2026.6
+        "pdh": 2038.0,
+        "pdl": 2012.6
       },
       {
         "symbol": "TVSMOTOR-EQ",
         "token": "8479",
         "exch_seg": "NSE",
         "ltp": 3864.2,
-        "pdc": 3874.5,
+        "pdc": 3600.7,
         "wc": 3655.2,
         "loading": false,
-        "pdh": 3897.5,
-        "pdl": 3825.7
+        "pdh": 3652.3,
+        "pdl": 3561.4
       },
       {
         "symbol": "TATACHEM-EQ",
@@ -20452,9 +20452,9 @@
         "token": "236",
         "exch_seg": "NSE",
         "ltp": 2815.6,
-        "pdc": 2771.6,
-        "pdh": 2799.0,
-        "pdl": 2755.8,
+        "pdc": 2758.4,
+        "pdh": 2793.8,
+        "pdl": 2755.3,
         "loading": false
       },
       {
@@ -20462,9 +20462,9 @@
         "token": "13538",
         "exch_seg": "NSE",
         "ltp": 1596.9,
-        "pdc": 1612.2,
-        "pdh": 1619.1,
-        "pdl": 1601.9,
+        "pdc": 1605.0,
+        "pdh": 1608.8,
+        "pdl": 1574.6,
         "loading": false
       },
       {
@@ -20472,9 +20472,9 @@
         "token": "341",
         "exch_seg": "NSE",
         "ltp": 440.45,
-        "pdc": 439.3,
-        "pdh": 442.6,
-        "pdl": 437.45,
+        "pdc": 450.0,
+        "pdh": 458.0,
+        "pdl": 435.0,
         "loading": false
       },
       {
@@ -20482,9 +20482,9 @@
         "token": "5097",
         "exch_seg": "NSE",
         "ltp": 281.8,
-        "pdc": 284.1,
-        "pdh": 287.75,
-        "pdl": 283.25,
+        "pdc": 285.0,
+        "pdh": 285.5,
+        "pdl": 281.7,
         "loading": false
       },
       {
@@ -20492,9 +20492,9 @@
         "token": "3499",
         "exch_seg": "NSE",
         "ltp": 185.72,
-        "pdc": 182.8,
-        "pdh": 183.85,
-        "pdl": 181.6,
+        "pdc": 167.95,
+        "pdh": 170.45,
+        "pdl": 167.56,
         "loading": false
       },
       {
@@ -20502,9 +20502,9 @@
         "token": "11723",
         "exch_seg": "NSE",
         "ltp": 1185.9,
-        "pdc": 1178.1,
-        "pdh": 1184.0,
-        "pdl": 1169.1,
+        "pdc": 1081.5,
+        "pdh": 1091.5,
+        "pdl": 1073.2,
         "loading": false
       },
       {
@@ -20512,9 +20512,9 @@
         "token": "3426",
         "exch_seg": "NSE",
         "ltp": 388.85,
-        "pdc": 392.65,
-        "pdh": 393.65,
-        "pdl": 381.25,
+        "pdc": 374.35,
+        "pdh": 377.65,
+        "pdl": 373.0,
         "loading": false
       },
       {
@@ -20522,9 +20522,9 @@
         "token": "275",
         "exch_seg": "NSE",
         "ltp": 1207.4,
-        "pdc": 1215.0,
-        "pdh": 1217.5,
-        "pdl": 1192.0,
+        "pdc": 1210.5,
+        "pdh": 1213.7,
+        "pdl": 1176.6,
         "loading": false
       },
       {
@@ -20532,9 +20532,9 @@
         "token": "5900",
         "exch_seg": "NSE",
         "ltp": 1285.8,
-        "pdc": 1269.0,
-        "pdh": 1281.8,
-        "pdl": 1264.3,
+        "pdc": 1229.8,
+        "pdh": 1238.5,
+        "pdl": 1220.2,
         "loading": false
       },
       {
@@ -20542,9 +20542,9 @@
         "token": "4963",
         "exch_seg": "NSE",
         "ltp": 1371.5,
-        "pdc": 1355.1,
-        "pdh": 1356.9,
-        "pdl": 1336.3,
+        "pdc": 1357.0,
+        "pdh": 1369.5,
+        "pdl": 1345.5,
         "loading": false
       },
       {
@@ -20552,9 +20552,9 @@
         "token": "5258",
         "exch_seg": "NSE",
         "ltp": 899.95,
-        "pdc": 901.85,
-        "pdh": 909.75,
-        "pdl": 890.25,
+        "pdc": 833.0,
+        "pdh": 842.5,
+        "pdl": 826.0,
         "loading": false
       }
     ],
@@ -22821,7 +22821,7 @@
       }
     ],
     "is_paused": false,
-    "last_activity": "2026-01-06T01:02:55.062616"
+    "last_activity": "2026-01-06T01:35:15.415248"
   },
   "1abdef00-e2ac-4ecf-ac45-2bf2f9b91f60": {
     "client_id": "B38590",
@@ -22834,44 +22834,44 @@
         "token": "9819",
         "exch_seg": "NSE",
         "ltp": 1451.4,
-        "pdc": 1440.9,
+        "pdc": 1400.3,
         "wc": 1409.6,
         "loading": false,
-        "pdh": 1445.6,
-        "pdl": 1417.7
+        "pdh": 1411.9,
+        "pdl": 1389.2
       },
       {
         "symbol": "DLF-EQ",
         "token": "14732",
         "exch_seg": "NSE",
         "ltp": 711.35,
-        "pdc": 698.3,
+        "pdc": 676.0,
         "wc": 699.4,
         "loading": false,
-        "pdh": 707.45,
-        "pdl": 692.65
+        "pdh": 686.5,
+        "pdl": 672.0
       },
       {
         "symbol": "BAJAJFINSV-EQ",
         "token": "16675",
         "exch_seg": "NSE",
         "ltp": 2039.2,
-        "pdc": 2039.5,
+        "pdc": 2026.0,
         "wc": 2083.1,
         "loading": false,
-        "pdh": 2050.0,
-        "pdl": 2026.6
+        "pdh": 2038.0,
+        "pdl": 2012.6
       },
       {
         "symbol": "TVSMOTOR-EQ",
         "token": "8479",
         "exch_seg": "NSE",
         "ltp": 3864.2,
-        "pdc": 3874.5,
+        "pdc": 3600.7,
         "wc": 3655.2,
         "loading": false,
-        "pdh": 3897.5,
-        "pdl": 3825.7
+        "pdh": 3652.3,
+        "pdl": 3561.4
       },
       {
         "symbol": "TATACHEM-EQ",
@@ -22888,9 +22888,9 @@
         "token": "236",
         "exch_seg": "NSE",
         "ltp": 2815.6,
-        "pdc": 2771.6,
-        "pdh": 2799.0,
-        "pdl": 2755.8,
+        "pdc": 2758.4,
+        "pdh": 2793.8,
+        "pdl": 2755.3,
         "loading": false
       },
       {
@@ -22898,9 +22898,9 @@
         "token": "13538",
         "exch_seg": "NSE",
         "ltp": 1596.9,
-        "pdc": 1612.2,
-        "pdh": 1619.1,
-        "pdl": 1601.9,
+        "pdc": 1605.0,
+        "pdh": 1608.8,
+        "pdl": 1574.6,
         "loading": false
       },
       {
@@ -22908,9 +22908,9 @@
         "token": "341",
         "exch_seg": "NSE",
         "ltp": 440.45,
-        "pdc": 439.3,
-        "pdh": 442.6,
-        "pdl": 437.45,
+        "pdc": 450.0,
+        "pdh": 458.0,
+        "pdl": 435.0,
         "loading": false
       },
       {
@@ -22918,9 +22918,9 @@
         "token": "5097",
         "exch_seg": "NSE",
         "ltp": 281.8,
-        "pdc": 284.1,
-        "pdh": 287.75,
-        "pdl": 283.25,
+        "pdc": 285.0,
+        "pdh": 285.5,
+        "pdl": 281.7,
         "loading": false
       },
       {
@@ -22928,9 +22928,9 @@
         "token": "3499",
         "exch_seg": "NSE",
         "ltp": 185.72,
-        "pdc": 182.8,
-        "pdh": 183.85,
-        "pdl": 181.6,
+        "pdc": 167.95,
+        "pdh": 170.45,
+        "pdl": 167.56,
         "loading": false
       },
       {
@@ -22938,9 +22938,9 @@
         "token": "11723",
         "exch_seg": "NSE",
         "ltp": 1185.9,
-        "pdc": 1178.1,
-        "pdh": 1184.0,
-        "pdl": 1169.1,
+        "pdc": 1081.5,
+        "pdh": 1091.5,
+        "pdl": 1073.2,
         "loading": false
       },
       {
@@ -22948,9 +22948,9 @@
         "token": "3426",
         "exch_seg": "NSE",
         "ltp": 388.85,
-        "pdc": 392.65,
-        "pdh": 393.65,
-        "pdl": 381.25,
+        "pdc": 374.35,
+        "pdh": 377.65,
+        "pdl": 373.0,
         "loading": false
       },
       {
@@ -22958,9 +22958,9 @@
         "token": "275",
         "exch_seg": "NSE",
         "ltp": 1207.4,
-        "pdc": 1215.0,
-        "pdh": 1217.5,
-        "pdl": 1192.0,
+        "pdc": 1210.5,
+        "pdh": 1213.7,
+        "pdl": 1176.6,
         "loading": false
       },
       {
@@ -22968,9 +22968,9 @@
         "token": "5900",
         "exch_seg": "NSE",
         "ltp": 1285.8,
-        "pdc": 1269.0,
-        "pdh": 1281.8,
-        "pdl": 1264.3,
+        "pdc": 1229.8,
+        "pdh": 1238.5,
+        "pdl": 1220.2,
         "loading": false
       },
       {
@@ -22978,9 +22978,9 @@
         "token": "4963",
         "exch_seg": "NSE",
         "ltp": 1371.5,
-        "pdc": 1355.1,
-        "pdh": 1356.9,
-        "pdl": 1336.3,
+        "pdc": 1357.0,
+        "pdh": 1369.5,
+        "pdl": 1345.5,
         "loading": false
       },
       {
@@ -22988,9 +22988,9 @@
         "token": "5258",
         "exch_seg": "NSE",
         "ltp": 899.95,
-        "pdc": 901.85,
-        "pdh": 909.75,
-        "pdl": 890.25,
+        "pdc": 833.0,
+        "pdh": 842.5,
+        "pdl": 826.0,
         "loading": false
       }
     ],
@@ -25257,6 +25257,6 @@
       }
     ],
     "is_paused": false,
-    "last_activity": "2026-01-06T01:02:47.208919"
+    "last_activity": "2026-01-06T01:34:50.418464"
   }
 }

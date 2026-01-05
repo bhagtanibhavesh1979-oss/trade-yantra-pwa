@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002';
+const getBaseUrl = () => {
+    // If explicitly set in env, use it
+    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+
+    // Otherwise detect if we are on localhost or production
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal ? 'http://localhost:8002' : 'https://trade-yantra-api.onrender.com';
+};
+
+const API_BASE_URL = getBaseUrl();
 
 // Axios instance with default config
 const api = axios.create({

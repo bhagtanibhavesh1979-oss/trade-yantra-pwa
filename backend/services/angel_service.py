@@ -40,6 +40,18 @@ class AngelService:
         except Exception as e:
             return False, str(e), None, None
 
+    def logout(self, smart_api: SmartConnect) -> bool:
+        """
+        Terminate session with Angel One
+        """
+        try:
+            if smart_api:
+                smart_api.terminateSession(smart_api.client_id)
+                return True
+        except Exception as e:
+            print(f"Angel logout error: {e}")
+        return False
+
     def fetch_ltp(self, smart_api: SmartConnect, symbol: str, token: str) -> Optional[float]:
         """
         Fetch Last Traded Price
