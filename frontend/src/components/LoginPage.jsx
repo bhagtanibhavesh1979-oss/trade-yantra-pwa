@@ -170,8 +170,9 @@ function LoginPage({ onLoginSuccess }) {
                     </div>
                 </form>
 
-                <p className="text-center text-gray-500 text-sm mt-6">
-                    Credentials are never stored • Session-based authentication
+                <p className="text-center text-gray-500 text-xs mt-6">
+                    Credentials are never stored • Session-based authentication<br />
+                    <span className="opacity-30">v1.2.1-perf-overhaul</span>
                 </p>
             </div>
         </div>

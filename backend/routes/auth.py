@@ -26,11 +26,16 @@ class LogoutResponse(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(req: LoginRequest):
+def login(req: LoginRequest):
     """
     Login to Angel One and create session
-    Credentials are NOT stored - only used for authentication
+    Using synchronous def to run in FastAPI's thread pool (better for blocking requests)
     """
+    import time
+    start_time = time.time()
+    print(f"==> Login attempt for {req.client_id} started")
+    
+    # 1. Angel One Auth (Synchronous blocking call)
     success, message, smart_api, tokens = angel_service.login(
         req.api_key,
         req.client_id,
@@ -38,10 +43,15 @@ async def login(req: LoginRequest):
         req.totp_secret
     )
     
+    auth_time = time.time() - start_time
+    print(f"==> Angel Auth took {auth_time:.2f}s")
+    
     if not success:
+        print(f"==> Login failed: {message}")
         raise HTTPException(status_code=401, detail=message)
     
-    # Create session (stored in RAM only)
+    # 2. Create local session
+    create_start = time.time()
     session = session_manager.create_session(
         client_id=req.client_id,
         jwt_token=tokens['jwt_token'],
@@ -49,7 +59,13 @@ async def login(req: LoginRequest):
         api_key=req.api_key
     )
     session.refresh_token = tokens['refresh_token']
-    session.smart_api = smart_api  # Store authenticated instance
+    session.smart_api = smart_api
+    
+    create_time = time.time() - create_start
+    print(f"==> Session creation took {create_time:.2f}s")
+    
+    total_time = time.time() - start_time
+    print(f"==> Total login response time: {total_time:.2f}s")
     
     return LoginResponse(
         session_id=session.session_id,
