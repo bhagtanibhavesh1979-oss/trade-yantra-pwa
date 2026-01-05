@@ -1,4 +1,16 @@
-const WS_BASE_URL = import.meta.env.VITE_API_URL?.replace('http', 'ws') || 'ws://localhost:8002';
+const getWebSocketUrl = () => {
+    // If explicitly set in env, use it
+    if (import.meta.env.VITE_API_URL) {
+        const url = import.meta.env.VITE_API_URL;
+        return url.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+    }
+
+    // Otherwise detect if we are on localhost or production
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api.onrender.com';
+};
+
+const WS_BASE_URL = getWebSocketUrl();
 
 class WebSocketClient {
     constructor() {
