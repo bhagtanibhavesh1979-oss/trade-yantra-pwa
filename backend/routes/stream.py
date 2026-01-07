@@ -68,12 +68,14 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         )
         
         if not success:
-            await websocket.send_json({
-                "type": "error",
-                "data": {"message": "Failed to start Angel One WebSocket"}
-            })
-            await websocket.close()
-            return
+            print(f"Warning: Failed to start Angel One WebSocket for session {session_id}")
+            # Don't close the WebSocket, allow connection for alerts and other features
+            # await websocket.send_json({
+            #     "type": "error",
+            #     "data": {"message": "Failed to start Angel One WebSocket"}
+            # })
+            # await websocket.close()
+            # return
     
     # Send initial status
     await websocket.send_json({

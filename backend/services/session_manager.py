@@ -88,9 +88,13 @@ class SessionManager:
         with self.lock:
             self.sessions[session_id] = session
         
-        # Save in background to avoid blocking login response
-        import threading
-        threading.Thread(target=self.save_session, args=(session_id,), daemon=True).start()
+        # Save synchronously to ensure it's saved before returning
+        # This is important for session persistence across refreshes
+        try:
+            persistence_service.save_session(session_id, session)
+            print(f"✅ Session {session_id} saved to database")
+        except Exception as e:
+            print(f"❌ Failed to save session {session_id} to database: {e}")
         
         return session
 
@@ -121,6 +125,8 @@ class SessionManager:
                 session.logs = session_data.get('logs', [])
                 session.is_paused = session_data.get('is_paused', False)
                 session.last_activity = datetime.now()
+                
+                print(f"📊 Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts, {len(session.logs)} logs")
                 
                 # Store in memory
                 self.sessions[session_id] = session

@@ -51,10 +51,13 @@ async def get_alerts(session_id: str):
     """
     Get all alerts for session
     """
+    print(f"🔍 Getting alerts for session {session_id}")
     session = session_manager.get_session(session_id)
     if not session:
+        print(f"❌ Session {session_id} not found for alerts")
         raise HTTPException(status_code=404, detail="Session not found")
     
+    print(f"✅ Found {len(session.alerts)} alerts for session {session_id}")
     return {
         "alerts": session.alerts,
         "is_paused": session.is_paused
