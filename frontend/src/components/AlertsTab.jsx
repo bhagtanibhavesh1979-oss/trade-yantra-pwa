@@ -3,7 +3,7 @@ import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllA
 import toast from 'react-hot-toast';
 import { Skeleton } from './Skeleton';
 
-function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData }) {
+function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData, onRefreshData }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
     const [visibleCount, setVisibleCount] = useState(50);
@@ -360,14 +360,25 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
             <div className="space-y-3">
                 <div className="flex items-center justify-between">
                     <h3 className="text-[var(--text-primary)] font-bold text-lg">Active Alerts ({alerts.length})</h3>
-                    {alerts.length > 0 && (
-                        <button
-                            onClick={handleClearAllAlerts}
-                            className="px-3 py-1.5 bg-[var(--danger-neon)] hover:brightness-110 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
-                        >
-                            🗑️ Clear All
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {onRefreshData && (
+                            <button
+                                onClick={() => onRefreshData(true)}
+                                className="px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-secondary)] hover:text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2 border border-[var(--border-color)]"
+                                title="Fetch alerts and logs from backend"
+                            >
+                                🔄 Fetch Previous History
+                            </button>
+                        )}
+                        {alerts.length > 0 && (
+                            <button
+                                onClick={handleClearAllAlerts}
+                                className="px-3 py-1.5 bg-[var(--danger-neon)] hover:brightness-110 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                            >
+                                🗑️ Clear All
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {isLoadingData && alerts.length === 0 ? (

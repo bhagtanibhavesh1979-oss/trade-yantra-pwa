@@ -25,7 +25,8 @@ function Dashboard({
     preSelectedAlertSymbol,
     setPreSelectedAlertSymbol,
     isLoadingData,
-    isVisible
+    isVisible,
+    onRefreshData
 }) {
     // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
@@ -168,6 +169,7 @@ function Dashboard({
                         setReferenceDate={setReferenceDate}
                         preSelectedSymbol={preSelectedAlertSymbol}
                         isLoadingData={isLoadingData}
+                        onRefreshData={onRefreshData}
                     />
                 )}
                 {activeTab === 'logs' && (

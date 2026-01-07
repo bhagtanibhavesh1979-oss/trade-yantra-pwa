@@ -67,25 +67,48 @@ function App() {
     localStorage.setItem('trade_yantra_watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
 
-  const loadData = async (sessionId) => {
+  const loadData = async (sessionId, isManualSync = false) => {
     setIsLoadingData(true);
+    if (isManualSync) toast.loading('Syncing data from backend...', { id: 'sync-data' });
+
     try {
-      const [alertsData, logsData] = await Promise.all([
+      const [alertsData, logsData, sessionData] = await Promise.all([
         getAlerts(sessionId),
         getLogs(sessionId),
+        // OPTIONAL: Fetch full session state to recover watchlist if localStorage is lost
+        getSession().then(async (s) => {
+          // We need a way to get the latest watchlist from backend
+          const { getWatchlist } = await import('./services/api');
+          return getWatchlist(sessionId);
+        }).catch(() => ({ watchlist: [] }))
       ]);
 
       console.log('📊 Loaded data:', {
         alerts: alertsData.alerts?.length || 0,
         logs: logsData.logs?.length || 0,
-        is_paused: alertsData.is_paused
+        backend_watchlist: sessionData.watchlist?.length || 0
       });
 
-      // DON'T load watchlist from backend - use localStorage instead
       setAlerts(alertsData.alerts || []);
       setLogs(logsData.logs || []);
       setIsPaused(alertsData.is_paused || false);
+
+      // If manual sync OR local watchlist is empty, use backend one
+      if (isManualSync || watchlist.length === 0) {
+        if (sessionData.watchlist && sessionData.watchlist.length > 0) {
+          setWatchlist(sessionData.watchlist);
+          toast.success('Watchlist restored from backend!', { id: 'sync-data' });
+        } else if (isManualSync) {
+          toast.success('Data synced!', { id: 'sync-data' });
+        }
+      } else if (isManualSync) {
+        toast.success('Data synced!', { id: 'sync-data' });
+      }
+
     } catch (err) {
+      console.error('Failed to load data:', err);
+      if (isManualSync) toast.error('Sync failed', { id: 'sync-data' });
+
       if (err.response?.status === 404 || err.response?.status === 401) {
         console.warn('Session expired or not found. Logging out...');
         handleLogout();
@@ -334,6 +357,7 @@ function App() {
             setPreSelectedAlertSymbol={setPreSelectedAlertSymbol}
             isLoadingData={isLoadingData}
             isVisible={isVisible}
+            onRefreshData={loadData}
           />
         </>
       )}
