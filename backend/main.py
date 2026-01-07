@@ -51,7 +51,18 @@ app = FastAPI(
 )
 
 # CORS Configuration
-allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+# Support both Render and Google Cloud Run URLs for safe migration
+default_origins = "http://localhost:5173,http://localhost:3000,https://trade-yantra-api.onrender.com"
+allowed_origins_str = os.getenv("CORS_ORIGINS", default_origins)
+
+# Parse comma-separated origins
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+# Add wildcard for development (remove in production if needed)
+if os.getenv("ENV") == "development":
+    allowed_origins.append("*")
+
+print(f"🔒 CORS allowed origins: {allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,
