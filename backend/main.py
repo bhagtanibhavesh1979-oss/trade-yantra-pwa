@@ -52,7 +52,7 @@ app = FastAPI(
 
 # CORS Configuration
 # Support both Render and Google Cloud Run URLs for safe migration
-default_origins = "http://localhost:5173,http://localhost:3000,https://trade-yantra-api.onrender.com"
+default_origins = "http://localhost:5173,http://localhost:3000,https://trade-yantra-api.onrender.com,https://trade-yantra-pwa-3llk.vercel.app"
 allowed_origins_str = os.getenv("CORS_ORIGINS", default_origins)
 
 # Parse comma-separated origins
