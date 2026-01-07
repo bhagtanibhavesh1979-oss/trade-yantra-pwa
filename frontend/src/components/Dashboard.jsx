@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
-import IndicesTab from './IndicesTab';
 import LogsTab from './LogsTab';
 import MarketOverview from './MarketOverview';
 import { logout } from '../services/api';
@@ -171,9 +170,6 @@ function Dashboard({
                         isLoadingData={isLoadingData}
                     />
                 )}
-                {activeTab === 'indices' && (
-                    <IndicesTab sessionId={session.sessionId} isVisible={isVisible} />
-                )}
                 {activeTab === 'logs' && (
                     <LogsTab logs={logs} />
                 )}
@@ -195,13 +191,6 @@ function Dashboard({
                     >
                         <span className="text-xl">🔔</span>
                         <span className="text-xs mt-1">Alerts</span>
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('indices')}
-                        className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'indices' ? 'text-[#667EEA]' : 'text-gray-400'}`}
-                    >
-                        <span className="text-xl">📊</span>
-                        <span className="text-xs mt-1">Indices</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('logs')}
