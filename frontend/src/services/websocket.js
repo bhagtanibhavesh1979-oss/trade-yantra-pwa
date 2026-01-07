@@ -7,7 +7,7 @@ const getWebSocketUrl = () => {
 
     // Otherwise detect if we are on localhost or production
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api.onrender.com';
+    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-ue.a.run.app';
 };
 
 const WS_BASE_URL = getWebSocketUrl();
