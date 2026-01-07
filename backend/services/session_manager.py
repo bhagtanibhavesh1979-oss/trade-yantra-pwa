@@ -95,12 +95,40 @@ class SessionManager:
         return session
 
     def get_session(self, session_id: str) -> Optional[Session]:
-        """Get session by ID"""
+        """Get session by ID, restore from DB if not in memory"""
         with self.lock:
             session = self.sessions.get(session_id)
             if session:
                 session.last_activity = datetime.now()
-            return session
+                return session
+            
+            # Session not in memory, try to restore from database
+            print(f"🔄 Session {session_id} not in memory, attempting to restore from database")
+            session_data = persistence_service.get_session_by_session_id(session_id)
+            
+            if session_data:
+                print(f"✅ Restoring session {session_id} from database for client {session_data.get('client_id', 'unknown')}")
+                # Create a new session object with restored data
+                session = Session(
+                    session_id,
+                    session_data['client_id'],
+                    session_data.get('jwt_token', ''),
+                    session_data.get('feed_token', ''),
+                    session_data.get('api_key', '')
+                )
+                session.watchlist = session_data.get('watchlist', [])
+                session.alerts = session_data.get('alerts', [])
+                session.logs = session_data.get('logs', [])
+                session.is_paused = session_data.get('is_paused', False)
+                session.last_activity = datetime.now()
+                
+                # Store in memory
+                self.sessions[session_id] = session
+                print(f"✅ Session {session_id} restored and cached in memory")
+                return session
+            
+            print(f"❌ Session {session_id} not found in database")
+            return None
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session"""

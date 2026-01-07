@@ -95,13 +95,21 @@ async def logout(req: LogoutRequest):
 @router.get("/session/{session_id}")
 async def check_session(session_id: str):
     """
-    Check if session is valid
+    Check if session is valid and restore from DB if needed
     """
+    print(f"🔍 Checking session: {session_id}")
     session = session_manager.get_session(session_id)
     
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        print(f"❌ Session {session_id} not found in memory, checking database...")
+        # The get_session method should handle restoration
+        session = session_manager.get_session(session_id)  # Try again after potential restoration
+        
+        if not session:
+            print(f"❌ Session {session_id} not found even after checking database")
+            raise HTTPException(status_code=404, detail="Session not found - please login again")
     
+    print(f"✅ Session {session_id} is valid for client {session.client_id}")
     return {
         "valid": True,
         "client_id": session.client_id,
