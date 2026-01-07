@@ -75,6 +75,12 @@ function App() {
         getLogs(sessionId),
       ]);
 
+      console.log('📊 Loaded data:', {
+        alerts: alertsData.alerts?.length || 0,
+        logs: logsData.logs?.length || 0,
+        is_paused: alertsData.is_paused
+      });
+
       // DON'T load watchlist from backend - use localStorage instead
       setAlerts(alertsData.alerts || []);
       setLogs(logsData.logs || []);
@@ -189,6 +195,7 @@ function App() {
 
       // Verify with backend
       import('./services/api').then(({ checkSession }) => {
+        console.log('🔍 Checking session validity for:', savedSession.sessionId);
         checkSession(savedSession.sessionId).then((data) => {
           console.log('✅ Session verified:', data);
           // Auto-sync local watchlist to backend (if backend restarted)
@@ -202,8 +209,12 @@ function App() {
           }
         }).catch((err) => {
           console.error('❌ Session invalid:', err);
+          console.log('🔄 Session check failed, logging out...');
           handleLogout();
         });
+      }).catch((importErr) => {
+        console.error('❌ Failed to import checkSession:', importErr);
+        handleLogout();
       });
 
       loadData(savedSession.sessionId);
@@ -222,9 +233,12 @@ function App() {
       // If we become visible and session exists, ensure WS is connected
       if (visible) {
         const savedSession = getSession();
-        if (savedSession && wsClient.ws?.readyState !== WebSocket.OPEN) {
+        if (savedSession && !wsClient.isConnected() && !wsClient.isConnecting()) {
           console.log('🔄 App became visible, ensuring WebSocket connection...');
-          wsClient.connect(savedSession.sessionId);
+          // Small delay to let browser stabilize after becoming visible
+          setTimeout(() => {
+            wsClient.connect(savedSession.sessionId);
+          }, 1000);
         }
       }
     };

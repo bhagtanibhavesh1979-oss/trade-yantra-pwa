@@ -101,6 +101,11 @@ class WebSocketClient {
                 // console.log('Pong received');
                 break;
 
+            case 'status':
+                // Status update from server
+                console.log('Server status:', data);
+                break;
+
             case 'error':
                 console.error('WebSocket error message:', data);
                 this.emit('error', data);
@@ -115,21 +120,22 @@ class WebSocketClient {
         this.stopHeartbeat();
         this.lastSeen = Date.now();
 
-        // Ping every 15 seconds to keep connection alive better on mobile
+        // Ping every 20 seconds (increased from 15s for better mobile stability)
         this.pingInterval = setInterval(() => {
             this.ping();
-        }, 15000);
+        }, 20000);
 
-        // Dead Man's Switch: Check if we haven't heard from server in 45s
+        // Dead Man's Switch: Check if we haven't heard from server in 90s (increased from 45s)
+        // This prevents false disconnects when browser throttles background tabs
         this.watchdogInterval = setInterval(() => {
             const idleTime = Date.now() - this.lastSeen;
-            if (idleTime > 45000) {
+            if (idleTime > 90000) { // 90 seconds instead of 45
                 console.warn(`WebSocket dead man's switch triggered (idle: ${Math.round(idleTime / 1000)}s). Forcing reconnect...`);
                 if (this.ws) {
                     this.ws.close(); // Triggers onclose -> attemptReconnect
                 }
             }
-        }, 5000); // Check every 5s
+        }, 10000); // Check every 10s instead of 5s
     }
 
     stopHeartbeat() {
@@ -185,8 +191,12 @@ class WebSocketClient {
         }
     }
 
-    ping() {
-        this.send({ type: 'ping' });
+    isConnected() {
+        return this.ws && this.ws.readyState === WebSocket.OPEN;
+    }
+
+    isConnecting() {
+        return this.ws && this.ws.readyState === WebSocket.CONNECTING;
     }
 
     on(event, callback) {
