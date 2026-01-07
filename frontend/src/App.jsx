@@ -20,8 +20,18 @@ function App() {
   });
 
   const [session, setSessionState] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [logs, setLogs] = useState([]);
+  const [alerts, setAlerts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trade_yantra_alerts');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [logs, setLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('trade_yantra_logs');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -61,11 +71,17 @@ function App() {
   }, [referenceDate, session?.sessionId]);
 
 
-  // Save watchlist to localStorage whenever it changes
   useEffect(() => {
-    // Allows saving empty list if user intentionally clears it
     localStorage.setItem('trade_yantra_watchlist', JSON.stringify(watchlist));
   }, [watchlist]);
+
+  useEffect(() => {
+    localStorage.setItem('trade_yantra_alerts', JSON.stringify(alerts));
+  }, [alerts]);
+
+  useEffect(() => {
+    localStorage.setItem('trade_yantra_logs', JSON.stringify(logs));
+  }, [logs]);
 
   const loadData = async (sessionId, isManualSync = false) => {
     setIsLoadingData(true);
