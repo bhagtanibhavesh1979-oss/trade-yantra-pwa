@@ -195,12 +195,31 @@ class AngelService:
             return []
             
         query = query.upper()
-        # Search in symbol (contains)
-        matches = [s for s in self.scrips if query in s['symbol']]
         
-        # Sort so that prefix matches come first
-        matches.sort(key=lambda x: (not x['symbol'].startswith(query), x['symbol']))
+        # Optimized search: 
+        # 1. First find stocks that START with the query
+        # 2. Then find stocks that CONTAIN the query
+        # This is much faster than sorting tens of thousands of items
         
-        return matches[:limit]
+        prefix_matches = []
+        contain_matches = []
+        
+        for s in self.scrips:
+            symbol = s['symbol']
+            if symbol.startswith(query):
+                prefix_matches.append(s)
+            elif query in symbol:
+                contain_matches.append(s)
+            
+            # Stop early if we have enough prefix matches to fill the limit
+            if len(prefix_matches) >= limit:
+                break
+                
+        # Combine and trim
+        results = prefix_matches[:limit]
+        if len(results) < limit:
+            results.extend(contain_matches[:(limit - len(results))])
+            
+        return results
 
 angel_service = AngelService()
