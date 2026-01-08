@@ -353,5 +353,20 @@ class PersistenceService:
         finally:
             db.close()
 
+    def get_latest_session_by_client_id(self, client_id: str) -> Dict:
+        """Find the most recent session for a client ID - Safety net for refreshes"""
+        print(f"🔍 Searching for latest session for client {client_id}")
+        db = SessionLocal()
+        try:
+            db_session = db.query(UserSession).filter(UserSession.client_id == client_id).order_by(UserSession.last_activity.desc()).first()
+            if db_session:
+                return self.get_session_by_session_id(db_session.id)
+            return {}
+        except Exception as e:
+            print(f"❌ Error finding session by client: {e}")
+            return {}
+        finally:
+            db.close()
+
 # Global instance
 persistence_service = PersistenceService()

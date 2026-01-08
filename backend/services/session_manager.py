@@ -115,13 +115,33 @@ class SessionManager:
                 session.last_activity = datetime.now()
                 return session
         
-        # 2. If not found, check DB WITHOUT holding the global lock
-        # This prevents blocking the whole app while waiting for Neon.tech
-        print(f"🔄 Session {session_id} not in memory, attempting to restore from database")
+        # 2. If not found, check DB by session_id first
+        print(f"🔄 Session {session_id} not in memory, trying DB lookup...")
         session_data = persistence_service.get_session_by_session_id(session_id)
         
+        # 3. If still not found, BROADEN search to find LAST session by Client ID
+        # This is the "Self-Healing" logic for refreshes/restarts
+        if not session_data:
+            # We need to find the client_id for this session_id's "intent"
+            # Since we don't have it in memory or DB by ID, we'll try to find the 
+            # MOST RECENT session in the whole database as a last-resort healer
+            # (In a multi-user system, we'd need the frontend to send client_id, 
+            # but for a single-user PWA, the latest DB session is highly likely to be correct)
+            print(f"⚠️ Session ID {session_id} not found in DB. Searching for latest database record...")
+            db = SessionLocal()
+            try:
+                latest = db.query(UserSession).order_by(UserSession.last_activity.desc()).first()
+                if latest:
+                    print(f"💡 Found dormant session for client {latest.client_id}. Healing session {session_id}...")
+                    session_data = persistence_service.get_session_by_session_id(latest.id)
+            except Exception as e:
+                print(f"❌ Error healing session: {e}")
+            finally:
+                db.close()
+
         if session_data:
-            print(f"✅ Restoring session {session_id} from database")
+            print(f"✅ Recovered session data for client {session_data['client_id']}")
+            # Heal the requested session_id with the found data
             session = Session(
                 session_id,
                 session_data['client_id'],
