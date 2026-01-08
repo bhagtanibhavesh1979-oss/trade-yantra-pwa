@@ -6,6 +6,8 @@ import uuid
 from typing import Dict, Optional
 from datetime import datetime
 import threading
+from database import SessionLocal
+from models import UserSession
 
 class Session:
     def __init__(self, session_id: str, client_id: str, jwt_token: str, feed_token: str, api_key: str):
