@@ -40,10 +40,6 @@ ENV PATH=/root/.local/bin:$PATH
 # Expose port (Google Cloud Run uses PORT env variable)
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8080/health', timeout=2)"
-
 # Run the application
-# Google Cloud Run automatically sets PORT environment variable
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --log-level info"]
+# Use python main.py to ensure all WebSocket ping configurations are loaded
+CMD ["python", "main.py"]

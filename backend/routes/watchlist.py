@@ -46,9 +46,23 @@ async def get_watchlist(session_id: str):
     """
     Get user's watchlist
     """
+    print(f"🔍 Getting watchlist for session {session_id}")
     session = session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        print(f"❌ Session {session_id} not found for watchlist")
+        # Debug: Check if session exists in database
+        from services.persistence_service import persistence_service
+        db_data = persistence_service.get_session_by_session_id(session_id)
+        return {
+            "error": "Session not found",
+            "session_id": session_id,
+            "in_memory": False,
+            "in_database": bool(db_data),
+            "debug_info": {
+                "active_sessions": len(session_manager.get_all_sessions()),
+                "database_data": db_data if db_data else None
+            }
+        }
     
     return {
         "watchlist": session.watchlist
@@ -118,6 +132,7 @@ async def add_stock(req: AddStockRequest):
     
     # Save session
     session_manager.save_session(req.session_id)
+    print(f"✅ Watchlist modification saved for {req.session_id}")
     
     return {
         "success": True,

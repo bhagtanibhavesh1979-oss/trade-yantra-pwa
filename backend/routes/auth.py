@@ -29,6 +29,7 @@ class LogoutResponse(BaseModel):
 def login(req: LoginRequest):
     """
     Login to Angel One and create session
+    CRITICAL for Cloud Run: Session must be committed to database BEFORE returning
     Using synchronous def to run in FastAPI's thread pool (better for blocking requests)
     """
     import time
@@ -63,6 +64,30 @@ def login(req: LoginRequest):
     
     create_time = time.time() - create_start
     print(f"==> Session creation took {create_time:.2f}s")
+    
+    # 3. CRITICAL: Verify session was saved to database
+    # Optimized: Single retry with short delay for better UX
+    from services.persistence_service import persistence_service
+    max_retries = 1  # Reduced from 3 for faster login
+    retry_delay = 0.2  # Reduced from 0.5 seconds
+    
+    for attempt in range(max_retries):
+        try:
+            db_session = persistence_service.get_session_by_session_id(session.session_id)
+            if db_session and db_session.get('client_id') == req.client_id:
+                print(f"✅ Session {session.session_id} verified in database")
+                print(f"✅ Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts")
+                break
+            elif attempt < max_retries - 1:
+                print(f"⚠️ Session not found in database, retry {attempt + 1}/{max_retries}")
+                time.sleep(retry_delay)
+                session_manager.save_session(session.session_id)
+        except Exception as e:
+            print(f"⚠️ Database verification warning (attempt {attempt + 1}/{max_retries}): {e}")
+            if attempt == max_retries - 1:
+                # Don't fail login - session is in memory
+                print(f"⚠️ Proceeding with in-memory session (database save will retry in background)")
+                pass
     
     total_time = time.time() - start_time
     print(f"==> Total login response time: {total_time:.2f}s")

@@ -37,13 +37,16 @@ class WatchlistItem(Base):
 class AlertItem(Base):
     __tablename__ = "alert_items"
 
-    id = Column(String, primary_key=True, index=True) # alert_id
+    id = Column(Integer, primary_key=True, index=True) # auto-increment PK
+    alert_id = Column(String, index=True) # Original UUID for frontend tracking
     session_id = Column(String, ForeignKey("user_sessions.id"))
     symbol = Column(String)
     token = Column(String)
     condition = Column(String) # ABOVE, BELOW
     price = Column(Float)
     active = Column(Boolean, default=True)
+    type = Column(String, default="MANUAL") # Added to track AUTO vs MANUAL
+    created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("UserSession", back_populates="alerts")
 

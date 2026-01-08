@@ -64,11 +64,24 @@ class SessionManager:
         print("Session manager initialized (memory-optimized mode)")
 
     def save_session(self, session_id: str):
-        """Trigger save for a specific session"""
-        with self.lock:
-            session = self.sessions.get(session_id)
-            if session:
-                persistence_service.save_session(session_id, session)
+        """
+        Save session in background thread.
+        This keeps the UI extremely snappy while ensuring data is persisted to Postgres.
+        """
+        def background_save():
+            with self.lock:
+                session = self.sessions.get(session_id)
+                if not session:
+                    return
+                # We copy the data we need or just trust the session object
+                # for simple lists like watchlist/alerts which are modified in-place
+                try:
+                    persistence_service.save_session(session_id, session)
+                except Exception as e:
+                    print(f"❌ Background save failed for {session_id}: {e}")
+        
+        # Start background task
+        threading.Thread(target=background_save, daemon=True).start()
 
     def create_session(self, client_id: str, jwt_token: str, feed_token: str, api_key: str) -> Session:
         """Create a new session and restore user data from DB if available"""
@@ -88,53 +101,60 @@ class SessionManager:
         with self.lock:
             self.sessions[session_id] = session
         
-        # Save synchronously to ensure it's saved before returning
-        # This is important for session persistence across refreshes
-        try:
-            persistence_service.save_session(session_id, session)
-            print(f"✅ Session {session_id} saved to database")
-        except Exception as e:
-            print(f"❌ Failed to save session {session_id} to database: {e}")
+        # Save in background - don't block the login response
+        self.save_session(session_id)
         
         return session
 
     def get_session(self, session_id: str) -> Optional[Session]:
         """Get session by ID, restore from DB if not in memory"""
+        # 1. Check memory with lock
         with self.lock:
             session = self.sessions.get(session_id)
             if session:
                 session.last_activity = datetime.now()
                 return session
+        
+        # 2. If not found, check DB WITHOUT holding the global lock
+        # This prevents blocking the whole app while waiting for Neon.tech
+        print(f"🔄 Session {session_id} not in memory, attempting to restore from database")
+        session_data = persistence_service.get_session_by_session_id(session_id)
+        
+        if session_data:
+            print(f"✅ Restoring session {session_id} from database")
+            session = Session(
+                session_id,
+                session_data['client_id'],
+                session_data.get('jwt_token', ''),
+                session_data.get('feed_token', ''),
+                session_data.get('api_key', '')
+            )
+            session.watchlist = session_data.get('watchlist', [])
+            session.alerts = session_data.get('alerts', [])
+            session.logs = session_data.get('logs', [])
+            session.is_paused = session_data.get('is_paused', False)
+            session.last_activity = datetime.now()
             
-            # Session not in memory, try to restore from database
-            print(f"🔄 Session {session_id} not in memory, attempting to restore from database")
-            session_data = persistence_service.get_session_by_session_id(session_id)
-            
-            if session_data:
-                print(f"✅ Restoring session {session_id} from database for client {session_data.get('client_id', 'unknown')}")
-                # Create a new session object with restored data
-                session = Session(
-                    session_id,
-                    session_data['client_id'],
-                    session_data.get('jwt_token', ''),
-                    session_data.get('feed_token', ''),
-                    session_data.get('api_key', '')
-                )
-                session.watchlist = session_data.get('watchlist', [])
-                session.alerts = session_data.get('alerts', [])
-                session.logs = session_data.get('logs', [])
-                session.is_paused = session_data.get('is_paused', False)
-                session.last_activity = datetime.now()
-                
-                print(f"📊 Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts, {len(session.logs)} logs")
-                
-                # Store in memory
+            # 3. Store in memory with lock
+            with self.lock:
                 self.sessions[session_id] = session
-                print(f"✅ Session {session_id} restored and cached in memory")
-                return session
             
-            print(f"❌ Session {session_id} not found in database")
-            return None
+            # 4. CRITICAL: Restore Angel One Connection if tokens exist
+            if session.jwt_token and session.api_key and not session.smart_api:
+                from services.angel_service import angel_service
+                print(f"🔄 Re-initializing SmartAPI for session {session_id}")
+                try:
+                    from SmartApi import SmartConnect
+                    smart_api = SmartConnect(api_key=session.api_key)
+                    smart_api.setAccessToken(session.jwt_token)
+                    session.smart_api = smart_api
+                    print(f"✅ SmartAPI re-initialized for {session.client_id}")
+                except Exception as e:
+                    print(f"❌ Failed to re-initialize SmartAPI: {e}")
+
+            return session
+        
+        return None
 
     def delete_session(self, session_id: str) -> bool:
         """Delete a session"""

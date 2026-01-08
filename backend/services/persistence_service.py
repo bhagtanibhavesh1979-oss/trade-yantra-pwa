@@ -16,79 +16,90 @@ class PersistenceService:
     def __init__(self):
         self.lock = threading.Lock()
         # Initialize tables on startup
-        Base.metadata.create_all(bind=engine)
-        print("SQL Database Initialized")
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("✅ SQL Database tables created/initialized")
+        except Exception as e:
+            print(f"❌ Failed to create database tables: {e}")
+            import traceback
+            traceback.print_exc()
 
     def save_session(self, session_id: str, session):
         """
         Save a single session to the database
+        Optimized for SQLite
         """
         db = SessionLocal()
         try:
-            with self.lock:
-                # 1. Update/Create UserSession
-                db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
-                if not db_session:
-                    db_session = UserSession(id=session_id)
-                    db.add(db_session)
-                
-                db_session.client_id = session.client_id
-                db_session.jwt_token = session.jwt_token
-                db_session.feed_token = session.feed_token
-                db_session.api_key = session.api_key
-                db_session.is_paused = session.is_paused
-                db_session.last_activity = session.last_activity or datetime.utcnow()
+            # 1. Update/Create UserSession
+            db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
+            if not db_session:
+                db_session = UserSession(id=session_id)
+                db.add(db_session)
+            
+            db_session.client_id = session.client_id
+            db_session.jwt_token = session.jwt_token
+            db_session.feed_token = session.feed_token
+            db_session.api_key = session.api_key
+            db_session.is_paused = session.is_paused
+            db_session.last_activity = session.last_activity or datetime.utcnow()
 
-                # 2. Sync Watchlist
-                db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
-                if session.watchlist:
-                    db.bulk_insert_mappings(WatchlistItem, [
-                        {
-                            "session_id": session_id,
-                            "symbol": item['symbol'],
-                            "token": item['token'],
-                            "exch_seg": item['exch_seg'],
-                            "pdc": item.get('pdc'),
-                            "pdh": item.get('pdh'),
-                            "pdl": item.get('pdl')
-                        } for item in session.watchlist
-                    ])
+            # 2. Sync Watchlist (Atomic)
+            db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).delete()
+            if session.watchlist:
+                db.bulk_insert_mappings(WatchlistItem, [
+                    {
+                        "session_id": session_id,
+                        "symbol": item['symbol'],
+                        "token": item['token'],
+                        "exch_seg": item['exch_seg'],
+                        "pdc": item.get('pdc'),
+                        "pdh": item.get('pdh'),
+                        "pdl": item.get('pdl')
+                    } for item in session.watchlist
+                ])
 
-                # 3. Sync Alerts
-                db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
-                if session.alerts:
-                    db.bulk_insert_mappings(AlertItem, [
-                        {
-                            "id": alert['id'],
-                            "session_id": session_id,
-                            "symbol": alert['symbol'],
-                            "token": alert['token'],
-                            "condition": alert['condition'],
-                            "price": alert['price'],
-                            "active": alert.get('active', True)
-                        } for alert in session.alerts
-                    ])
+            # 3. Sync Alerts (Atomic)
+            db.query(AlertItem).filter(AlertItem.session_id == session_id).delete()
+            if session.alerts:
+                db.bulk_insert_mappings(AlertItem, [
+                    {
+                        "alert_id": alert.get('id', alert.get('alert_id')),
+                        "session_id": session_id,
+                        "symbol": alert['symbol'],
+                        "token": alert['token'],
+                        "condition": alert['condition'],
+                        "price": alert['price'],
+                        "active": alert.get('active', True),
+                        "type": alert.get('type', 'MANUAL'),
+                        "created_at": datetime.fromisoformat(alert['created_at'].replace('Z', '')) if 'created_at' in alert and alert['created_at'] else datetime.utcnow()
+                    } for alert in session.alerts
+                ])
 
-                # 4. Sync Logs (Keep last 50)
-                db.query(LogItem).filter(LogItem.session_id == session_id).delete()
-                if session.logs:
-                    db.bulk_insert_mappings(LogItem, [
-                        {
-                            "session_id": session_id,
-                            "timestamp": datetime.fromisoformat(log['time']) if isinstance(log['time'], str) else log['time'],
-                            "symbol": log['symbol'],
-                            "message": log['msg'],
-                            "type": log.get('type', 'info'),
-                            "current_price": log.get('current_price'),
-                            "target_price": log.get('target_price')
-                        } for log in session.logs[-50:]
-                    ])
+            # 4. Sync Logs (Atomic, Keep last 50)
+            db.query(LogItem).filter(LogItem.session_id == session_id).delete()
+            if session.logs:
+                db.bulk_insert_mappings(LogItem, [
+                    {
+                        "session_id": session_id,
+                        "timestamp": datetime.fromisoformat(log['time'].replace('Z', '')) if isinstance(log['time'], str) else log['time'],
+                        "symbol": log['symbol'],
+                        "message": log['msg'],
+                        "type": log.get('type', 'info'),
+                        "current_price": log.get('current_price'),
+                        "target_price": log.get('target_price')
+                    } for log in session.logs[-50:]
+                ])
 
             db.commit()
-            print(f"Saved session {session_id} to SQL database")
+            print(f"✅ Persistence: Session {session_id} saved (W:{len(session.watchlist)} A:{len(session.alerts)})")
         except Exception as e:
             db.rollback()
-            print(f"Failed to save session {session_id} to SQL: {e}")
+            print(f"❌ Failed to save session {session_id} to Neon.tech: {e}")
+            import traceback
+            traceback.print_exc()
+            # Re-raise to let caller know save failed
+            raise
         finally:
             db.close()
 
@@ -145,12 +156,14 @@ class PersistenceService:
                 
                 for alert in db_session.alerts:
                     s_data['alerts'].append({
-                        "id": alert.id,
+                        "id": alert.alert_id, # Return UUID to frontend
                         "symbol": alert.symbol,
                         "token": alert.token,
                         "condition": alert.condition,
                         "price": alert.price,
-                        "active": alert.active
+                        "active": alert.active,
+                        "type": alert.type,
+                        "created_at": alert.created_at.isoformat() if alert.created_at else None
                     })
                 
                 for log in db_session.logs:
@@ -178,14 +191,35 @@ class PersistenceService:
         try:
             from datetime import datetime, timedelta
             cutoff = datetime.utcnow() - timedelta(days=days)
-            # Cascade delete will handle related items if configured in models.py
-            deleted = db.query(UserSession).filter(UserSession.last_activity < cutoff).delete()
+            
+            # Get sessions to delete
+            old_sessions = db.query(UserSession).filter(UserSession.last_activity < cutoff).all()
+            
+            if not old_sessions:
+                print("✅ No old sessions to clean up")
+                return
+            
+            # Delete each session manually to handle cascade properly
+            deleted = 0
+            for session in old_sessions:
+                try:
+                    # Manually delete related items first
+                    db.query(WatchlistItem).filter(WatchlistItem.session_id == session.id).delete()
+                    db.query(AlertItem).filter(AlertItem.session_id == session.id).delete()
+                    db.query(LogItem).filter(LogItem.session_id == session.id).delete()
+                    db.delete(session)
+                    deleted += 1
+                except Exception as e:
+                    print(f"⚠️ Failed to delete session {session.id}: {e}")
+                    continue
+            
             db.commit()
             if deleted > 0:
-                print(f"Cleaned up {deleted} old sessions from database")
+                print(f"✅ Cleaned up {deleted} old sessions from database")
         except Exception as e:
             db.rollback()
-            print(f"Cleanup failed: {e}")
+            print(f"⚠️ Cleanup warning (non-critical): {e}")
+            # Don't raise - this is not critical for startup
         finally:
             db.close()
 
@@ -223,12 +257,14 @@ class PersistenceService:
             
             for alert in db_session.alerts:
                 s_data['alerts'].append({
-                    "id": alert.id,
+                    "id": alert.alert_id,
                     "symbol": alert.symbol,
                     "token": alert.token,
                     "condition": alert.condition,
                     "price": alert.price,
-                    "active": alert.active
+                    "active": alert.active,
+                    "type": alert.type,
+                    "created_at": alert.created_at.isoformat() if alert.created_at else None
                 })
             
             for log in db_session.logs:
@@ -250,19 +286,23 @@ class PersistenceService:
 
     def get_session_by_session_id(self, session_id: str) -> Dict:
         """Get session data for a specific session_id"""
+        print(f"🔍 Querying database for session {session_id}")
         from sqlalchemy.orm import joinedload
         db = SessionLocal()
         try:
             # Find the session by ID
-            db_session = db.query(UserSession).options(
-                joinedload(UserSession.watchlist),
-                joinedload(UserSession.alerts),
-                joinedload(UserSession.logs)
-            ).filter(UserSession.id == session_id).first()
+            db_session = db.query(UserSession).filter(UserSession.id == session_id).first()
             
             if not db_session:
+                print(f"❌ Session {session_id} not found in database")
                 return {}
             
+            print(f"✅ Found session {session_id} in database for client {db_session.client_id}")
+            
+            # Get related data separately
+            watchlist = db.query(WatchlistItem).filter(WatchlistItem.session_id == session_id).all()
+            alerts = db.query(AlertItem).filter(AlertItem.session_id == session_id).all()
+            logs = db.query(LogItem).filter(LogItem.session_id == session_id).all()
             s_data = {
                 "client_id": db_session.client_id,
                 "jwt_token": db_session.jwt_token,
@@ -274,7 +314,7 @@ class PersistenceService:
                 "is_paused": db_session.is_paused
             }
             
-            for item in db_session.watchlist:
+            for item in watchlist:
                 s_data['watchlist'].append({
                     "symbol": item.symbol,
                     "token": item.token,
@@ -284,17 +324,19 @@ class PersistenceService:
                     "pdl": item.pdl
                 })
             
-            for alert in db_session.alerts:
+            for alert in alerts:
                 s_data['alerts'].append({
-                    "id": alert.id,
+                    "id": alert.alert_id,
                     "symbol": alert.symbol,
                     "token": alert.token,
                     "condition": alert.condition,
                     "price": alert.price,
-                    "active": alert.active
+                    "active": alert.active,
+                    "type": alert.type,
+                    "created_at": alert.created_at.isoformat() if alert.created_at else None
                 })
             
-            for log in db_session.logs:
+            for log in logs:
                 s_data['logs'].append({
                     "time": log.timestamp.isoformat(),
                     "symbol": log.symbol,

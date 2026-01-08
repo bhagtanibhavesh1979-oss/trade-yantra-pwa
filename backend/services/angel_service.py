@@ -1,5 +1,5 @@
 """
-Angel One API Service
+Angel One API Service - GCP Optimized
 Handles login, LTP fetching, historical data, and scrip master
 """
 from SmartApi import SmartConnect
@@ -17,12 +17,33 @@ class AngelService:
     def __init__(self):
         self.scrips = []
         self.master_loaded = False
+        # Pre-load core scrips for instant search during startup
+        self._load_core_scrips()
+
+    def _load_core_scrips(self):
+        """Load common indices and top stocks immediately for 'Zero-Wait' search"""
+        CORE_SCRIPS = [
+            {"token": "99926000", "symbol": "NIFTY 50", "exch_seg": "NSE"},
+            {"token": "99926009", "symbol": "NIFTY BANK", "exch_seg": "NSE"},
+            {"token": "99926012", "symbol": "NIFTY FIN SERVICE", "exch_seg": "NSE"},
+            {"token": "99919000", "symbol": "SENSEX", "exch_seg": "BSE"},
+            {"token": "3045", "symbol": "SBIN-EQ", "exch_seg": "NSE"},
+            {"token": "1333", "symbol": "HDFCBANK-EQ", "exch_seg": "NSE"},
+            {"token": "1594", "symbol": "INFY-EQ", "exch_seg": "NSE"},
+            {"token": "2885", "symbol": "RELIANCE-EQ", "exch_seg": "NSE"},
+            {"token": "10604", "symbol": "ICICIBANK-EQ", "exch_seg": "NSE"},
+            {"token": "11536", "symbol": "TCS-EQ", "exch_seg": "NSE"},
+            {"token": "5900", "symbol": "AXISBANK-EQ", "exch_seg": "NSE"},
+            {"token": "1922", "symbol": "KOTAKBANK-EQ", "exch_seg": "NSE"},
+            {"token": "11483", "symbol": "LT-EQ", "exch_seg": "NSE"},
+            {"token": "1660", "symbol": "ITC-EQ", "exch_seg": "NSE"},
+            {"token": "1232", "symbol": "HCLTECH-EQ", "exch_seg": "NSE"},
+            {"token": "3101", "symbol": "TATAMOTORS-EQ", "exch_seg": "NSE"}
+        ]
+        self.scrips = CORE_SCRIPS
+        self.master_loaded = True # Allow search for these immediately
 
     def login(self, api_key: str, client_id: str, password: str, totp_secret: str) -> Tuple[bool, str, Optional[SmartConnect], Optional[Dict]]:
-        """
-        Login to Angel One
-        Returns: (success, message, smart_api, tokens_dict)
-        """
         try:
             smart_api = SmartConnect(api_key=api_key)
             totp_val = pyotp.TOTP(totp_secret).now()
@@ -41,9 +62,6 @@ class AngelService:
             return False, str(e), None, None
 
     def logout(self, smart_api: SmartConnect) -> bool:
-        """
-        Terminate session with Angel One
-        """
         try:
             if smart_api:
                 smart_api.terminateSession(smart_api.client_id)
@@ -53,9 +71,6 @@ class AngelService:
         return False
 
     def fetch_ltp(self, smart_api: SmartConnect, symbol: str, token: str) -> Optional[float]:
-        """
-        Fetch Last Traded Price
-        """
         try:
             ltp_data = smart_api.ltpData("NSE", symbol, token)
             if ltp_data and ltp_data.get('status'):
@@ -65,9 +80,6 @@ class AngelService:
         return None
 
     def fetch_previous_day_close(self, smart_api: SmartConnect, token: str, exchange: str = "NSE") -> Optional[float]:
-        """
-        Fetch previous day's closing price
-        """
         try:
             pdh, pdl, pdc = self.fetch_previous_day_high_low(smart_api, token, exchange)
             return pdc
@@ -76,20 +88,13 @@ class AngelService:
         return None
 
     def fetch_previous_day_high_low(self, smart_api: SmartConnect, token: str, exchange: str = "NSE", specific_date: Optional[str] = None) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-        """
-        Fetch High, Low, and Close for a specific date OR the last completed trading day
-        Returns: (high, low, close)
-        """
         try:
             now = datetime.datetime.now()
-            
             if specific_date:
-                # Use the exact date requested
                 from_date_str = f"{specific_date} 09:15"
                 to_date_str = f"{specific_date} 15:30"
-                interval = "ONE_MINUTE" # Use minute data for high precision on a specific day
+                interval = "ONE_MINUTE"
             else:
-                # Broaden range to 14 days to handle holidays for finding "Last Completed Day"
                 to_date_str = now.strftime('%Y-%m-%d %H:%M')
                 from_date_str = (now - datetime.timedelta(days=14)).strftime('%Y-%m-%d %H:%M')
                 interval = "ONE_DAY"
@@ -102,186 +107,100 @@ class AngelService:
                 "todate": to_date_str
             }
             
+            print(f"DEBUG: SmartAPI req: {historic_req}")
             hist_data = self._smart_candle_fetch(smart_api, historic_req)
+            print(f"DEBUG: Hist data status: {hist_data.get('status') if hist_data else 'None'}")
             
             if hist_data and hist_data.get('status') and hist_data.get('data'):
                 candles = hist_data['data']
-                if not candles: 
-                    print(f"DEBUG: No candles returned for token {token} on {specific_date if specific_date else 'last-day'}")
-                    return None, None, None
+                if not candles: return None, None, None
                 
                 if specific_date:
-                    # Calculate High/Low/Close from minute candles
-                    high = -1.0
-                    low = 99999999.0
-                    close = candles[-1][4]
+                    high, low, close = -1.0, 99999999.0, candles[-1][4]
                     for c in candles:
                         if c[2] > high: high = c[2]
                         if c[3] < low: low = c[3]
                     return float(high), float(low), float(close)
                 else:
-                    # Original logic for finding previous trading day
                     today_str = now.strftime('%Y-%m-%d')
-                    last_candle = candles[-1]
-                    last_candle_date = last_candle[0].split('T')[0]
-                    
-                    if last_candle_date == today_str:
-                        if len(candles) >= 2:
-                            target = candles[-2]
-                        else:
-                            target = last_candle
-                    else:
-                        target = last_candle
-                    
+                    target = candles[-2] if candles[-1][0].split('T')[0] == today_str and len(candles) >= 2 else candles[-1]
                     return float(target[2]), float(target[3]), float(target[4])
-            else:
-                status_msg = hist_data.get('message', 'No message') if hist_data else 'No response'
-                print(f"DEBUG: SmartAPI Error for token {token}: {status_msg}")
         except Exception as e:
-            print(f"PDH/L fetch error for token {token}: {e}")
+            print(f"PDH/L fetch error: {e}")
         return None, None, None
 
     def fetch_candle_data(self, smart_api: SmartConnect, req: Dict) -> Optional[Dict]:
-        """
-        Public wrapper to fetch candle data
-        """
         return self._smart_candle_fetch(smart_api, req)
 
     def _smart_candle_fetch(self, smart_api: SmartConnect, req: Dict, retries: int = 3) -> Optional[Dict]:
-        """
-        Fetch candle data with retry logic
-        """
         for i in range(retries):
             try:
                 return smart_api.getCandleData(req)
             except Exception as e:
-                err_msg = str(e)
-                if "Couldn't parse" in err_msg or "timed out" in err_msg:
-                    time.sleep(2 * (i + 1))
+                if "parse" in str(e) or "timeout" in str(e):
+                    time.sleep(2)
                     continue
                 raise e
         return None
 
     def load_scrip_master(self):
         """
-        Load NSE scrip master (DB first, then fallback to JSON, then download)
+        Load NSE scrip master - Optimized for Speed
         """
-        from database import SessionLocal
-        from models import ScripMaster, SystemMetadata
-        from sqlalchemy import delete
-        
-        db = SessionLocal()
         try:
-            # 1. Check DB for metadata
-            meta = db.query(SystemMetadata).filter(SystemMetadata.key == "scripmaster_updated").first()
-            if meta:
-                # Check if fresh (24h)
-                age = (datetime.datetime.utcnow() - meta.updated_at).total_seconds()
-                if age < 86400:
-                    print("Loading Scrip Master from SQL Cache...")
-                    db_scrips = db.query(ScripMaster).all()
-                    if db_scrips:
-                        self.scrips = [
-                            {
-                                "token": s.token,
-                                "symbol": s.symbol,
-                                "name": s.name,
-                                "exch_seg": s.exch_seg,
-                                "expiry": s.expiry,
-                                "strike": s.strike,
-                                "lotsize": s.lotsize,
-                                "instrumenttype": s.instrumenttype,
-                                "tick_size": s.tick_size
-                            } for s in db_scrips
-                        ]
-                        self.master_loaded = True
-                        print(f"Master Data Ready (SQL): {len(self.scrips)} symbols.")
-                        return
-
-            # 2. Fallback to scripmaster.json for local development speed
+            # 1. Try JSON file first (fastest)
             if os.path.exists(SCRIPMASTER_FILE):
-                file_age = time.time() - os.path.getmtime(SCRIPMASTER_FILE)
-                if file_age < 86400:
-                    print("Loading Scrip Master from JSON fallback...")
-                    with open(SCRIPMASTER_FILE, 'r') as f:
-                        self.scrips = json.load(f)
-                    self.master_loaded = True
-                    print(f"Master Data Ready (JSON): {len(self.scrips)} symbols.")
-                    # Sync to DB if DB was empty
-                    if not meta:
-                        self._sync_scrips_to_db(db)
-                    return
-            
-            # 3. Download fresh data
-            print("Downloading Scrip Master from Angel One...")
-            r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json")
+                print("🚀 Loading Scrips from local cache...")
+                with open(SCRIPMASTER_FILE, 'r') as f:
+                    self.scrips = json.load(f)
+                self.master_loaded = True
+                print(f"✅ {len(self.scrips)} symbols loaded into memory.")
+                return
+
+            # 2. Remote Download if missing
+            print("🌐 Local cache missing, downloading Scrip Master...")
+            r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=10)
             data = r.json()
             
-            # Filter NSE equity only
-            self.scrips = [s for s in data if s.get('exch_seg') == 'NSE' and '-EQ' in s.get('symbol', '')]
+            # Filter for NSE Stocks (-EQ) and common Indices
+            indices_tokens = ["99926000", "99926009", "99926012", "99926014", "99919000"]
+            full_scrips = [
+                {"token": s.get('token'), "symbol": s.get('symbol'), "exch_seg": s.get('exch_seg')}
+                for s in data 
+                if (s.get('exch_seg') == 'NSE' and '-EQ' in s.get('symbol', '')) or 
+                   (s.get('token') in indices_tokens)
+            ]
             
-            # Cache to file (fallback)
+            # Atomic update
+            self.scrips = full_scrips
+            
             with open(SCRIPMASTER_FILE, 'w') as f:
                 json.dump(self.scrips, f)
             
-            # Sync to Database
-            self._sync_scrips_to_db(db)
-            
             self.master_loaded = True
-            print(f"Master Data Ready (Download): {len(self.scrips)} symbols.")
+            print(f"✅ Downloaded and cached {len(self.scrips)} symbols.")
             
         except Exception as e:
-            print(f"Failed to load scrips: {e}")
+            print(f"❌ Scrip Master Error: {e}")
+            
         finally:
-            db.close()
-
-    def _sync_scrips_to_db(self, db):
-        """Helper to bulk insert scrips into DB"""
-        from models import ScripMaster, SystemMetadata
-        from sqlalchemy import delete
-        try:
-            print("Syncing Scrips to SQL Database...")
-            db.execute(delete(ScripMaster))
-            
-            # Bulk insert
-            db.bulk_insert_mappings(ScripMaster, [
-                {
-                    "token": s.get('token'),
-                    "symbol": s.get('symbol'),
-                    "name": s.get('name'),
-                    "exch_seg": s.get('exch_seg'),
-                    "expiry": s.get('expiry'),
-                    "strike": s.get('strike'),
-                    "lotsize": s.get('lotsize'),
-                    "instrumenttype": s.get('instrumenttype'),
-                    "tick_size": s.get('tick_size')
-                } for s in self.scrips
-            ])
-            
-            # Update metadata
-            meta = db.query(SystemMetadata).filter(SystemMetadata.key == "scripmaster_updated").first()
-            if not meta:
-                meta = SystemMetadata(key="scripmaster_updated")
-                db.add(meta)
-            meta.value = str(len(self.scrips))
-            meta.updated_at = datetime.datetime.utcnow()
-            
-            db.commit()
-            print("Sync Complete.")
-        except Exception as e:
-            db.rollback()
-            print(f"Sync failed: {e}")
+            pass
 
     def search_symbols(self, query: str, limit: int = 15) -> List[Dict]:
         """
-        Search symbols by prefix
+        In-memory search - extremely fast.
+        If full master isn't loaded, it searches the Core Scrips.
         """
-        if not self.master_loaded:
+        if not self.scrips:
             return []
-        
+            
         query = query.upper()
-        matches = [s for s in self.scrips if s['symbol'].startswith(query)]
+        # Search in symbol (contains)
+        matches = [s for s in self.scrips if query in s['symbol']]
+        
+        # Sort so that prefix matches come first
+        matches.sort(key=lambda x: (not x['symbol'].startswith(query), x['symbol']))
+        
         return matches[:limit]
 
-# Global angel service instance
 angel_service = AngelService()

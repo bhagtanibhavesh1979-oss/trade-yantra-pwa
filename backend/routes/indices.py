@@ -5,6 +5,7 @@ Fetch live data for major NSE indices
 from fastapi import APIRouter, HTTPException
 from services.session_manager import session_manager
 from services.angel_service import angel_service
+import datetime
 
 router = APIRouter(prefix="/api/indices", tags=["Indices"])
 
@@ -23,14 +24,38 @@ INDICES = [
     {"symbol": "NIFTY FIN SERVICE", "token": "99926012", "exch": "NSE"},
 ]
 
+# PDC Cache to avoid redundant history calls
+# {token: {"pdc": 0.0, "date": "YYYY-MM-DD"}}
+pdc_cache = {}
+
 @router.get("/{session_id}")
 async def get_indices(session_id: str):
     """
     Get live data for major indices
     """
+    print(f"🔍 Getting indices for session {session_id}")
     session = session_manager.get_session(session_id)
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        print(f"❌ Session {session_id} not found for indices")
+        # Debug: Check if session exists in database
+        from services.persistence_service import persistence_service
+        db_data = persistence_service.get_session_by_session_id(session_id)
+        return {
+            "error": "Session not found",
+            "session_id": session_id,
+            "in_memory": False,
+            "in_database": bool(db_data),
+            "debug_info": {
+                "active_sessions": len(session_manager.get_all_sessions()),
+                "database_data": db_data if db_data else None
+            }
+        }
+    
+    print(f"✅ Found session {session_id} for indices")
+    # ... rest of the method
+    
+    print(f"✅ Found session {session_id} for indices")
+    # ... rest of the method
     
     smart_api = session.smart_api
     if not smart_api:
@@ -47,8 +72,19 @@ async def get_indices(session_id: str):
             if ltp_data and ltp_data.get('status'):
                 ltp = ltp_data['data']['ltp']
             
-            # Fetch previous day close using historical data
-            pdc = angel_service.fetch_previous_day_close(smart_api, index["token"], exchange)
+            # Fetch previous day close using historical data (with daily caching)
+            today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+            cached = pdc_cache.get(index["token"])
+            
+            if cached and cached["date"] == today_str:
+                pdc = cached["pdc"]
+            else:
+                try:
+                    pdc = angel_service.fetch_previous_day_close(smart_api, index["token"], exchange)
+                    if pdc:
+                        pdc_cache[index["token"]] = {"pdc": pdc, "date": today_str}
+                except:
+                    pdc = 0
             
             indices_data.append({
                 "symbol": index["symbol"],

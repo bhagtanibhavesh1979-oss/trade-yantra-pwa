@@ -1,169 +1,88 @@
 """
-WebSocket Streaming Route
-Real-time data stream to frontend
+WebSocket Stream Routes
+Handles real-time price updates via WebSocket
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from services.session_manager import session_manager
 from services.websocket_manager import ws_manager
-from services.alert_service import check_alert_trigger, create_alert_log
 import json
 import asyncio
-from typing import Dict
 
-router = APIRouter(tags=["WebSocket"])
-
-# Store active WebSocket connections
-active_connections: Dict[str, WebSocket] = {}
+router = APIRouter(tags=["Stream"])
 
 @router.websocket("/ws/stream/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     """
-    WebSocket endpoint for real-time data streaming
-    Broadcasts: price updates, alert triggers, status changes
+    WebSocket endpoint for real-time price updates
     """
     await websocket.accept()
+    loop = asyncio.get_running_loop()
     
-    # Verify session
+    # Get session
     session = session_manager.get_session(session_id)
     if not session:
-        await websocket.send_json({
-            "type": "error",
-            "data": {"message": "Invalid session"}
-        })
+        await websocket.send_json({"type": "error", "message": "Session not found"})
         await websocket.close()
         return
     
-    # Store connection
-    active_connections[session_id] = websocket
+    # Register this WebSocket connection
+    if not hasattr(session, 'websocket_clients'):
+        session.websocket_clients = []
     session.websocket_clients.append(websocket)
     
-    print(f"WebSocket connected for session {session_id}")
+    # Broadcast callback for WebSocket manager
+    # Uses run_coroutine_threadsafe to safely bridge from Angel's thread to FastAPI's async loop
+    def broadcast_callback(sid: str, message: dict):
+        if sid == session_id:
+            # Broadcast to ALL connected clients for this session (multi-tab support)
+            for client in list(session.websocket_clients):
+                try:
+                    asyncio.run_coroutine_threadsafe(client.send_json(message), loop)
+                except:
+                    pass
     
-    # Capture running loop for thread-safe broadcasting from background thread
-    loop = asyncio.get_running_loop()
-    
-    # Broadcast callback for Angel One WebSocket
-    def broadcast_to_client(sid: str, message: Dict):
-        """Broadcast message to frontend WebSocket"""
-        if sid == session_id and sid in active_connections:
-            try:
-                # Use threadsafe call since this runs in Angel One's thread
-                asyncio.run_coroutine_threadsafe(
-                    active_connections[sid].send_json(message), 
-                    loop
-                )
-            except Exception as e:
-                print(f"Broadcast error: {e}")
-
-    # Start Angel One WebSocket if not already started
-    if session_id not in ws_manager.connections:
-        success = ws_manager.start_websocket(
-            session_id=session_id,
-            jwt_token=session.jwt_token,
-            api_key=session.api_key,
-            client_id=session.client_id,
-            feed_token=session.feed_token,
-            watchlist=session.watchlist,
-            broadcast_callback=broadcast_to_client
-        )
+    # Start WebSocket if not already running on backend
+    if session.watchlist and session.smart_api:
+        # Check if already running to avoid duplicate connection attempts
+        is_running = False
+        with ws_manager.lock:
+            if session_id in ws_manager.connections:
+                is_running = True
+                # Update the callback to the new connection
+                ws_manager.broadcast_callbacks[session_id] = broadcast_callback
         
-        if not success:
-            print(f"Warning: Failed to start Angel One WebSocket for session {session_id}")
-            # Don't close the WebSocket, allow connection for alerts and other features
-            # await websocket.send_json({
-            #     "type": "error",
-            #     "data": {"message": "Failed to start Angel One WebSocket"}
-            # })
-            # await websocket.close()
-            # return
-    
-    # Send initial status
-    await websocket.send_json({
-        "type": "connected",
-        "data": {
-            "session_id": session_id,
-            "client_id": session.client_id,
-            "watchlist_count": len(session.watchlist),
-            "alerts_count": len(session.alerts)
-        }
-    })
-    
-    # Heartbeat task
-    async def send_heartbeat():
-        while session_id in active_connections:
-            try:
-                await asyncio.sleep(15) # Heartbeat every 15s (was 30s)
-                await websocket.send_json({
-                    "type": "heartbeat",
-                    "data": {"timestamp": asyncio.get_event_loop().time()}
-                })
-            except:
-                break
-    
-    heartbeat_task = asyncio.create_task(send_heartbeat())
-    
-    # Alert checking task
-    async def check_alerts_task():
-        while session_id in active_connections:
-            try:
-                await asyncio.sleep(1)  # Check every second
-                
-                if session.is_paused:
-                    continue
-                
-                # Check all alerts
-                triggered_alerts = []
-                for alert in list(session.alerts):
-                    stock = next((s for s in session.watchlist if s['token'] == alert['token']), None)
-                    if stock and check_alert_trigger(alert, stock):
-                        triggered_alerts.append((alert, stock))
-                        session.alerts.remove(alert)
-                
-                # Broadcast triggered alerts
-                for alert, stock in triggered_alerts:
-                    log_entry = create_alert_log(stock, alert)
-                    session.logs.insert(0, log_entry)
-                    
-                    await websocket.send_json({
-                        "type": "alert_triggered",
-                        "data": {
-                            "alert": alert,
-                            "stock": stock,
-                            "log": log_entry
-                        }
-                    })
-            except:
-                break
-    
-    alerts_task = asyncio.create_task(check_alerts_task())
+        if not is_running:
+            print(f"🚀 Starting new Angel One WebSocket for {session_id}")
+            ws_manager.start_websocket(
+                session_id,
+                session.jwt_token,
+                session.api_key,
+                session.client_id,
+                session.feed_token,
+                session.watchlist,
+                broadcast_callback
+            )
+        else:
+            print(f"🔄 Reusing existing Angel One WebSocket for {session_id}")
+            # Immediately send status and last prices if possible
+            await websocket.send_json({"type": "status", "data": {"status": "CONNECTED"}})
     
     try:
-        # Keep connection alive and listen for messages
         while True:
+            # Keep connection alive and handle incoming messages
             data = await websocket.receive_text()
-            # Handle incoming messages if needed
-            # For now, just echo back
             message = json.loads(data)
             
-            if message.get("type") == "ping":
-                await websocket.send_json({
-                    "type": "pong",
-                    "data": {"timestamp": asyncio.get_event_loop().time()}
-                })
+            # Handle different message types
+            if message.get('type') == 'ping':
+                await websocket.send_json({"type": "pong"})
             
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected for session {session_id}")
-    except Exception as e:
-        print(f"WebSocket error for session {session_id}: {e}")
-    finally:
-        # Cleanup
-        heartbeat_task.cancel()
-        alerts_task.cancel()
-        
-        if session_id in active_connections:
-            del active_connections[session_id]
-        
+        # Clean up on disconnect
         if websocket in session.websocket_clients:
             session.websocket_clients.remove(websocket)
-        
-        print(f"WebSocket cleanup completed for session {session_id}")
+        # CRITICAL: Don't stop ws_manager here on Cloud Run/Mobile
+        # We want the Angel One connection to STAY ALIVE even if tab is closed/refreshed
+        print(f"Browser WebSocket disconnected for session {session_id} (Persistent backend WS remains)")
+    except Exception as e:
+        print(f"WebSocket Error: {e}")
