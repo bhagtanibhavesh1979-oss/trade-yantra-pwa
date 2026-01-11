@@ -28,6 +28,7 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
         if str(alert['token']) == str(stock['token']) and alert.get('active', True):
             if check_alert_trigger(alert, stock):
                 # Triggered!
+                print(f"🔔 ALERT TRIGGERED: {stock['symbol']} hit {alert['price']} ({alert['condition']}) at LTP: {stock['ltp']}")
                 log_entry = create_alert_log(stock, alert)
                 session.logs.insert(0, log_entry)
                 session.alerts.remove(alert)

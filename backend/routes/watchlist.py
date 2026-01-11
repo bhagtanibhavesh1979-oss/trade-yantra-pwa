@@ -108,12 +108,19 @@ async def add_stock(req: AddStockRequest):
         if ltp:
             stock_data['ltp'] = ltp
         
-        # Fetch High/Low/Close for the session's selected date
-        # If no selected_date, it falls back to previous trading day
-        print(f"DEBUG: Background fetch for {req.symbol} started (Date: {session.selected_date})...")
-        pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
+        # 1. Fetch High/Low for the session's selected date (Strategy Reference)
+        print(f"DEBUG: Background fetch for {req.symbol} High/Low (Date: {session.selected_date})...")
+        pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
             smart_api, req.token, specific_date=session.selected_date
         )
+        
+        # 2. Fetch Actual Previous Day Close (Daily Change Reference)
+        # We pass None for specific_date to get the most recent trading day
+        print(f"DEBUG: Background fetch for {req.symbol} Actual PDC...")
+        _, _, pdc = angel_service.fetch_previous_day_high_low(
+            smart_api, req.token, specific_date=None
+        )
+
         print(f"DEBUG: Background fetch for {req.symbol} result: PDH={pdh}, PDL={pdl}, PDC={pdc}")
         if pdh is not None: stock_data['pdh'] = pdh
         if pdl is not None: stock_data['pdl'] = pdl
@@ -209,10 +216,16 @@ async def refresh_watchlist(req: RefreshRequest):
             if ltp:
                 stock['ltp'] = ltp
             
-            # Fetch High/Low/Close for the session's selected date
-            pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
+            # 1. Fetch High/Low for the session's selected date (Strategy Reference)
+            pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
                 smart_api, stock['token'], specific_date=session.selected_date
             )
+            
+            # 2. Fetch Actual Previous Day Close (Daily Change Reference) 
+            _, _, pdc = angel_service.fetch_previous_day_high_low(
+                smart_api, stock['token'], specific_date=None
+            )
+
             if pdh is not None: stock['pdh'] = pdh
             if pdl is not None: stock['pdl'] = pdl
             if pdc is not None: stock['pdc'] = pdc
