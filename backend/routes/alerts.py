@@ -4,13 +4,23 @@ API endpoints for alert management and High/Low level generation
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from services.session_manager import session_manager
 from services.alert_service import create_alert
 import uuid
 import datetime
 import time
 import asyncio
+
+import logging
+
+# Configure logging to a file
+logging.basicConfig(
+    filename="backend_debug.log",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger("alerts_route")
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
 
@@ -49,29 +59,14 @@ class GenerateBulkAlertsRequest(BaseModel):
     levels: List[str] = ["High", "Low", "R1", "S1"]  # Default targets
 
 @router.get("/{session_id}")
-async def get_alerts(session_id: str):
+async def get_alerts(session_id: str, client_id: Optional[str] = None):
     """
     Get all alerts for session
     """
-    print(f"🔍 Getting alerts for session {session_id}")
-    session = session_manager.get_session(session_id)
+    session = session_manager.get_session(session_id, client_id=client_id)
     if not session:
-        print(f"❌ Session {session_id} not found for alerts")
-        # Debug: Check if session exists in database
-        from services.persistence_service import persistence_service
-        db_data = persistence_service.get_session_by_session_id(session_id)
-        return {
-            "error": "Session not found",
-            "session_id": session_id,
-            "in_memory": False,
-            "in_database": bool(db_data),
-            "debug_info": {
-                "active_sessions": len(session_manager.get_all_sessions()),
-                "database_data": db_data if db_data else None
-            }
-        }
+        raise HTTPException(status_code=404, detail="Session not found")
     
-    print(f"✅ Found {len(session.alerts)} alerts for session {session_id}")
     return {
         "alerts": session.alerts,
         "is_paused": session.is_paused
@@ -290,6 +285,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     if not session.watchlist or len(session.watchlist) == 0:
         raise HTTPException(status_code=400, detail="Watchlist is empty")
     
+    logger.debug(f"Bulk generating alerts for {len(session.watchlist)} stocks. Session: {req.session_id}")
     print(f"DEBUG: Bulk generating alerts for {len(session.watchlist)} stocks")
     print(f"DEBUG: Date={req.date}, Levels={req.levels}")
     
@@ -303,7 +299,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
             
             # RATE LIMIT: Angel One allows ~3 high-level API calls per sec
             # We add a small sleep to prevent "Too many requests" errors
-            time.sleep(0.35) 
+            await asyncio.sleep(0.35) 
             
             new_alert_data = generate_high_low_alerts(
                 smart_api=session.smart_api,
@@ -356,6 +352,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
             print(f"DEBUG: {symbol} - Successfully generated {stock_alerts_count} alerts")
             
         except Exception as e:
+            logger.error(f"Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}", exc_info=True)
             print(f"❌ ERROR: Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}")
             results.append({
                 "symbol": stock.get('symbol', 'Unknown'),
@@ -383,15 +380,16 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
         "message": f"Generated {total_alerts} alerts for {len(session.watchlist)} stocks",
         "total_alerts": total_alerts,
         "total_stocks": len(session.watchlist),
+        "alerts": session.alerts, # Return FULL list for instant sync
         "results": results
     }
 
 @router.get("/logs/{session_id}")
-async def get_logs(session_id: str):
+async def get_logs(session_id: str, client_id: Optional[str] = None):
     """
     Get alert logs
     """
-    session = session_manager.get_session(session_id)
+    session = session_manager.get_session(session_id, client_id=client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     

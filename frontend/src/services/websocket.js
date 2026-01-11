@@ -7,7 +7,9 @@ const getWebSocketUrl = () => {
 
     // Otherwise detect if we are on localhost or production
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-ue.a.run.app';
+
+    // Use matching endpoint: ibynqazflq-uc
+    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-uc.a.run.app';
 };
 
 const WS_BASE_URL = getWebSocketUrl();
@@ -17,8 +19,8 @@ class WebSocketClient {
         this.ws = null;
         this.sessionId = null;
         this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 15; // Increased for mobile resilience
-        this.reconnectDelay = 3000;
+        this.maxReconnectAttempts = 999999; // Practically infinite
+        this.reconnectDelay = 2000;
         this.pingInterval = null;
         this.lastSeen = Date.now();
         this.watchdogInterval = null;
@@ -31,7 +33,7 @@ class WebSocketClient {
         };
     }
 
-    connect(sessionId) {
+    connect(sessionId, clientId = null) {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
             console.log('WebSocket already connected');
             // Emit connected event immediately for new listeners (e.g., on React re-mount)
@@ -40,7 +42,10 @@ class WebSocketClient {
         }
 
         this.sessionId = sessionId;
-        const wsUrl = `${WS_BASE_URL}/ws/stream/${sessionId}`;
+        this.clientId = clientId;
+        const wsUrl = clientId
+            ? `${WS_BASE_URL}/ws/stream/${sessionId}?client_id=${clientId}`
+            : `${WS_BASE_URL}/ws/stream/${sessionId}`;
 
         console.log(`Connecting to WebSocket: ${wsUrl}`);
         this.ws = new WebSocket(wsUrl);
@@ -120,22 +125,24 @@ class WebSocketClient {
         this.stopHeartbeat();
         this.lastSeen = Date.now();
 
-        // Ping every 20 seconds (increased from 15s for better mobile stability)
+        // Ping every 5 seconds to match backend
         this.pingInterval = setInterval(() => {
-            this.ping();
-        }, 20000);
+            if (this.isConnected()) {
+                this.ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+            }
+        }, 5000);
 
-        // Dead Man's Switch: Check if we haven't heard from server in 90s (increased from 45s)
-        // This prevents false disconnects when browser throttles background tabs
+        // Dead Man's Switch: Check if we haven't heard from server in 15s
+        // If server is silent for 15s, it's likely dead. Force reconnect.
         this.watchdogInterval = setInterval(() => {
             const idleTime = Date.now() - this.lastSeen;
-            if (idleTime > 90000) { // 90 seconds instead of 45
-                console.warn(`WebSocket dead man's switch triggered (idle: ${Math.round(idleTime / 1000)}s). Forcing reconnect...`);
+            if (idleTime > 15000) {
+                console.warn(`⚠️ Connection stalled (${Math.round(idleTime / 1000)}s). Forcing reconnect...`);
                 if (this.ws) {
-                    this.ws.close(); // Triggers onclose -> attemptReconnect
+                    this.ws.close();
                 }
             }
-        }, 10000); // Check every 10s instead of 5s
+        }, 5000);
     }
 
     stopHeartbeat() {
@@ -168,7 +175,7 @@ class WebSocketClient {
 
         setTimeout(() => {
             if (this.sessionId) {
-                this.connect(this.sessionId);
+                this.connect(this.sessionId, this.clientId);
             }
         }, delay);
     }

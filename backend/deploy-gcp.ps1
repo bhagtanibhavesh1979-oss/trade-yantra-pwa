@@ -48,16 +48,16 @@ Write-Host ""
 Write-Host "📝 Environment Variables Setup" -ForegroundColor Yellow
 Write-Host "Please provide the following (press Enter to skip and set later):"
 
-$DATABASE_URL = Read-Host "DATABASE_URL (Neon PostgreSQL)"
 $CORS_ORIGINS = Read-Host "CORS_ORIGINS (frontend URL, e.g., https://your-app.com)"
+$GCS_BUCKET_NAME = Read-Host "GCS_BUCKET_NAME (Optional for permanent storage, e.g., trade-yantra-data)"
 
 # Build environment variables argument
 $ENV_VARS = @()
-if ($DATABASE_URL) {
-    $ENV_VARS += "DATABASE_URL=$DATABASE_URL"
-}
 if ($CORS_ORIGINS) {
     $ENV_VARS += "CORS_ORIGINS=$CORS_ORIGINS"
+}
+if ($GCS_BUCKET_NAME) {
+    $ENV_VARS += "GCS_BUCKET_NAME=$GCS_BUCKET_NAME"
 }
 
 # Deploy to Cloud Run

@@ -3,7 +3,7 @@ import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllA
 import toast from 'react-hot-toast';
 import { Skeleton } from './Skeleton';
 
-function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData, onRefreshData }) {
+function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData, onRefreshData }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
     const [visibleCount, setVisibleCount] = useState(50);
@@ -113,7 +113,8 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 is_custom_range: isCustomRange,
                 levels: selectedLevels,
                 token: selectedItem?.token,     // Pass token explicitly
-                exchange: selectedItem?.exch || selectedItem?.exchange || 'NSE' // Pass exchange explicitly
+                exchange: selectedItem?.exch || selectedItem?.exchange || 'NSE', // Pass exchange explicitly
+                client_id: clientId
             });
 
             // Alerts will be updated via parent state triggered by backend refresh/websocket, 
@@ -150,7 +151,8 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 start_time: startTime,
                 end_time: endTime,
                 is_custom_range: isCustomRange,
-                levels: selectedLevels
+                levels: selectedLevels,
+                client_id: clientId
             });
 
             const response = await toast.promise(promise, {
@@ -159,12 +161,14 @@ function AlertsTab({ sessionId, watchlist = [], alerts = [], setAlerts, isPaused
                 error: 'Failed to generate bulk alerts'
             });
 
-            // Update alerts state
-            if (response.results) {
-                // Fetch fresh alerts from backend to ensure sync
+            // Update alerts state directly from response for instant sync
+            if (response.alerts) {
+                setAlerts(response.alerts);
+            } else if (response.results) {
+                // Fallback: Fetch fresh alerts if for some reason not in response
                 const { getAlerts } = await import('../services/api');
-                const alertsData = await getAlerts(sessionId);
-                setAlerts(alertsData.alerts);
+                const alertsData = await getAlerts(sessionId, clientId);
+                if (alertsData.alerts) setAlerts(alertsData.alerts);
             }
 
             // Show detailed summary via toast

@@ -115,7 +115,16 @@ class WebSocketManager:
             self.broadcast_callbacks[session_id] = broadcast_callback
 
         def on_data(wsapp, message):
+            # DYNAMIC LOOKUP: Always get the latest callback for this session
+            # This allows the stream to survive cross-tab refreshes
+            def _get_callback():
+                with self.lock:
+                    return self.broadcast_callbacks.get(session_id)
+
             try:
+                callback = _get_callback()
+                if not callback: return
+
                 if isinstance(message, (list, dict)):
                     if isinstance(message, dict): message = [message]
                     for tick in message:
@@ -124,11 +133,9 @@ class WebSocketManager:
                         if token and raw_price is not None:
                             stock = token_map.get(str(token))
                             if stock:
-                                # SET PRICE BEFORE CHECKING ALERTS
                                 stock['ltp'] = float(raw_price) / 100.0 if 'last_traded_price' in tick else float(raw_price)
-                                
                                 check_and_trigger_alerts(session_id, stock)
-                                broadcast_callback(session_id, {
+                                callback(session_id, {
                                     'type': 'price_update',
                                     'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': stock['ltp']}
                                 })
@@ -143,7 +150,7 @@ class WebSocketManager:
                     if stock:
                         stock['ltp'] = real_price
                         check_and_trigger_alerts(session_id, stock)
-                        broadcast_callback(session_id, {
+                        callback(session_id, {
                             'type': 'price_update',
                             'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': real_price}
                         })
@@ -152,7 +159,10 @@ class WebSocketManager:
 
         def on_open(wsapp):
             print(f"WebSocket Connected for {session_id}")
-            broadcast_callback(session_id, {'type': 'status', 'data': {'status': 'CONNECTED'}})
+            with self.lock:
+                callback = self.broadcast_callbacks.get(session_id)
+            if callback:
+                callback(session_id, {'type': 'status', 'data': {'status': 'CONNECTED'}})
             
             # Subscribe to Watchlist
             token_list_str = [str(item['token']) for item in watchlist]

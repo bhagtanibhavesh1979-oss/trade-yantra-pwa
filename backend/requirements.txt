@@ -1,11 +1,11 @@
 fastapi==0.115.0
+gunicorn==21.2.0
 uvicorn[standard]==0.32.0
 python-dotenv==1.0.0
-smartapi-python==1.5.5
+smartapi-python
 pyotp==2.9.0
 requests==2.31.0
 websocket-client==1.8.0
 python-multipart==0.0.9
 logzero==1.7.0
-sqlalchemy==2.0.31
-psycopg2-binary==2.9.10
+google-cloud-storage

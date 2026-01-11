@@ -3,6 +3,7 @@ WebSocket Stream Routes
 Handles real-time price updates via WebSocket
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import Optional
 from services.session_manager import session_manager
 from services.websocket_manager import ws_manager
 import json
@@ -11,7 +12,7 @@ import asyncio
 router = APIRouter(tags=["Stream"])
 
 @router.websocket("/ws/stream/{session_id}")
-async def websocket_endpoint(websocket: WebSocket, session_id: str):
+async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: Optional[str] = None):
     """
     WebSocket endpoint for real-time price updates
     """
@@ -19,7 +20,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     loop = asyncio.get_running_loop()
     
     # Get session
-    session = session_manager.get_session(session_id)
+    session = session_manager.get_session(session_id, client_id=client_id)
     if not session:
         await websocket.send_json({"type": "error", "message": "Session not found"})
         await websocket.close()

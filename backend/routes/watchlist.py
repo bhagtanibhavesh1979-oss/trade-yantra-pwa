@@ -30,6 +30,7 @@ async def debug_all():
 
 class AddStockRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None # For robust Self-Healing
     symbol: str
     token: str
     exch_seg: str = "NSE"
@@ -42,26 +43,19 @@ class RefreshRequest(BaseModel):
     session_id: str
 
 @router.get("/{session_id}")
-async def get_watchlist(session_id: str):
+async def get_watchlist(session_id: str, client_id: Optional[str] = None):
     """
     Get user's watchlist
     """
-    print(f"🔍 Getting watchlist for session {session_id}")
-    session = session_manager.get_session(session_id)
+    print(f"🔍 Getting watchlist for session {session_id} (Client: {client_id})")
+    session = session_manager.get_session(session_id, client_id=client_id)
     if not session:
         print(f"❌ Session {session_id} not found for watchlist")
-        # Debug: Check if session exists in database
-        from services.persistence_service import persistence_service
-        db_data = persistence_service.get_session_by_session_id(session_id)
+        # Return empty watchlist but with error info to help frontend
         return {
             "error": "Session not found",
             "session_id": session_id,
-            "in_memory": False,
-            "in_database": bool(db_data),
-            "debug_info": {
-                "active_sessions": len(session_manager.get_all_sessions()),
-                "database_data": db_data if db_data else None
-            }
+            "watchlist": []
         }
     
     return {
@@ -74,7 +68,8 @@ async def add_stock(req: AddStockRequest):
     Add stock to watchlist
     Fetches initial LTP and weekly close, then subscribes to WebSocket
     """
-    session = session_manager.get_session(req.session_id)
+    # Use client_id for robust self-healing during add
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     

@@ -3,7 +3,9 @@ import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, g
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
-function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVisible = true }) {
+function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisible = true }) {
+    const sessionId = session?.sessionId;
+    const clientId = session?.clientId;
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
@@ -38,11 +40,19 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVis
     }, [searchQuery]);
 
     const handleAddStock = async (stock) => {
-        try {
-            await addToWatchlist(sessionId, stock.symbol, stock.token, stock.exch_seg);
+        console.log('🚀 handleAddStock triggered for:', stock.symbol, stock.token);
 
-            // Add to local state
-            setWatchlist([...watchlist, {
+        // Close menu immediately for instant feedback
+        setSearchQuery('');
+        setShowSearchResults(false);
+
+        try {
+            console.log('📡 Calling addToWatchlist API...');
+            const response = await addToWatchlist(sessionId, stock.symbol, stock.token, stock.exch_seg, clientId);
+            console.log('✅ API Success:', response);
+
+            // Add to local state using returned stock from backend if available
+            const newStock = response.stock || {
                 symbol: stock.symbol,
                 token: stock.token,
                 exch_seg: stock.exch_seg,
@@ -50,15 +60,15 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVis
                 pdc: 0,
                 pdh: 0,
                 pdl: 0,
-            }]);
+                loading: true
+            };
 
-            setSearchQuery('');
-            setShowSearchResults(false);
+            setWatchlist(prev => {
+                // Prevent duplicates
+                if (prev.some(s => s.token === newStock.token)) return prev;
+                return [...prev, newStock];
+            });
 
-            // Auto-refresh to fetch prices in background
-            setTimeout(() => {
-                handleRefresh();
-            }, 500);
             toast.success(`${stock.symbol} added to watchlist`);
         } catch (err) {
             console.error('Add stock error:', err);
@@ -94,7 +104,7 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVis
 
         const pollInterval = setInterval(async () => {
             try {
-                const data = await getWatchlist(sessionId);
+                const data = await getWatchlist(sessionId, clientId);
                 if (data.watchlist) {
                     setWatchlist(data.watchlist);
                 }
@@ -151,14 +161,22 @@ function WatchlistTab({ sessionId, watchlist, setWatchlist, referenceDate, isVis
                     {showSearchResults && searchResults.length > 0 && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-[#222844] border border-[#2D3748] rounded-lg shadow-xl max-h-60 overflow-y-auto z-10">
                             {searchResults.map((stock) => (
-                                <button
+                                <div
                                     key={stock.token}
                                     onClick={() => handleAddStock(stock)}
-                                    className="w-full px-4 py-2 text-left hover:bg-[#2D3748] transition-colors"
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#2D3748] transition-colors border-b border-[#2D3748]/50 last:border-0 cursor-pointer group"
                                 >
-                                    <div className="text-white font-medium">{stock.symbol}</div>
-                                    <div className="text-xs text-gray-400">Token: {stock.token}</div>
-                                </button>
+                                    <div className="flex-1">
+                                        <div className="text-white font-medium group-hover:text-[#667EEA] transition-colors">{stock.symbol}</div>
+                                        <div className="text-[10px] text-gray-500 font-mono">TOKEN: {stock.token}</div>
+                                    </div>
+                                    <button
+                                        className="px-3 py-1.5 bg-[#667EEA] hover:bg-blue-600 text-white text-[10px] font-bold rounded-md shadow-lg transition-all active:scale-95 flex items-center gap-1"
+                                    >
+                                        <span>✚</span>
+                                        <span>ADD</span>
+                                    </button>
+                                </div>
                             ))}
                         </div>
                     )}

@@ -11,7 +11,10 @@ import os
 import json
 from typing import Optional, Dict, List, Tuple
 
-SCRIPMASTER_FILE = "scripmaster.json"
+# SCRIPMASTER_FILE = "scripmaster.json"
+# Use absolute path relative to this file
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPMASTER_FILE = os.path.join(os.path.dirname(BASE_DIR), "scripmaster.json")
 
 class AngelService:
     def __init__(self):
@@ -145,25 +148,44 @@ class AngelService:
 
     def load_scrip_master(self):
         """
-        Load NSE scrip master - Optimized for Speed
+        Load NSE scrip master - Optimized for Speed & GCP Persistence
         """
         try:
-            # 1. Try JSON file first (fastest)
+            # 1. Try local JSON file first (fastest)
             if os.path.exists(SCRIPMASTER_FILE):
                 print("🚀 Loading Scrips from local cache...")
                 with open(SCRIPMASTER_FILE, 'r') as f:
                     self.scrips = json.load(f)
                 self.master_loaded = True
-                print(f"✅ {len(self.scrips)} symbols loaded into memory.")
+                print(f"✅ {len(self.scrips)} symbols loaded from local file.")
                 return
 
-            # 2. Remote Download if missing
-            print("🌐 Local cache missing, downloading Scrip Master...")
-            r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=10)
+            # 2. Try GCS if local missing
+            bucket_name = os.getenv("GCS_BUCKET_NAME")
+            if bucket_name:
+                try:
+                    from google.cloud import storage
+                    client = storage.Client()
+                    bucket = client.bucket(bucket_name)
+                    blob = bucket.blob("scripmaster.json")
+                    if blob.exists():
+                        print("☁️ Downloading Scrip Master from GCS...")
+                        blob.download_to_filename(SCRIPMASTER_FILE)
+                        with open(SCRIPMASTER_FILE, 'r') as f:
+                            self.scrips = json.load(f)
+                        self.master_loaded = True
+                        print(f"✅ Loaded {len(self.scrips)} symbols from GCS.")
+                        return
+                except Exception as ge:
+                    print(f"⚠️ GCS Scrip Master check failed: {ge}")
+
+            # 3. Remote Download if both missing
+            print("🌐 Local and GCS cache missing, downloading from Angel One...")
+            r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=15)
             data = r.json()
             
             # Filter for NSE Stocks (-EQ) and common Indices
-            indices_tokens = ["99926000", "99926009", "99926012", "99926014", "99919000"]
+            indices_tokens = ["99926000", "99926009", "99926012", "99926014", "99919000", "99926013", "99926023"]
             full_scrips = [
                 {"token": s.get('token'), "symbol": s.get('symbol'), "exch_seg": s.get('exch_seg')}
                 for s in data 
@@ -171,12 +193,20 @@ class AngelService:
                    (s.get('token') in indices_tokens)
             ]
             
-            # Atomic update
             self.scrips = full_scrips
             
+            # Save locally
             with open(SCRIPMASTER_FILE, 'w') as f:
                 json.dump(self.scrips, f)
             
+            # Sync to GCS
+            if bucket_name:
+                try:
+                    blob.upload_from_filename(SCRIPMASTER_FILE)
+                    print(f"☁️ Synced Scrip Master to GCS bucket: {bucket_name}")
+                except Exception as ue:
+                    print(f"❌ GCS Scrip Upload failed: {ue}")
+
             self.master_loaded = True
             print(f"✅ Downloaded and cached {len(self.scrips)} symbols.")
             

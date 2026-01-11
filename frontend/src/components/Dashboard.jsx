@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
 import LogsTab from './LogsTab';
-import MarketOverview from './MarketOverview';
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import toast from 'react-hot-toast';
@@ -136,21 +135,11 @@ function Dashboard({
 
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
-                {/* Market Status Header */}
-                <div className="px-4 pt-4">
-                    <MarketOverview
-                        sessionId={session.sessionId}
-                        onAlertClick={(symbol, token, exchange) => {
-                            setPreSelectedAlertSymbol && setPreSelectedAlertSymbol({ symbol, token, exchange });
-                            setActiveTab('alerts');
-                        }}
-                        isVisible={isVisible}
-                    />
-                </div>
+                <div className="pt-2"></div>
 
                 {activeTab === 'watchlist' && (
                     <WatchlistTab
-                        sessionId={session.sessionId}
+                        session={session}
                         watchlist={watchlist}
                         setWatchlist={setWatchlist}
                         referenceDate={referenceDate}
@@ -159,6 +148,7 @@ function Dashboard({
                 )}
                 {activeTab === 'alerts' && (
                     <AlertsTab
+                        clientId={session.clientId}
                         sessionId={session.sessionId}
                         watchlist={watchlist}
                         alerts={alerts}

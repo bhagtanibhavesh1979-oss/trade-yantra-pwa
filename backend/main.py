@@ -5,9 +5,19 @@ Final Version - Fixes 404s, Session Loss, and WebSocket Disconnects
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import os
 import uvicorn
+import os
+import sys
 from dotenv import load_dotenv
+
+# Diagnostics for Google Cloud Run
+print("--- STARTING TRADE YANTRA BACKEND ---")
+print(f"DEBUG: PATH = {os.getcwd()}")
+print(f"DEBUG: PORT ENV = {os.environ.get('PORT', 'Not Set')}")
+sys.stdout.flush()
+
+# Load environment variables
+load_dotenv()
 
 # Import routes
 from routes import auth, watchlist, alerts, stream, indices
@@ -22,14 +32,19 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """ Startup and shutdown events """
-    print("==> Trade Yantra Backend Starting on GCP...")
+    import sys
+    print("🚀 Trade Yantra Backend Starting on GCP...")
+    sys.stdout.flush()
     
     # Load scrip master in background
     import threading
     from services.angel_service import angel_service
+    print("⏳ Starting Scrip Master background loader...")
+    sys.stdout.flush()
     threading.Thread(target=angel_service.load_scrip_master, daemon=True).start()
     
-    print("==> Backend Ready!")
+    print("✅ Backend Startup Sequence Complete!")
+    sys.stdout.flush()
     yield
     
     # Shutdown logic
@@ -44,16 +59,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration
-# Specifically allowing your Vercel URL to talk to Google Cloud
+# CORS Configuration - Updated to avoid Startup Crash with '*'
 default_origins = "https://trade-yantra-pwa-3llk.vercel.app,http://localhost:5173"
 allowed_origins_str = os.getenv("CORS_ORIGINS", default_origins)
-allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
+if allowed_origins_str == "*":
+    allowed_origins = ["*"]
+    allow_all_credentials = False # Starlette requirement
+else:
+    allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+    allow_all_credentials = True
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_credentials=allow_all_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -97,8 +117,8 @@ async def debug_session(session_id: str):
     }
 
 if __name__ == "__main__":
-    # GCP injected the PORT environment variable
-    port = int(os.environ.get("PORT", 8080))
+    # Local/GCP Port Configuration
+    port = int(os.environ.get("PORT", 8002))
     
     uvicorn.run(
         "main:app",

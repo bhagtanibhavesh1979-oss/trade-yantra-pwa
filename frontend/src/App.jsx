@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
-import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist } from './services/api';
+import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist, getWatchlist } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
 import { Toaster, toast } from 'react-hot-toast';
 import './App.css';
@@ -87,48 +87,58 @@ function App() {
     setIsLoadingData(true);
     if (isManualSync) toast.loading('Syncing data from backend...', { id: 'sync-data' });
 
+    // Use current session data from getSession() if not passed to ensure we have clientId
+    const currentSession = session || getSession();
+    const clientId = currentSession?.clientId;
+
     try {
-      const [alertsData, logsData, sessionData] = await Promise.all([
-        getAlerts(sessionId),
-        getLogs(sessionId),
-        // OPTIONAL: Fetch full session state to recover watchlist if localStorage is lost
-        getSession().then(async (s) => {
-          // We need a way to get the latest watchlist from backend
-          const { getWatchlist } = await import('./services/api');
-          return getWatchlist(sessionId);
-        }).catch(() => ({ watchlist: [] }))
+      const [alertsData, logsData, wlData] = await Promise.all([
+        getAlerts(sessionId, clientId).catch(() => ({ alerts: [] })),
+        getLogs(sessionId, clientId).catch(() => ({ logs: [] })),
+        getWatchlist(sessionId, clientId).catch(() => ({ watchlist: [] }))
       ]);
 
-      console.log('📊 Loaded data:', {
+      console.log('📊 Loaded data from server:', {
         alerts: alertsData.alerts?.length || 0,
         logs: logsData.logs?.length || 0,
-        backend_watchlist: sessionData.watchlist?.length || 0
+        watchlist: wlData.watchlist?.length || 0,
+        healing: !!clientId
       });
 
-      setAlerts(alertsData.alerts || []);
-      setLogs(logsData.logs || []);
-      setIsPaused(alertsData.is_paused || false);
+      // --- STATELESS PROTECTION ---
+      // If server returns data, it's the source of truth.
+      // If server returns EMPTY, but we have local data, KEEP local data (server might have restarted/lost state)
 
-      // If manual sync OR local watchlist is empty, use backend one
-      if (isManualSync || watchlist.length === 0) {
-        if (sessionData.watchlist && sessionData.watchlist.length > 0) {
-          setWatchlist(sessionData.watchlist);
-          toast.success('Watchlist restored from backend!', { id: 'sync-data' });
+      if (Array.isArray(alertsData.alerts)) {
+        if (alertsData.alerts.length > 0) {
+          setAlerts(alertsData.alerts);
         } else if (isManualSync) {
-          toast.success('Data synced!', { id: 'sync-data' });
+          // Only clear alerts on manual sync if server is empty
+          setAlerts([]);
         }
-      } else if (isManualSync) {
-        toast.success('Data synced!', { id: 'sync-data' });
+        setIsPaused(alertsData.is_paused || false);
       }
+
+      if (Array.isArray(logsData.logs)) {
+        if (logsData.logs.length > 0) {
+          setLogs(logsData.logs);
+        }
+      }
+
+      if (Array.isArray(wlData.watchlist)) {
+        if (wlData.watchlist.length > 0) {
+          setWatchlist(wlData.watchlist);
+        } else if (isManualSync && watchlist.length > 0) {
+          // Don't clear watchlist on accidental empty server response unless manual
+          setWatchlist([]);
+        }
+      }
+
+      if (isManualSync) toast.success('Data synced from server!', { id: 'sync-data' });
 
     } catch (err) {
       console.error('Failed to load data:', err);
       if (isManualSync) toast.error('Sync failed', { id: 'sync-data' });
-
-      if (err.response?.status === 404 || err.response?.status === 401) {
-        console.warn('Session expired or not found. Logging out...');
-        handleLogout();
-      }
     } finally {
       setIsLoadingData(false);
     }
@@ -221,8 +231,8 @@ function App() {
     };
   }, [session]);
 
-  const connectWebSocket = (sessionId) => {
-    wsClient.connect(sessionId);
+  const connectWebSocket = (sessionId, clientId = null) => {
+    wsClient.connect(sessionId, clientId);
   };
 
   // Load session on mount
@@ -234,32 +244,41 @@ function App() {
 
       // Verify with backend
       import('./services/api').then(({ checkSession }) => {
-        console.log('🔍 Checking session validity for:', savedSession.sessionId);
-        checkSession(savedSession.sessionId).then((data) => {
-          console.log('✅ Session verified:', data);
-          // Auto-sync local watchlist to backend (if backend restarted)
-          const localWatchlist = JSON.parse(localStorage.getItem('trade_yantra_watchlist') || '[]');
-          if (localWatchlist.length > 0) {
-            localWatchlist.forEach(stock => {
-              import('./services/api').then(({ addToWatchlist }) => {
-                addToWatchlist(savedSession.sessionId, stock.symbol, stock.token, stock.exch_seg).catch(() => { });
-              });
-            });
-          }
+        console.log('🔍 Verifying background session:', savedSession.sessionId);
+        checkSession(savedSession.sessionId, savedSession.clientId).then((data) => {
+          console.log('✅ Session verified at:', new Date().toLocaleTimeString());
         }).catch((err) => {
-          console.error('❌ Session invalid:', err);
-          console.log('🔄 Session check failed, logging out...');
-          handleLogout();
+          const status = err.response?.status;
+          console.warn(`⚠️ Session verification returned ${status || 'network error'}: ${err.message}`);
+
+          if (status === 401 || status === 404) {
+            console.error('❌ Session expired or invalid on server. Logging out...');
+            // Wait, even here we should be careful. If it's a cold start, 404 might be temporary.
+            // But checkSession is only called on MOUNT. If it fails here, the server really doesn't know us.
+            handleLogout();
+          } else {
+            console.log('🛡️ Persistence: Keeping session alive despite server/network hiccup.');
+          }
         });
       }).catch((importErr) => {
-        console.error('❌ Failed to import checkSession:', importErr);
-        handleLogout();
+        console.error('❌ Critical failure during session check:', importErr);
       });
 
-      loadData(savedSession.sessionId);
-      connectWebSocket(savedSession.sessionId);
-      requestNotificationPermission(); // Ask permission on session restore
+      connectWebSocket(savedSession.sessionId, savedSession.clientId);
+      requestNotificationPermission();
+
+      // Silent restore on refresh (no toast)
+      loadData(savedSession.sessionId, false);
     }
+
+    // CROSS-TAB SYNC: Detect if logged out in another tab
+    const handleStorageChange = (e) => {
+      if (e.key === 'trade_yantra_session' && !e.newValue) {
+        console.log('🚪 Session cleared in another tab, logging out...');
+        handleLogout();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     // Register SW
     registerServiceWorker();
@@ -285,6 +304,7 @@ function App() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
 
@@ -292,7 +312,7 @@ function App() {
     setSession(sessionData); // Saves to storage via api.js setSession
     setSessionState(sessionData);
     loadData(sessionData.sessionId);
-    connectWebSocket(sessionData.sessionId);
+    connectWebSocket(sessionData.sessionId, sessionData.clientId);
 
     // Request notification permission
     requestNotificationPermission();

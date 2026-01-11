@@ -1,13 +1,12 @@
 """
 Session Manager - In-memory session storage
-Sessions are cleared on server restart (Railway sleep)
+Sessions are cleared on server restart
 """
 import uuid
 from typing import Dict, Optional
 from datetime import datetime
 import threading
-from database import SessionLocal
-from models import UserSession
+from services.persistence_service import persistence_service
 
 class Session:
     def __init__(self, session_id: str, client_id: str, jwt_token: str, feed_token: str, api_key: str):
@@ -27,8 +26,6 @@ class Session:
         self.last_activity = datetime.now()
         self.websocket_clients = []  # List of WebSocket connections
 
-from services.persistence_service import persistence_service
-
 class SessionManager:
     def __init__(self):
         self.sessions: Dict[str, Session] = {}
@@ -36,65 +33,57 @@ class SessionManager:
         self._load_from_disk()
 
     def _load_from_disk(self):
-        """Load sessions from disk on startup - DISABLED for memory optimization"""
-        # MEMORY OPTIMIZATION: Don't preload all sessions on startup
-        # This was causing 512MB+ usage on Render's free tier
-        # Sessions will be created fresh on login instead
+        """Cleanup old sessions on startup"""
         persistence_service.cleanup_old_sessions()
-        # data = persistence_service.load_sessions()
-        # for session_id, s_data in data.items():
-        #     try:
-        #         # Reconstruct session
-        #         session = Session(
-        #             session_id,
-        #             s_data['client_id'],
-        #             s_data.get('jwt_token', ''),
-        #             s_data.get('feed_token', ''),
-        #             s_data.get('api_key', '')
-        #         )
-        #         session.watchlist = s_data.get('watchlist', [])
-        #         session.alerts = s_data.get('alerts', [])
-        #         session.logs = s_data.get('logs', [])
-        #         session.is_paused = s_data.get('is_paused', False)
-        #         if s_data.get('last_activity'):
-        #             session.last_activity = datetime.fromisoformat(s_data['last_activity'])
-        #         
-        #         self.sessions[session_id] = session
-        #     except Exception as e:
-        #         print(f"Error loading session {session_id}: {e}")
-        
-        print("Session manager initialized (memory-optimized mode)")
+        print("Session manager initialized")
 
     def save_session(self, session_id: str):
-        """
-        Save session in background thread.
-        This keeps the UI extremely snappy while ensuring data is persisted to Postgres.
-        """
-        def background_save():
+        """Saves session data to JSON safely in background"""
+        session = self.get_session(session_id)
+        if not session:
+            return
+            
+        def _save_bg():
+            if not hasattr(self, '_active_saves'):
+                self._active_saves = set()
+            if not hasattr(self, '_pending_saves'):
+                self._pending_saves = set()
+            
             with self.lock:
-                session = self.sessions.get(session_id)
-                if not session:
+                if session_id in self._active_saves:
+                    # Mark as pending so it runs again after current finishes
+                    self._pending_saves.add(session_id)
                     return
-                # We copy the data we need or just trust the session object
-                # for simple lists like watchlist/alerts which are modified in-place
-                try:
+                self._active_saves.add(session_id)
+            
+            try:
+                while True:
                     persistence_service.save_session(session_id, session)
-                except Exception as e:
-                    print(f"❌ Background save failed for {session_id}: {e}")
-        
-        # Start background task
-        threading.Thread(target=background_save, daemon=True).start()
+                    
+                    with self.lock:
+                        if session_id in self._pending_saves:
+                            self._pending_saves.remove(session_id)
+                            # Loop again to save the latest state
+                            continue
+                        else:
+                            self._active_saves.remove(session_id)
+                            break
+            except Exception as e:
+                print(f"❌ Background save FAILED for session {session_id}: {e}")
+                with self.lock:
+                    self._active_saves.discard(session_id)
+                    
+        threading.Thread(target=_save_bg, daemon=True).start()
 
     def create_session(self, client_id: str, jwt_token: str, feed_token: str, api_key: str) -> Session:
-        """Create a new session and restore user data from DB if available"""
-        # Check if we have data for this client_id in the database
+        """Create a new session and restore user data if available"""
         existing_data = persistence_service.get_session_by_client(client_id)
         
         session_id = str(uuid.uuid4())
         session = Session(session_id, client_id, jwt_token, feed_token, api_key)
         
         if existing_data:
-            print(f"Restoring data for client {client_id} from database")
+            print(f"✅ Restoring data for client {client_id} from JSON")
             session.watchlist = existing_data.get('watchlist', [])
             session.alerts = existing_data.get('alerts', [])
             session.logs = existing_data.get('logs', [])
@@ -103,47 +92,43 @@ class SessionManager:
         with self.lock:
             self.sessions[session_id] = session
         
-        # Save in background - don't block the login response
         self.save_session(session_id)
-        
         return session
 
-    def get_session(self, session_id: str) -> Optional[Session]:
-        """Get session by ID, restore from DB if not in memory"""
-        # 1. Check memory with lock
+    def get_session(self, session_id: str, client_id: Optional[str] = None) -> Optional[Session]:
+        """Get session by ID, restore from JSON if not in memory"""
         with self.lock:
             session = self.sessions.get(session_id)
             if session:
                 session.last_activity = datetime.now()
                 return session
         
-        # 2. If not found, check DB by session_id first
-        print(f"🔄 Session {session_id} not in memory, trying DB lookup...")
+        # 1. Try JSON lookup by session_id
         session_data = persistence_service.get_session_by_session_id(session_id)
         
-        # 3. If still not found, BROADEN search to find LAST session by Client ID
-        # This is the "Self-Healing" logic for refreshes/restarts
+        # 2. SELF-HEALING: Try client_id if session_id not found
+        if not session_data and client_id:
+            print(f"⚠️ Session {session_id} not found. Healing via client_id {client_id}...")
+            session_data = persistence_service.get_latest_session_by_client_id(client_id)
+            
+        # 3. LAST RESORT: Search for ANY latest record
         if not session_data:
-            # We need to find the client_id for this session_id's "intent"
-            # Since we don't have it in memory or DB by ID, we'll try to find the 
-            # MOST RECENT session in the whole database as a last-resort healer
-            # (In a multi-user system, we'd need the frontend to send client_id, 
-            # but for a single-user PWA, the latest DB session is highly likely to be correct)
-            print(f"⚠️ Session ID {session_id} not found in DB. Searching for latest database record...")
-            db = SessionLocal()
-            try:
-                latest = db.query(UserSession).order_by(UserSession.last_activity.desc()).first()
-                if latest:
-                    print(f"💡 Found dormant session for client {latest.client_id}. Healing session {session_id}...")
-                    session_data = persistence_service.get_session_by_session_id(latest.id)
-            except Exception as e:
-                print(f"❌ Error healing session: {e}")
-            finally:
-                db.close()
+            data = persistence_service.load_sessions()
+            if data:
+                latest_sid = None
+                latest_time = ""
+                for sid, s_data in data.items():
+                    act = s_data.get('last_activity', '')
+                    if act > latest_time:
+                        latest_time = act
+                        latest_sid = sid
+                
+                if latest_sid:
+                    print(f"💡 Found dormant record {latest_sid}. Healing...")
+                    session_data = data[latest_sid]
 
         if session_data:
             print(f"✅ Recovered session data for client {session_data['client_id']}")
-            # Heal the requested session_id with the found data
             session = Session(
                 session_id,
                 session_data['client_id'],
@@ -157,16 +142,13 @@ class SessionManager:
             session.is_paused = session_data.get('is_paused', False)
             session.last_activity = datetime.now()
             
-            # 3. Store in memory with lock
             with self.lock:
                 self.sessions[session_id] = session
             
-            # 4. CRITICAL: Restore Angel One Connection if tokens exist
+            # Re-initialize SmartAPI
             if session.jwt_token and session.api_key and not session.smart_api:
-                from services.angel_service import angel_service
-                print(f"🔄 Re-initializing SmartAPI for session {session_id}")
+                from SmartApi import SmartConnect
                 try:
-                    from SmartApi import SmartConnect
                     smart_api = SmartConnect(api_key=session.api_key)
                     smart_api.setAccessToken(session.jwt_token)
                     session.smart_api = smart_api
@@ -183,7 +165,6 @@ class SessionManager:
         with self.lock:
             if session_id in self.sessions:
                 del self.sessions[session_id]
-                self.save_session(session_id) # Save the deletion
                 return True
             return False
 
@@ -193,7 +174,7 @@ class SessionManager:
             return dict(self.sessions)
 
     def clear_all(self):
-        """Clear all sessions (called on shutdown)"""
+        """Clear all sessions"""
         with self.lock:
             self.sessions.clear()
 

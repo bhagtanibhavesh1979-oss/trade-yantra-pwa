@@ -1,12 +1,18 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-    // If explicitly set in env, use it
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+    // 1. Prioritize environment variable (highest priority)
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) return envUrl;
 
-    // Otherwise detect if we are on localhost or production
+    // 2. Detective work based on location
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'http://localhost:8002' : 'https://trade-yantra-api-ibynqazflq-ue.a.run.app';
+
+    // Default Fallbacks
+    if (isLocal) return 'http://localhost:8002';
+
+    // Google Cloud Run API Endpoint (ibynqazflq-uc)
+    return 'https://trade-yantra-api-ibynqazflq-uc.a.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
@@ -55,20 +61,23 @@ export const logout = async (sessionId) => {
     return response.data;
 };
 
-export const checkSession = async (sessionId) => {
-    const response = await api.get(`/api/auth/session/${sessionId}`);
+export const checkSession = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/auth/session/${sessionId}?client_id=${clientId}` : `/api/auth/session/${sessionId}`;
+    const response = await api.get(url);
     return response.data;
 };
 
 // Watchlist APIs
-export const getWatchlist = async (sessionId) => {
-    const response = await api.get(`/api/watchlist/${sessionId}`);
+export const getWatchlist = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/watchlist/${sessionId}?client_id=${clientId}` : `/api/watchlist/${sessionId}`;
+    const response = await api.get(url);
     return response.data;
 };
 
-export const addToWatchlist = async (sessionId, symbol, token, exchSeg) => {
+export const addToWatchlist = async (sessionId, symbol, token, exchSeg, clientId = null) => {
     const response = await api.post('/api/watchlist/add', {
         session_id: sessionId,
+        client_id: clientId,
         symbol: symbol,
         token: token,
         exch_seg: exchSeg,
@@ -86,9 +95,10 @@ export const removeFromWatchlist = async (sessionId, token) => {
     return response.data;
 };
 
-export const refreshWatchlist = async (sessionId) => {
+export const refreshWatchlist = async (sessionId, clientId = null) => {
     const response = await api.post('/api/watchlist/refresh', {
         session_id: sessionId,
+        client_id: clientId,
     });
     return response.data;
 };
@@ -107,14 +117,15 @@ export const searchSymbols = async (query) => {
 };
 
 // Alerts APIs
-export const getAlerts = async (sessionId) => {
-    const response = await api.get(`/api/alerts/${sessionId}`);
+export const getAlerts = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/alerts/${sessionId}?client_id=${clientId}` : `/api/alerts/${sessionId}`;
+    const response = await api.get(url);
     return response.data;
 };
 
 // Generate High/Low alerts
 export const generateAlerts = async (sessionId, params) => {
-    // params: { symbol, date, start_time, end_time, is_custom_range }
+    // params: { symbol, date, start_time, end_time, is_custom_range, client_id }
     const response = await api.post('/api/alerts/generate', {
         session_id: sessionId,
         ...params
@@ -124,7 +135,7 @@ export const generateAlerts = async (sessionId, params) => {
 
 // Generate High/Low alerts for ALL watchlist stocks
 export const generateBulkAlerts = async (sessionId, params) => {
-    // params: { date, start_time, end_time, is_custom_range, levels }
+    // params: { date, start_time, end_time, is_custom_range, levels, client_id }
     const response = await api.post('/api/alerts/generate-bulk', {
         session_id: sessionId,
         ...params
@@ -159,8 +170,9 @@ export const pauseAlerts = async (sessionId, isPaused) => {
     return response.data;
 };
 
-export const getLogs = async (sessionId) => {
-    const response = await api.get(`/api/alerts/logs/${sessionId}`);
+export const getLogs = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/alerts/logs/${sessionId}?client_id=${clientId}` : `/api/alerts/logs/${sessionId}`;
+    const response = await api.get(url);
     return response.data;
 };
 

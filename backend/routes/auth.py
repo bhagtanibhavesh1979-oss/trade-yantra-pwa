@@ -118,23 +118,21 @@ async def logout(req: LogoutRequest):
     )
 
 @router.get("/session/{session_id}")
-async def check_session(session_id: str):
+async def check_session(session_id: str, client_id: Optional[str] = None):
     """
-    Check if session is valid and restore from DB if needed
+    Check if session is valid and restore from DB if needed.
+    Enhanced with client_id for robust Self-Healing.
     """
-    print(f"🔍 Checking session: {session_id}")
-    session = session_manager.get_session(session_id)
+    print(f"🔍 Verifying session: {session_id} (Client: {client_id})")
+    
+    # get_session handles self-healing using client_id if provided
+    session = session_manager.get_session(session_id, client_id=client_id)
     
     if not session:
-        print(f"❌ Session {session_id} not found in memory, checking database...")
-        # The get_session method should handle restoration
-        session = session_manager.get_session(session_id)  # Try again after potential restoration
-        
-        if not session:
-            print(f"❌ Session {session_id} not found even after checking database")
-            raise HTTPException(status_code=404, detail="Session not found - please login again")
+        print(f"❌ Session {session_id} could not be healed")
+        raise HTTPException(status_code=404, detail="Session not found - please login again")
     
-    print(f"✅ Session {session_id} is valid for client {session.client_id}")
+    print(f"✅ Verified session for client {session.client_id}")
     return {
         "valid": True,
         "client_id": session.client_id,

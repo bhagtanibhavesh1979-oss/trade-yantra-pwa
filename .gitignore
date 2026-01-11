@@ -82,3 +82,7 @@ verify_*.py
 
 # Test results
 test_results.log
+
+# User Data
+backend/data/
+sessions.json
