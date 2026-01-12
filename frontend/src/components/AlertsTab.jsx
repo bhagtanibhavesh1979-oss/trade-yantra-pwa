@@ -281,7 +281,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Alert Levels</label>
                             <div className="flex flex-wrap gap-2">
-                                {['High', 'Low', 'R1', 'R2', 'R3', 'R4', 'S1', 'S2', 'S3', 'S4'].map(level => (
+                                {['High', 'Low', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(level => (
                                     <button
                                         key={level}
                                         onClick={() => handleLevelToggle(level)}

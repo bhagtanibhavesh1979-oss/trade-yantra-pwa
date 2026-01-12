@@ -76,19 +76,23 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
         # Calculate half-difference for multi-level support/resistance
         diff = (high - low) / 2
         
-        # Generate 4 resistance levels: R1, R2, R3, R4
+        # Generate 6 resistance levels: R1 to R6
         r1 = round(high + diff, 2)
         r2 = round(high + (2 * diff), 2)
         r3 = round(high + (3 * diff), 2)
         r4 = round(high + (4 * diff), 2)
+        r5 = round(high + (5 * diff), 2)
+        r6 = round(high + (6 * diff), 2)
         
-        # Generate 4 support levels: S1, S2, S3, S4
+        # Generate 6 support levels: S1 to S6
         s1 = round(low - diff, 2)
         s2 = round(low - (2 * diff), 2)
         s3 = round(low - (3 * diff), 2)
         s4 = round(low - (4 * diff), 2)
+        s5 = round(low - (5 * diff), 2)
+        s6 = round(low - (6 * diff), 2)
         
-        # Return 10 levels: High, Low, R1-R4, S1-S4
+        # Return levels: High, Low, R1-R6, S1-S6
         levels = [
             {"price": high, "type": "ABOVE", "label": "High"},
             {"price": low, "type": "BELOW", "label": "Low"},
@@ -96,10 +100,14 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
             {"price": r2, "type": "ABOVE", "label": "R2"},
             {"price": r3, "type": "ABOVE", "label": "R3"},
             {"price": r4, "type": "ABOVE", "label": "R4"},
+            {"price": r5, "type": "ABOVE", "label": "R5"},
+            {"price": r6, "type": "ABOVE", "label": "R6"},
             {"price": s1, "type": "BELOW", "label": "S1"},
             {"price": s2, "type": "BELOW", "label": "S2"},
             {"price": s3, "type": "BELOW", "label": "S3"},
-            {"price": s4, "type": "BELOW", "label": "S4"}
+            {"price": s4, "type": "BELOW", "label": "S4"},
+            {"price": s5, "type": "BELOW", "label": "S5"},
+            {"price": s6, "type": "BELOW", "label": "S6"}
         ]
         
         print(f"Generated Levels for {symbol}: H={high}, L={low}, Diff={diff}")
