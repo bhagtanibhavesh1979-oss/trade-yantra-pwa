@@ -43,8 +43,10 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
         for triggered in triggered_alerts:
             ws_manager.broadcast_callbacks[session_id](session_id, {
                 "type": "alert_triggered",
-                "alert": triggered['alert'],
-                "log": triggered['log']
+                "data": {
+                    "alert": triggered['alert'],
+                    "log": triggered['log']
+                }
             })
 
 class WebSocketManager:
@@ -77,7 +79,7 @@ class WebSocketManager:
                 for session_id, callback in active_sessions:
                     try:
                         # Send a tiny ping message
-                        callback(session_id, {"type": "ping", "timestamp": time.time()})
+                        callback(session_id, {"type": "heartbeat", "data": {"timestamp": time.time()}})
                         consecutive_errors = 0  # Reset on success
                     except Exception as e:
                         consecutive_errors += 1

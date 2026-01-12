@@ -17,7 +17,7 @@ function LogsTab({ logs }) {
                         </div>
                     ) : (
                         <div className="divide-y divide-[var(--border-color)]">
-                            {[...logs].reverse().map((log, index) => (
+                            {logs.map((log, index) => (
                                 <div
                                     key={index}
                                     className="px-4 py-3 hover:bg-[var(--bg-primary)] transition-colors flex gap-4"
@@ -30,12 +30,12 @@ function LogsTab({ logs }) {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
                                             <span className="font-bold text-[var(--accent-blue)]">{log.symbol}</span>
-                                            {log.msg.toLowerCase().includes('triggered') && (
+                                            {log.msg && log.msg.toLowerCase().includes('triggered') && (
                                                 <span className="text-[10px] bg-[var(--bg-primary)] px-1.5 rounded text-[var(--text-secondary)] border border-[var(--border-color)]">ALERT</span>
                                             )}
                                         </div>
                                         <p className="text-[var(--text-secondary)] break-words leading-relaxed">
-                                            {log.msg}
+                                            {log.msg || 'No message'}
                                         </p>
                                     </div>
                                 </div>

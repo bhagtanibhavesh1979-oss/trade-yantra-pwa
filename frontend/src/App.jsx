@@ -169,20 +169,26 @@ function App() {
     };
 
     const handleAlertTriggered = (data) => {
+      if (!data || !data.alert || !data.log) {
+        console.error('Invalid alert_triggered data:', data);
+        return;
+      }
+
+      const { alert, log } = data;
+
       // Remove triggered alert
       setAlerts((prevAlerts) =>
-        prevAlerts.filter((alert) => alert.id !== data.alert.id)
+        prevAlerts.filter((a) => a.id !== alert.id)
       );
 
       // Add to logs
-      setLogs((prevLogs) => [data.log, ...prevLogs]);
+      setLogs((prevLogs) => [log, ...prevLogs]);
 
       // Show notification
-      const alert = data.alert;
       const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
 
       showNotification(`🔔 ${alert.symbol} Alert!`, {
-        body: `Price ₹${data.log.current_price?.toFixed(2)} crossed ${direction} target ₹${alert.price.toFixed(2)}`,
+        body: `Price ₹${log.price?.toFixed(2)} crossed ${direction} target ₹${alert.price?.toFixed(2)}`,
         icon: '/logo.png',
         badge: '/logo.png',
         tag: `alert-${alert.id}`,
@@ -192,7 +198,7 @@ function App() {
       });
 
       // Show Toast backup
-      toast.success(`🔔 ${alert.symbol}: Crossed ${alert.price.toFixed(2)}`, {
+      toast.success(`🔔 ${alert.symbol}: Crossed ${alert.price?.toFixed(2)}`, {
         duration: 6000,
         style: {
           border: '1px solid #667EEA',
