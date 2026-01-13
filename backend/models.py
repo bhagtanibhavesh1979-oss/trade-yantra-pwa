@@ -12,6 +12,7 @@ class UserSession(Base):
     feed_token = Column(String)
     api_key = Column(String)
     is_paused = Column(Boolean, default=False)
+    auto_paper_trade = Column(Boolean, default=False) # Enable virtual trades on alerts
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow)
 
@@ -19,6 +20,25 @@ class UserSession(Base):
     watchlist = relationship("WatchlistItem", back_populates="session", cascade="all, delete-orphan")
     alerts = relationship("AlertItem", back_populates="session", cascade="all, delete-orphan")
     logs = relationship("LogItem", back_populates="session", cascade="all, delete-orphan")
+    paper_trades = relationship("VirtualTrade", back_populates="session", cascade="all, delete-orphan")
+
+class VirtualTrade(Base):
+    __tablename__ = "virtual_trades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String, ForeignKey("user_sessions.id"))
+    symbol = Column(String)
+    token = Column(String)
+    side = Column(String) # BUY, SELL
+    entry_price = Column(Float)
+    exit_price = Column(Float, nullable=True)
+    quantity = Column(Integer, default=1)
+    status = Column(String, default="OPEN") # OPEN, CLOSED
+    pnl = Column(Float, default=0.0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+
+    session = relationship("UserSession", back_populates="paper_trades")
 
 class WatchlistItem(Base):
     __tablename__ = "watchlist_items"

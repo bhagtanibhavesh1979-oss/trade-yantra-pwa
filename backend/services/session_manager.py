@@ -20,7 +20,9 @@ class Session:
         self.watchlist = []  # List of {symbol, token, exch_seg, ltp, wc}
         self.alerts = []  # List of {id, symbol, token, condition, price, active}
         self.logs = []  # List of {time, symbol, msg}
+        self.paper_trades = [] # List of virtual trade objects
         self.is_paused = False
+        self.auto_paper_trade = False
         self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
@@ -87,7 +89,9 @@ class SessionManager:
             session.watchlist = existing_data.get('watchlist', [])
             session.alerts = existing_data.get('alerts', [])
             session.logs = existing_data.get('logs', [])
+            session.paper_trades = existing_data.get('paper_trades', [])
             session.is_paused = existing_data.get('is_paused', False)
+            session.auto_paper_trade = existing_data.get('auto_paper_trade', False)
         
         with self.lock:
             self.sessions[session_id] = session
@@ -139,7 +143,9 @@ class SessionManager:
             session.watchlist = session_data.get('watchlist', [])
             session.alerts = session_data.get('alerts', [])
             session.logs = session_data.get('logs', [])
+            session.paper_trades = session_data.get('paper_trades', [])
             session.is_paused = session_data.get('is_paused', False)
+            session.auto_paper_trade = session_data.get('auto_paper_trade', False)
             session.last_activity = datetime.now()
             
             with self.lock:

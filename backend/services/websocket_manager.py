@@ -35,6 +35,25 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
                 triggered_alerts.append({"alert": alert, "log": log_entry})
                 
     if triggered_alerts:
+        # Check for Paper Trading
+        if session.auto_paper_trade:
+            from services.paper_service import paper_service
+            for triggered in triggered_alerts:
+                alert = triggered['alert']
+                # Determine side based on alert type/name
+                side = None
+                alert_name = str(alert.get('type', '')).upper()
+                
+                # Support levels -> BUY
+                if any(x in alert_name for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']):
+                    side = 'BUY'
+                # Resistance levels -> SELL
+                elif any(x in alert_name for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
+                    side = 'SELL'
+                
+                if side:
+                    paper_service.create_virtual_trade(session_id, stock, side, alert_name)
+
         # Save session immediately so logs and alert removals persist
         session_manager.save_session(session_id)
         
@@ -153,9 +172,15 @@ class WebSocketManager:
                     if stock:
                         stock['ltp'] = real_price
                         check_and_trigger_alerts(session_id, stock)
+                        
+                        # Update Paper PNL
+                        if getattr(session, 'auto_paper_trade', False):
+                            from services.paper_service import paper_service
+                            paper_service.update_live_pnl(session_id, token_map)
+                            
                         callback(session_id, {
                             'type': 'price_update',
-                            'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': real_price}
+                            'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': real_price, 'paper_trades': getattr(session, 'paper_trades', [])}
                         })
             except Exception as e:
                 pass

@@ -20,7 +20,7 @@ sys.stdout.flush()
 load_dotenv()
 
 # Import routes
-from routes import auth, watchlist, alerts, stream, indices
+from routes import auth, watchlist, alerts, stream, indices, paper
 
 # Import services
 from services.session_manager import session_manager
@@ -85,6 +85,7 @@ app.include_router(auth.router)
 app.include_router(watchlist.router)
 app.include_router(alerts.router)
 app.include_router(indices.router)
+app.include_router(paper.router, prefix="/api/paper")
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream.router) 

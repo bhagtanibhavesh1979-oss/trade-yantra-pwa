@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
-import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist, getWatchlist } from './services/api';
+import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist, getWatchlist, getPaperSummary } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
 import { Toaster, toast } from 'react-hot-toast';
 import './App.css';
@@ -32,6 +32,7 @@ function App() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+  const [paperTrades, setPaperTrades] = useState([]);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -92,10 +93,11 @@ function App() {
     const clientId = currentSession?.clientId;
 
     try {
-      const [alertsData, logsData, wlData] = await Promise.all([
+      const [alertsData, logsData, wlData, paperData] = await Promise.all([
         getAlerts(sessionId, clientId).catch(() => ({ alerts: [] })),
         getLogs(sessionId, clientId).catch(() => ({ logs: [] })),
-        getWatchlist(sessionId, clientId).catch(() => ({ watchlist: [] }))
+        getWatchlist(sessionId, clientId).catch(() => ({ watchlist: [] })),
+        getPaperSummary(sessionId).catch(() => ({ trades: [] }))
       ]);
 
       console.log('📊 Loaded data from server:', {
@@ -134,6 +136,10 @@ function App() {
         }
       }
 
+      if (Array.isArray(paperData.trades)) {
+        setPaperTrades(paperData.trades);
+      }
+
       if (isManualSync) toast.success('Data synced from server!', { id: 'sync-data' });
 
     } catch (err) {
@@ -166,6 +172,10 @@ function App() {
           return stock;
         })
       );
+
+      if (data.paper_trades) {
+        setPaperTrades(data.paper_trades);
+      }
     };
 
     const handleAlertTriggered = (data) => {
@@ -388,6 +398,8 @@ function App() {
             setAlerts={setAlerts}
             logs={logs}
             setLogs={setLogs}
+            paperTrades={paperTrades}
+            setPaperTrades={setPaperTrades}
             isPaused={isPaused}
             setIsPaused={setIsPaused}
             referenceDate={referenceDate}

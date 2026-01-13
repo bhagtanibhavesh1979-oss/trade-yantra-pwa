@@ -176,4 +176,25 @@ export const getLogs = async (sessionId, clientId = null) => {
     return response.data;
 };
 
+// Paper Trading APIs
+export const getPaperSummary = async (sessionId) => {
+    const response = await api.get(`/api/paper/summary/${sessionId}`);
+    return response.data;
+};
+
+export const togglePaperTrading = async (sessionId, enabled) => {
+    const response = await api.post(`/api/paper/toggle/${sessionId}`, { enabled });
+    return response.data;
+};
+
+export const closePaperTrade = async (sessionId, tradeId, ltp) => {
+    const response = await api.post(`/api/paper/close/${sessionId}/${tradeId}?ltp=${ltp}`);
+    return response.data;
+};
+
+export const clearPaperTrades = async (sessionId) => {
+    const response = await api.post(`/api/paper/clear/${sessionId}`);
+    return response.data;
+};
+
 export default api;

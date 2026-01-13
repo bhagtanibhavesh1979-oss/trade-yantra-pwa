@@ -5,6 +5,7 @@ import LogsTab from './LogsTab';
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
+import PaperPositions from './PaperPositions';
 import toast from 'react-hot-toast';
 
 function Dashboard({
@@ -26,7 +27,9 @@ function Dashboard({
     setPreSelectedAlertSymbol,
     isLoadingData,
     isVisible,
-    onRefreshData
+    onRefreshData,
+    paperTrades,
+    setPaperTrades
 }) {
     // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
@@ -180,6 +183,14 @@ function Dashboard({
                 {activeTab === 'logs' && (
                     <LogsTab logs={logs} />
                 )}
+                {activeTab === 'paper' && (
+                    <PaperPositions
+                        sessionId={session.sessionId}
+                        watchlist={watchlist}
+                        trades={paperTrades}
+                        setTrades={setPaperTrades}
+                    />
+                )}
             </div>
 
             {/* Bottom Navigation (Fixed) */}
@@ -191,6 +202,13 @@ function Dashboard({
                     >
                         <span className="text-xl">📋</span>
                         <span className="text-xs mt-1">Watchlist</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('paper')}
+                        className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'paper' ? 'text-[#667EEA]' : 'text-gray-400'}`}
+                    >
+                        <span className="text-xl">💰</span>
+                        <span className="text-xs mt-1">Paper</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('alerts')}
