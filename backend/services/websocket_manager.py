@@ -173,14 +173,24 @@ class WebSocketManager:
                         stock['ltp'] = real_price
                         check_and_trigger_alerts(session_id, stock)
                         
-                        # Update Paper PNL
-                        if getattr(session, 'auto_paper_trade', False):
+                        # Update Paper PNL & Broadcast
+                        from services.session_manager import session_manager
+                        session = session_manager.get_session(session_id)
+                        
+                        paper_trades_data = []
+                        if session and getattr(session, 'auto_paper_trade', False):
                             from services.paper_service import paper_service
                             paper_service.update_live_pnl(session_id, token_map)
+                            paper_trades_data = getattr(session, 'paper_trades', [])
                             
                         callback(session_id, {
                             'type': 'price_update',
-                            'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': real_price, 'paper_trades': getattr(session, 'paper_trades', [])}
+                            'data': {
+                                'token': str(token), 
+                                'symbol': stock['symbol'], 
+                                'ltp': real_price, 
+                                'paper_trades': paper_trades_data
+                            }
                         })
             except Exception as e:
                 pass

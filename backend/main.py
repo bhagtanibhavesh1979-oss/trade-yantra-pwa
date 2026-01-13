@@ -85,7 +85,7 @@ app.include_router(auth.router)
 app.include_router(watchlist.router)
 app.include_router(alerts.router)
 app.include_router(indices.router)
-app.include_router(paper.router, prefix="/api/paper")
+app.include_router(paper.router)
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream.router) 

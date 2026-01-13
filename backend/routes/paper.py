@@ -3,7 +3,10 @@ from pydantic import BaseModel
 from services.session_manager import session_manager
 from services.paper_service import paper_service
 
-router = APIRouter()
+import logging
+logger = logging.getLogger("paper_route")
+
+router = APIRouter(prefix="/api/paper", tags=["Paper Trading"])
 
 class TogglePaperRequest(BaseModel):
     enabled: bool

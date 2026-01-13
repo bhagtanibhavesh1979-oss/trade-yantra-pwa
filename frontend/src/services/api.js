@@ -20,6 +20,7 @@ const API_BASE_URL = getBaseUrl();
 // Axios instance with default config
 const api = axios.create({
     baseURL: API_BASE_URL,
+    timeout: 30000, // 30 seconds for GCS cold starts
     headers: {
         'Content-Type': 'application/json',
     },

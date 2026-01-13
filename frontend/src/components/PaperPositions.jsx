@@ -48,11 +48,14 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                 {
                     loading: nextState ? 'Enabling Auto Execution...' : 'Disabling Auto Execution...',
                     success: <b>{nextState ? 'Auto Paper Trading Enabled' : 'Auto Paper Trading Disabled'}</b>,
-                    error: <b>Failed to update setting. Please try again.</b>,
+                    error: (err) => {
+                        const msg = err.response?.data?.detail || 'Connection Timeout';
+                        return <b>Update Failed: {msg}</b>;
+                    },
                 }
             );
         } catch (err) {
-            console.error('Toggle error:', err);
+            console.error('Toggle error detailed:', err);
             // Revert on error
             setSummary(prev => ({ ...prev, auto_paper_trade: !nextState }));
         } finally {
