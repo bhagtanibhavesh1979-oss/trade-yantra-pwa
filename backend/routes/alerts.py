@@ -308,7 +308,8 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                 date=req.date,
                 start_time=req.start_time,
                 end_time=req.end_time,
-                is_custom=req.is_custom_range
+                is_custom=req.is_custom_range,
+                exchange=stock.get('exch_seg', 'NSE')
             )
             
             if not new_alert_data:

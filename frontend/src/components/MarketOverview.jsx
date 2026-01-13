@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from './Skeleton';
+import wsClient from '../services/websocket';
 
 const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
     const [indices, setIndices] = useState([]);
@@ -83,8 +84,26 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
             }
 
             fetchIndices();
-            const interval = setInterval(fetchIndices, 10000);
-            return () => clearInterval(interval);
+
+            // 1. Polling fallback (less frequent now)
+            const interval = setInterval(fetchIndices, 30000);
+
+            // 2. WebSocket live updates
+            const handlePriceUpdate = (data) => {
+                setIndices(prev => prev.map(idx => {
+                    if (String(idx.token) === String(data.token)) {
+                        return { ...idx, ltp: data.ltp };
+                    }
+                    return idx;
+                }));
+            };
+
+            wsClient.on('price_update', handlePriceUpdate);
+
+            return () => {
+                clearInterval(interval);
+                wsClient.off('price_update', handlePriceUpdate);
+            };
         }
     }, [sessionId, isVisible]);
 

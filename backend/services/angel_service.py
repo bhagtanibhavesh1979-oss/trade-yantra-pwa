@@ -30,6 +30,13 @@ class AngelService:
             {"token": "99926009", "symbol": "NIFTY BANK", "exch_seg": "NSE"},
             {"token": "99926012", "symbol": "NIFTY FIN SERVICE", "exch_seg": "NSE"},
             {"token": "99919000", "symbol": "SENSEX", "exch_seg": "BSE"},
+            {"token": "99926013", "symbol": "NIFTY IT", "exch_seg": "NSE"},
+            {"token": "99926023", "symbol": "NIFTY PHARMA", "exch_seg": "NSE"},
+            {"token": "99926003", "symbol": "NIFTY AUTO", "exch_seg": "NSE"},
+            {"token": "99926011", "symbol": "NIFTY FMCG", "exch_seg": "NSE"},
+            {"token": "99926015", "symbol": "NIFTY METAL", "exch_seg": "NSE"},
+            {"token": "99926024", "symbol": "NIFTY REALTY", "exch_seg": "NSE"},
+            {"token": "99926010", "symbol": "NIFTY ENERGY", "exch_seg": "NSE"},
             {"token": "3045", "symbol": "SBIN-EQ", "exch_seg": "NSE"},
             {"token": "1333", "symbol": "HDFCBANK-EQ", "exch_seg": "NSE"},
             {"token": "1594", "symbol": "INFY-EQ", "exch_seg": "NSE"},
@@ -73,9 +80,9 @@ class AngelService:
             print(f"Angel logout error: {e}")
         return False
 
-    def fetch_ltp(self, smart_api: SmartConnect, symbol: str, token: str) -> Optional[float]:
+    def fetch_ltp(self, smart_api: SmartConnect, symbol: str, token: str, exchange: str = "NSE") -> Optional[float]:
         try:
-            ltp_data = smart_api.ltpData("NSE", symbol, token)
+            ltp_data = smart_api.ltpData(exchange, symbol, token)
             if ltp_data and ltp_data.get('status'):
                 return ltp_data['data']['ltp']
         except Exception as e:
@@ -156,8 +163,21 @@ class AngelService:
                 print("🚀 Loading Scrips from local cache...")
                 with open(SCRIPMASTER_FILE, 'r') as f:
                     self.scrips = json.load(f)
+                
+                # Ensure Core Indices are always present even if cache is old
+                CORE_TOKENS = ["99926000", "99926009", "99919000", "99926012"]
+                existing_tokens = {s['token'] for s in self.scrips}
+                for core in [
+                    {"token": "99926000", "symbol": "NIFTY 50", "exch_seg": "NSE"},
+                    {"token": "99926009", "symbol": "NIFTY BANK", "exch_seg": "NSE"},
+                    {"token": "99919000", "symbol": "SENSEX", "exch_seg": "BSE"},
+                    {"token": "99926012", "symbol": "NIFTY FIN SERVICE", "exch_seg": "NSE"}
+                ]:
+                    if core['token'] not in existing_tokens:
+                        self.scrips.append(core)
+                
                 self.master_loaded = True
-                print(f"✅ {len(self.scrips)} symbols loaded from local file.")
+                print(f"✅ {len(self.scrips)} symbols loaded from local file (including cores).")
                 return
 
             # 2. Try GCS if local missing
@@ -185,11 +205,16 @@ class AngelService:
             data = r.json()
             
             # Filter for NSE Stocks (-EQ) and common Indices
-            indices_tokens = ["99926000", "99926009", "99926012", "99926014", "99919000", "99926013", "99926023"]
+            indices_tokens = [
+                "99926000", "99926009", "99926012", "99926014", "99919000", 
+                "99926013", "99926023", "99926003", "99926011", "99926015", 
+                "99926024", "99926010", "99926037", "99926005"
+            ]
             full_scrips = [
                 {"token": s.get('token'), "symbol": s.get('symbol'), "exch_seg": s.get('exch_seg')}
                 for s in data 
                 if (s.get('exch_seg') == 'NSE' and '-EQ' in s.get('symbol', '')) or 
+                   (s.get('exch_seg') == 'BSE' and '-EQ' in s.get('symbol', '')) or
                    (s.get('token') in indices_tokens)
             ]
             

@@ -167,25 +167,40 @@ class WebSocketManager:
             if callback:
                 callback(session_id, {'type': 'status', 'data': {'status': 'CONNECTED'}})
             
-            # Subscribe to Watchlist
-            token_list_str = [str(item['token']) for item in watchlist]
+            # Auto-subscribe major indices with correct exchange
+            auto_indices = {
+                "1": ["99926000", "99926009", "99926012", "99926013", "99926023", "99926003", "99926011", "99926015", "99926024", "99926010"], # NSE
+                "3": ["99919000"] # BSE
+            }
             
-            # AUTO-SUBSCRIBE MAJOR INDICES (NIFTY, BANKNIFTY, FINNIFTY, SENSEX)
-            # This ensures they update in real-time without constant polling
-            indices_tokens = ["99926000", "99926009", "99926012", "99919000"]
-            for t in indices_tokens:
-                if t not in token_list_str:
-                    token_list_str.append(t)
-                    # Add to token_map so price updates are recognized
-                    if t not in token_map:
-                        symbol = "NIFTY 50" if t == "99926000" else \
-                                 "NIFTY BANK" if t == "99926009" else \
-                                 "NIFTY FIN SERVICE" if t == "99926012" else \
-                                 "SENSEX"
-                        token_map[t] = {"symbol": symbol, "token": t, "ltp": 0}
+            # Map tokens to their exchange from watchlist
+            exchange_tokens = {"1": [], "3": []}
+            for stock in watchlist:
+                exch = str(stock.get('exch_seg', 'NSE')).upper()
+                exch_type = "3" if "BSE" in exch else "1"
+                exchange_tokens[exch_type].append(str(stock['token']))
+            
+            # Add auto-indices if not already in watchlist
+            watchlist_tokens = [str(s['token']) for s in watchlist]
+            for etype, tokens in auto_indices.items():
+                for t in tokens:
+                    if t not in watchlist_tokens:
+                        exchange_tokens[etype].append(t)
+                        # Add to token_map for price updates
+                        if t not in token_map:
+                            symbol = "NIFTY 50" if t == "99926000" else \
+                                     "NIFTY BANK" if t == "99926009" else \
+                                     "SENSEX" if t == "99919000" else "INDEX"
+                            token_map[t] = {"symbol": symbol, "token": t, "ltp": 0}
 
-            if token_list_str:
-                sws.subscribe("watchlist", 3, [{"exchangeType": 1, "tokens": token_list_str}])
+            # Subscribe to all
+            for etype, tokens in exchange_tokens.items():
+                if tokens:
+                    try:
+                        sws.subscribe("watchlist", 3, [{"exchangeType": int(etype), "tokens": tokens}])
+                        print(f"📡 Subscribed to {len(tokens)} tokens on Exchange Type {etype}")
+                    except Exception as e:
+                        print(f"❌ Subscription failed for {etype}: {e}")
 
         def on_close(wsapp, code, reason):
             print(f"WebSocket Closed for {session_id}")
@@ -205,9 +220,11 @@ class WebSocketManager:
             token_map = self.token_maps.get(session_id)
             if sws and token_map is not None:
                 token_map[str(token)] = stock_data
+                exch = str(stock_data.get('exch_seg', 'NSE')).upper()
+                exch_type = 3 if "BSE" in exch else 1
                 try:
-                    sws.subscribe("watchlist", 3, [{"exchangeType": 1, "tokens": [str(token)]}])
-                    print(f"✅ Subscribed to new token: {token} for session {session_id}")
+                    sws.subscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [str(token)]}])
+                    print(f"✅ Subscribed to new token: {token} on Exch {exch_type} for session {session_id}")
                     return True
                 except Exception as e:
                     print(f"❌ Failed to subscribe to token {token}: {e}")

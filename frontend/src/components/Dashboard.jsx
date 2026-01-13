@@ -4,6 +4,7 @@ import AlertsTab from './AlertsTab';
 import LogsTab from './LogsTab';
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
+import MarketOverview from './MarketOverview';
 import toast from 'react-hot-toast';
 
 function Dashboard({
@@ -57,6 +58,11 @@ function Dashboard({
 
     const handleLogout = () => {
         onLogout();
+    };
+
+    const handleIndexAlertClick = (symbol, token, exch) => {
+        setPreSelectedAlertSymbol(symbol);
+        setActiveTab('alerts');
     };
 
     return (
@@ -135,6 +141,15 @@ function Dashboard({
 
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
+                {/* Market Indices (Sticky at top of content or just below header) */}
+                <div className="px-2 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
+                    <MarketOverview
+                        sessionId={session.sessionId}
+                        isVisible={isVisible}
+                        onAlertClick={handleIndexAlertClick}
+                    />
+                </div>
+
                 <div className="pt-2"></div>
 
                 {activeTab === 'watchlist' && (

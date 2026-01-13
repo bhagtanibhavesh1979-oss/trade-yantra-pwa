@@ -66,7 +66,7 @@ async def get_watchlist(session_id: str, client_id: Optional[str] = None):
 async def add_stock(req: AddStockRequest):
     """
     Add stock to watchlist
-    Fetches initial LTP and weekly close, then subscribes to WebSocket
+    Fetches initial LTP and reference data, then subscribes to WebSocket
     """
     # Use client_id for robust self-healing during add
     session = session_manager.get_session(req.session_id, client_id=req.client_id)
@@ -104,21 +104,21 @@ async def add_stock(req: AddStockRequest):
             return
         
         # Fetch LTP
-        ltp = angel_service.fetch_ltp(smart_api, req.symbol, req.token)
+        ltp = angel_service.fetch_ltp(smart_api, req.symbol, req.token, exchange=req.exch_seg)
         if ltp:
             stock_data['ltp'] = ltp
         
         # 1. Fetch High/Low for the session's selected date (Strategy Reference)
         print(f"DEBUG: Background fetch for {req.symbol} High/Low (Date: {session.selected_date})...")
         pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
-            smart_api, req.token, specific_date=session.selected_date
+            smart_api, req.token, exchange=req.exch_seg, specific_date=session.selected_date
         )
         
         # 2. Fetch Actual Previous Day Close (Daily Change Reference)
         # We pass None for specific_date to get the most recent trading day
         print(f"DEBUG: Background fetch for {req.symbol} Actual PDC...")
         _, _, pdc = angel_service.fetch_previous_day_high_low(
-            smart_api, req.token, specific_date=None
+            smart_api, req.token, exchange=req.exch_seg, specific_date=None
         )
 
         print(f"DEBUG: Background fetch for {req.symbol} result: PDH={pdh}, PDL={pdl}, PDC={pdc}")
@@ -196,7 +196,7 @@ async def remove_stock(req: RemoveStockRequest):
 @router.post("/refresh")
 async def refresh_watchlist(req: RefreshRequest):
     """
-    Refresh LTP and weekly close for all stocks
+    Refresh LTP and High/Low data for all stocks
     """
     session = session_manager.get_session(req.session_id)
     if not session:
@@ -212,18 +212,19 @@ async def refresh_watchlist(req: RefreshRequest):
             stock['loading'] = True
             
             # Fetch LTP
-            ltp = angel_service.fetch_ltp(smart_api, stock['symbol'], stock['token'])
+            exch = stock.get('exch_seg', 'NSE')
+            ltp = angel_service.fetch_ltp(smart_api, stock['symbol'], stock['token'], exchange=exch)
             if ltp:
                 stock['ltp'] = ltp
             
             # 1. Fetch High/Low for the session's selected date (Strategy Reference)
             pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
-                smart_api, stock['token'], specific_date=session.selected_date
+                smart_api, stock['token'], exchange=exch, specific_date=session.selected_date
             )
             
             # 2. Fetch Actual Previous Day Close (Daily Change Reference) 
             _, _, pdc = angel_service.fetch_previous_day_high_low(
-                smart_api, stock['token'], specific_date=None
+                smart_api, stock['token'], exchange=exch, specific_date=None
             )
 
             if pdh is not None: stock['pdh'] = pdh
