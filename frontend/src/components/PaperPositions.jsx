@@ -4,7 +4,10 @@ import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades 
 import toast from 'react-hot-toast';
 
 const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: propSetTrades }) => {
-    const [summary, setSummary] = useState(null);
+    const [summary, setSummary] = useState({
+        auto_paper_trade: false,
+        summary: { total_pnl: 0, open_trades: 0, closed_trades: 0 }
+    });
     const [loading, setLoading] = useState(true);
     const [toggling, setToggling] = useState(false);
 
@@ -13,7 +16,8 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     const trades = propTrades || localTrades;
     const setTrades = propSetTrades || setLocalTrades;
 
-    const fetchSummary = async () => {
+    const fetchSummary = async (showLoading = false) => {
+        if (showLoading) setLoading(true);
         try {
             const data = await getPaperSummary(sessionId);
             setSummary(data);
@@ -26,23 +30,34 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     };
 
     useEffect(() => {
-        fetchSummary();
+        fetchSummary(true);
         const interval = setInterval(fetchSummary, 5000);
         return () => clearInterval(interval);
     }, [sessionId]);
 
     const handleToggle = async () => {
-        if (!summary) return;
+        const nextState = !summary.auto_paper_trade;
+
         try {
             setToggling(true);
-            const nextState = !summary.auto_paper_trade;
-            await togglePaperTrading(sessionId, nextState);
+            // Optimistic update
             setSummary(prev => ({ ...prev, auto_paper_trade: nextState }));
-            toast.success(nextState ? 'Auto Paper Trading Enabled' : 'Auto Paper Trading Disabled');
+
+            await toast.promise(
+                togglePaperTrading(sessionId, nextState),
+                {
+                    loading: nextState ? 'Enabling Auto Execution...' : 'Disabling Auto Execution...',
+                    success: <b>{nextState ? 'Auto Paper Trading Enabled' : 'Auto Paper Trading Disabled'}</b>,
+                    error: <b>Failed to update setting. Please try again.</b>,
+                }
+            );
         } catch (err) {
-            toast.error('Failed to toggle paper trading');
+            console.error('Toggle error:', err);
+            // Revert on error
+            setSummary(prev => ({ ...prev, auto_paper_trade: !nextState }));
         } finally {
             setToggling(false);
+            fetchSummary(); // Sync back with server
         }
     };
 

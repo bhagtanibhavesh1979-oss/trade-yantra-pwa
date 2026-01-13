@@ -108,7 +108,9 @@ class PersistenceService:
             "last_activity": datetime.now().isoformat(),
             "watchlist": session.watchlist,
             "alerts": session.alerts,
-            "logs": session.logs[-50:] if hasattr(session, 'logs') else []
+            "logs": session.logs[-100:] if hasattr(session, 'logs') else [],
+            "auto_paper_trade": getattr(session, 'auto_paper_trade', False),
+            "paper_trades": getattr(session, 'paper_trades', [])[-50:]
         }
         
         data[session_id] = session_data
