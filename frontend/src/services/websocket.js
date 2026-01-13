@@ -223,9 +223,52 @@ class WebSocketClient {
             this.listeners[event].forEach(callback => callback(data));
         }
     }
+
+    // --- Self-Healing Logic for Mobile/Background ---
+    setupSelfHealing() {
+        if (typeof window === 'undefined') return;
+
+        // 1. Reconnect when tab becomes visible again
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                console.log('👀 App visible. Checking connection...');
+                this.checkAndRecover();
+            }
+        });
+
+        // 2. Reconnect when window gets focus
+        window.addEventListener('focus', () => {
+            console.log('🎯 App focused. Checking connection...');
+            this.checkAndRecover();
+        });
+
+        // 3. Reconnect when coming back online
+        window.addEventListener('online', () => {
+            console.log('🌐 Network online. Reconnecting...');
+            this.checkAndRecover();
+        });
+    }
+
+    checkAndRecover() {
+        if (!this.sessionId) return;
+
+        const idleTime = Date.now() - this.lastSeen;
+
+        // If disconnected OR stalled for more than 10s
+        if (!this.isConnected() || idleTime > 10000) {
+            console.warn(`♻️ Recovering connection... (Status: ${this.isConnected() ? 'Stalled' : 'Disconnected'})`);
+            if (this.ws) {
+                this.ws.onclose = null; // Prevent double trigger
+                this.ws.close();
+            }
+            this.reconnectAttempts = 0; // Fresh start
+            this.connect(this.sessionId, this.clientId);
+        }
+    }
 }
 
 // Singleton instance
 const wsClient = new WebSocketClient();
+wsClient.setupSelfHealing(); // Activate background recovery
 
 export default wsClient;
