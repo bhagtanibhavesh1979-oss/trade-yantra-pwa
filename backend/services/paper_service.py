@@ -30,7 +30,7 @@ class PaperService:
                 "side": side,
                 "entry_price": stock['ltp'],
                 "exit_price": None,
-                "quantity": 1,
+                "quantity": 100,
                 "status": "OPEN",
                 "pnl": 0.0,
                 "created_at": datetime.now().isoformat(),

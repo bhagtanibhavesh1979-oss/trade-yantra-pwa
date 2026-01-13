@@ -20,21 +20,25 @@ class PersistenceService:
         self.storage_client = None
         
         # 1. Initialize GCS Client if bucket name is provided
-        if self.bucket_name:
+        if self.bucket_name and "your-gcs-bucket-name" not in self.bucket_name:
             try:
                 from google.cloud import storage
-                # Use default credentials (works out-of-the-box on Cloud Run)
                 self.storage_client = storage.Client()
-                # Verify bucket exists/accessible
+                # Verify bucket exists/accessible with a short timeout
                 bucket = self.storage_client.bucket(self.bucket_name)
-                if not bucket.exists():
-                    print(f"⚠️  GCS Bucket '{self.bucket_name}' not found. Persistence will be local-only.")
+                # Use a specific timeout for bucket existence check to prevent hangs
+                if not bucket.exists(timeout=5.0):
+                    print(f"⚠️  GCS Bucket '{self.bucket_name}' not found or unreachable. Persistence will be local-only.")
                     self.storage_client = None
                 else:
                     print(f"☁️  GCS Persistence ACTIVE: gs://{self.bucket_name}/sessions.json")
             except Exception as e:
                 print(f"⚠️  Failed to initialize GCS: {e}. Falling back to local DATA partition.")
                 self.storage_client = None
+        else:
+            if self.bucket_name == "your-gcs-bucket-name":
+                print("ℹ️ GCS placeholder detected. Using local persistence only.")
+            self.storage_client = None
 
         # 2. Setup Local Cache Directory
         if not os.path.exists(DATA_DIR):

@@ -13,11 +13,14 @@ class TogglePaperRequest(BaseModel):
 
 @router.post("/toggle/{session_id}")
 async def toggle_paper_trading(session_id: str, req: TogglePaperRequest):
+    print(f"DEBUG: Toggle Paper Trading for {session_id} to {req.enabled}")
     session = session_manager.get_session(session_id)
     if not session:
+        print(f"DEBUG: Session {session_id} NOT FOUND for toggle")
         raise HTTPException(status_code=404, detail="Session not found")
     
     session.auto_paper_trade = req.enabled
+    print(f"DEBUG: Saving session {session_id} after paper toggle")
     session_manager.save_session(session_id)
     return {"status": "success", "auto_paper_trade": session.auto_paper_trade}
 
