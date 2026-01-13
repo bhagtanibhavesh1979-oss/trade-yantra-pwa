@@ -7,6 +7,8 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
     const [visibleCount, setVisibleCount] = useState(50);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterType, setFilterType] = useState('ALL');
 
     // Ensure watchlist is always an array
     const safeWatchlist = Array.isArray(watchlist) ? watchlist : [];
@@ -222,6 +224,16 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
         }
     };
 
+    // Filtered alerts logic
+    const filteredAlerts = alerts.filter(alert => {
+        const matchesSearch = alert.symbol.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilter = filterType === 'ALL' ||
+            (filterType === 'ABOVE' && alert.condition === 'ABOVE') ||
+            (filterType === 'BELOW' && alert.condition === 'BELOW') ||
+            (alert.type && alert.type.includes(filterType));
+        return matchesSearch && matchesFilter;
+    });
+
     return (
         <div className="w-full space-y-4 pb-20">
             {/* Strategy Control Panel */}
@@ -361,17 +373,17 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
             </div>
 
             {/* Active Alerts List */}
-            <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-[var(--text-primary)] font-bold text-lg">Active Alerts ({alerts.length})</h3>
-                    <div className="flex items-center gap-2">
+            <div className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <h3 className="text-[var(--text-primary)] font-bold text-lg">Active Alerts ({filteredAlerts.length})</h3>
+                    <div className="flex flex-wrap items-center gap-2">
                         {onRefreshData && (
                             <button
                                 onClick={() => onRefreshData(true)}
                                 className="px-3 py-1.5 bg-[var(--bg-secondary)] hover:bg-[var(--border-color)] text-[var(--text-secondary)] hover:text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2 border border-[var(--border-color)]"
                                 title="Fetch alerts and logs from backend"
                             >
-                                🔄 Fetch Previous History
+                                🔄 History
                             </button>
                         )}
                         {alerts.length > 0 && (
@@ -379,10 +391,58 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                                 onClick={handleClearAllAlerts}
                                 className="px-3 py-1.5 bg-[var(--danger-neon)] hover:brightness-110 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
                             >
-                                🗑️ Clear All
+                                🗑️ Clear
                             </button>
                         )}
                     </div>
+                </div>
+
+                {/* Search and Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
+                    <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search alerts by symbol (e.g. NIFTY)..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--accent-blue)] outline-none transition-all"
+                        />
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        )}
+                    </div>
+                    <select
+                        value={filterType}
+                        onChange={(e) => setFilterType(e.target.value)}
+                        className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] focus:border-[var(--accent-blue)] outline-none transition-all"
+                    >
+                        <option value="ALL">All Types & Conditions</option>
+                        <optgroup label="Conditions">
+                            <option value="ABOVE">Condition: ABOVE</option>
+                            <option value="BELOW">Condition: BELOW</option>
+                        </optgroup>
+                        <optgroup label="Auto Strategy Levels">
+                            <option value="HIGH">Level: HIGH</option>
+                            <option value="LOW">Level: LOW</option>
+                            <option value="R1">Level: R1</option>
+                            <option value="S1">Level: S1</option>
+                            <option value="R2">Level: R2</option>
+                            <option value="S2">Level: S2</option>
+                        </optgroup>
+                        <option value="MANUAL">Manual Alerts</option>
+                    </select>
                 </div>
 
                 {isLoadingData && alerts.length === 0 ? (
@@ -403,16 +463,21 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                             </div>
                         ))}
                     </div>
-                ) : alerts.length === 0 ? (
+                ) : filteredAlerts.length === 0 ? (
                     <div className="glass-card rounded-xl p-10 border-dashed text-center">
-                        <div className="text-4xl mb-3">🔔</div>
-                        <p className="text-[var(--text-muted)]">No active alerts.</p>
-                        <p className="text-[var(--text-secondary)] text-sm mt-1">Select a stock and click generate above to get started.</p>
+                        <div className="text-4xl mb-3">🔍</div>
+                        <p className="text-[var(--text-muted)]">No alerts match your search or filter.</p>
+                        <button
+                            onClick={() => { setSearchTerm(''); setFilterType('ALL'); }}
+                            className="text-[var(--accent-blue)] text-sm mt-2 hover:underline"
+                        >
+                            Reset filters
+                        </button>
                     </div>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 gap-3">
-                            {alerts.slice(0, visibleCount).map((alert) => {
+                            {filteredAlerts.slice(0, visibleCount).map((alert) => {
                                 const isAbove = alert.condition === 'ABOVE';
                                 const colorClass = isAbove ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]';
                                 const borderColorClass = isAbove ? 'border-l-[var(--success-neon)]' : 'border-l-[var(--danger-neon)]';
