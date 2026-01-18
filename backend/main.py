@@ -41,12 +41,17 @@ async def lifespan(app: FastAPI):
     print("[INFO] Trade Yantra Backend Starting on GCP...")
     sys.stdout.flush()
     
-    # Load scrip master in background
-    import threading
-    from services.angel_service import angel_service
-    print("[INFO] Starting Scrip Master background loader...")
-    sys.stdout.flush()
-    threading.Thread(target=angel_service.load_scrip_master, daemon=True).start()
+    # Load scrip master in background - Don't let this crash the startup
+    try:
+        import threading
+        from services.angel_service import angel_service
+        print("[INFO] Starting Scrip Master background loader...")
+        sys.stdout.flush()
+        threading.Thread(target=angel_service.load_scrip_master, daemon=True).start()
+    except Exception as e:
+        print(f"[WARN] Scrip Master loader failed to start: {e}")
+        print("[INFO] App will continue without scrip master")
+        sys.stdout.flush()
     
     print("[OK] Backend Startup Sequence Complete!")
     sys.stdout.flush()
