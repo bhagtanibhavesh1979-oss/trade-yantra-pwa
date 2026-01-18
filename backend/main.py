@@ -95,7 +95,8 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "Trade Yantra API",
-        "environment": "Google Cloud Run"
+        "environment": "Google Cloud Run",
+        "version": "1.1.0-POST-FIX-v3"
     }
 
 @app.get("/debug/session/{session_id}")

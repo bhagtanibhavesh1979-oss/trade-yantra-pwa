@@ -9,8 +9,8 @@ const getBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // Default Fallback (Asia-South1 Deployment)
-    return 'https://trade-yantra-api-ibynnqazflq-el.a.run.app';
+    // Default Fallback (US-Central1 - Original Working Region)
+    return 'https://trade-yantra-api-ibynnqazflq-uc.a.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
