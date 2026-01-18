@@ -155,6 +155,14 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         exchange
     )
     
+    # REPLACE LOGIC: Clear existing AUTO alerts for this symbol before generating new ones
+    # This prevents old and new levels from being mixed as requested by the user.
+    initial_alerts_count = len(session.alerts)
+    session.alerts = [a for a in session.alerts if not (str(a['token']) == str(token) and str(a.get('type', '')).startswith('AUTO_'))]
+    cleared_count = initial_alerts_count - len(session.alerts)
+    if cleared_count > 0:
+        print(f"DEBUG: Cleared {cleared_count} old auto-alerts for {req.symbol}")
+    
     count = 0
     added_alerts = []
     
@@ -205,10 +213,10 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         "success": True,
         "message": f"Generated {count} new alerts",
         "count": count,
-        "alerts": added_alerts
+        "alerts": session.alerts  # Return FULL list for instant sync as requested by user
     }
 
-@router.delete("/delete")
+@router.post("/delete")
 async def delete_alert(req: DeleteAlertRequest):
     """
     Delete an alert
@@ -263,7 +271,7 @@ async def delete_multiple_alerts(req: DeleteMultipleAlertsRequest):
         "count": deleted_count
     }
 
-@router.delete("/clear-all")
+@router.post("/clear-all")
 async def clear_all_alerts(req: ClearAllAlertsRequest):
     """
     Delete all alerts at once
@@ -277,7 +285,16 @@ async def clear_all_alerts(req: ClearAllAlertsRequest):
     count = len(session.alerts)
     session.alerts = []
     
-    # Save session
+    # CRITICAL: Also clear in persistence directly to prevent "Ghost Healing"
+    # where the session manager might pick up an old record with alerts.
+    from services.persistence_service import persistence_service
+    all_data = persistence_service.load_sessions()
+    if req.session_id in all_data:
+        all_data[req.session_id]['alerts'] = []
+        persistence_service._write_all(all_data)
+        print(f"[OK] Persistence: Cleared alerts for {req.session_id} in database")
+
+    # Save session (Normal background save)
     session_manager.save_session(req.session_id)
     
     return {
@@ -325,85 +342,81 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     print(f"DEBUG: Bulk generating alerts for {len(session.watchlist)} stocks")
     print(f"DEBUG: Date={req.date}, Levels={req.levels}")
     
-    total_alerts = 0
-    total_duplicates = 0
-    results = []
-    
-    for stock in session.watchlist:
-        try:
-            symbol = stock['symbol']
-            token = str(stock['token']) # Force string for comparisons
-            
-            # RATE LIMIT: Angel One allows ~3 high-level API calls per sec
-            # We add a small sleep to prevent "Too many requests" errors
-            # Increased to 0.45s to be safer during bulk operations
-            await asyncio.sleep(0.45) 
-            
-            new_alert_data = generate_high_low_alerts(
-                smart_api=session.smart_api,
-                symbol=symbol,
-                token=token,
-                date=req.date,
-                start_time=req.start_time,
-                end_time=req.end_time,
-                is_custom=req.is_custom_range,
-                exchange=stock.get('exch_seg', 'NSE')
-            )
-            
-            if not new_alert_data:
-                print(f"[WARN] No levels found for {symbol} on {req.date}")
-                results.append({"symbol": symbol, "success": False, "error": "No data returned from API"})
-                continue
+    # 1. REPLACE LOGIC: Clear ALL existing AUTO alerts before bulk generation
+    # This ensures a clean slate as requested by the user.
+    initial_alerts_count = len(session.alerts)
+    session.alerts = [a for a in session.alerts if not str(a.get('type', '')).startswith('AUTO_')]
+    print(f"DEBUG: Cleared {initial_alerts_count - len(session.alerts)} existing auto-alerts for bulk generation")
 
-            stock_alerts_count = 0
-            stock_duplicates_count = 0
-            
-            for alert_data in new_alert_data:
-                # Filter by selected levels
-                if alert_data.get('label') not in req.levels:
-                    continue
+    # 2. RUN IN EXECUTOR: Bulk generation (Historical data fetch) is CPU/Network intensive
+    # and synchronous. We run it in a thread pool to avoid blocking the event loop
+    # so that WebSocket PING/PONG continues to work on mobile devices.
+    def _run_bulk_logic():
+        total_alerts = 0
+        results = []
+        
+        for stock in session.watchlist:
+            try:
+                symbol = stock['symbol']
+                token = str(stock['token'])
                 
-                # Check duplicate (Robust string comparison)
-                is_duplicate = any(
-                    str(a['token']) == token and
-                    round(a['price'], 2) == round(alert_data['price'], 2) and
-                    a['condition'] == alert_data['type']
-                    for a in session.alerts
+                # Small sleep to stay within Angel's rate limit
+                time.sleep(0.45) 
+                
+                new_alert_data = generate_high_low_alerts(
+                    smart_api=session.smart_api,
+                    symbol=symbol,
+                    token=token,
+                    date=req.date,
+                    start_time=req.start_time,
+                    end_time=req.end_time,
+                    is_custom=req.is_custom_range,
+                    exchange=stock.get('exch_seg', 'NSE')
                 )
                 
-                if is_duplicate:
-                    stock_duplicates_count += 1
-                else:
-                    alert = create_alert(
-                        symbol=symbol,
-                        token=token,
-                        condition=alert_data['type'],
-                        price=alert_data['price'],
-                        alert_type=f"AUTO_{alert_data.get('label', 'HL').upper()}"
-                    )
-                    session.alerts.append(alert)
-                    stock_alerts_count += 1
-            
-            total_alerts += stock_alerts_count
-            total_duplicates += stock_duplicates_count
-            results.append({
-                "symbol": symbol,
-                "success": True,
-                "count": stock_alerts_count,
-                "duplicates": stock_duplicates_count
-            })
+                if not new_alert_data:
+                    results.append({"symbol": symbol, "success": False, "error": "No data returned"})
+                    continue
 
-            
-            print(f"DEBUG: {symbol} - Successfully generated {stock_alerts_count} alerts")
-            
-        except Exception as e:
-            logger.error(f"Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}", exc_info=True)
-            print(f"[ERROR] Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}")
-            results.append({
-                "symbol": stock.get('symbol', 'Unknown'),
-                "success": False,
-                "error": str(e)
-            })
+                stock_alerts_count = 0
+                for alert_data in new_alert_data:
+                    # Filter by selected levels
+                    if alert_data.get('label') not in req.levels:
+                        continue
+                    
+                    # Duplicate check (redundant but safe)
+                    is_duplicate = any(
+                        str(a['token']) == token and
+                        round(a['price'], 2) == round(alert_data['price'], 2) and
+                        a['condition'] == alert_data['type']
+                        for a in session.alerts
+                    )
+                    
+                    if not is_duplicate:
+                        alert = create_alert(
+                            symbol=symbol,
+                            token=token,
+                            condition=alert_data['type'],
+                            price=alert_data['price'],
+                            alert_type=f"AUTO_{alert_data.get('label', 'HL').upper()}"
+                        )
+                        session.alerts.append(alert)
+                        stock_alerts_count += 1
+                
+                total_alerts += stock_alerts_count
+                results.append({"symbol": symbol, "success": True, "count": stock_alerts_count})
+                
+            except Exception as e:
+                print(f"[ERROR] Bulk gen failed for {stock.get('symbol')}: {e}")
+                results.append({"symbol": stock.get('symbol'), "success": False, "error": str(e)})
+
+        return total_alerts, results
+
+    # Execute in default thread pool executor
+    import concurrent.futures
+    loop = asyncio.get_running_loop()
+    with concurrent.futures.ThreadPoolExecutor() as pool:
+        total_alerts, results = await loop.run_in_executor(pool, _run_bulk_logic)
     
     # Create log entry
     if total_alerts > 0:

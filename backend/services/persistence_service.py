@@ -143,6 +143,20 @@ class PersistenceService:
             "paper_trades": getattr(session, 'paper_trades', [])[:50]
         }
         
+        # 2. REPLACE LOGIC: Remove any other sessions for the same client_id 
+        # to prevent "Ghost Sessions" from reappearing during healing.
+        cid_upper = str(session.client_id).upper()
+        initial_data_len = len(data)
+        data = {
+            sid: s_data for sid, s_data in data.items() 
+            if sid == session_id or str(s_data.get('client_id', '')).upper() != cid_upper
+        }
+        
+        # Log if we cleared duplicates
+        removed_ghosts = initial_data_len - len(data)
+        if removed_ghosts > 0:
+            print(f"DEBUG: Removed {removed_ghosts} ghost sessions for client {cid_upper}")
+
         data[session_id] = session_data
         self._write_all(data)
         

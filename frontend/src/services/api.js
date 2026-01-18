@@ -9,8 +9,8 @@ const getBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // Default Fallback
-    return 'https://trade-yantra-api-603872130396.us-central1.run.app';
+    // Default Fallback (Asia-South1 Deployment)
+    return 'https://trade-yantra-api-ibynnqazflq-el.a.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
@@ -146,22 +146,18 @@ export const generateBulkAlerts = async (sessionId, params) => {
 };
 
 export const deleteAlert = async (sessionId, alertId, clientId = null) => {
-    const response = await api.delete('/api/alerts/delete', {
-        data: {
-            session_id: sessionId,
-            client_id: clientId,
-            alert_id: alertId,
-        },
+    const response = await api.post('/api/alerts/delete', {
+        session_id: sessionId,
+        client_id: clientId,
+        alert_id: alertId,
     });
     return response.data;
 };
 
 export const clearAllAlerts = async (sessionId, clientId = null) => {
-    const response = await api.delete('/api/alerts/clear-all', {
-        data: {
-            session_id: sessionId,
-            client_id: clientId,
-        },
+    const response = await api.post('/api/alerts/clear-all', {
+        session_id: sessionId,
+        client_id: clientId,
     });
     return response.data;
 };

@@ -120,13 +120,10 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                 client_id: clientId
             });
 
-            // Alerts will be updated via parent state triggered by backend refresh/websocket, 
-            // but we might need to manually trigger a refresh if the parent doesn't auto-poll alerts.
-            // In App.jsx, alerts are loaded on mount, but not polled. 
-            // However, the backend adds them to the session, and they'll show up on next fetch.
-            // Let's manually updae the state with new alerts to be safe.
+            // The backend now returns the FULL updated list of alerts (session.alerts)
+            // for instant sync, which correctly reflects the replacement of old auto-alerts.
             if (response.alerts) {
-                setAlerts(prev => [...prev, ...response.alerts]);
+                setAlerts(response.alerts);
             }
             toast.success(`Generated ${response.count || 0} alerts for ${selectedSymbol}`);
         } catch (err) {
