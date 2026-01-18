@@ -21,6 +21,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy app code
 COPY . .
 
-# Start the app
-# Use uvicorn directly for better compatibility with Cloud Run health checks
-CMD uvicorn main:app --host 0.0.0.0 --port $PORT --workers 1 --timeout-keep-alive 60 --log-level info
+# Start the app - Use explicit app reference for Cloud Run
+CMD exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1
