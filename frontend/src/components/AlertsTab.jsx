@@ -6,6 +6,7 @@ import { Skeleton } from './Skeleton';
 function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts, isPaused, setIsPaused, referenceDate, setReferenceDate, preSelectedSymbol, isLoadingData, onRefreshData }) {
     const [generating, setGenerating] = useState(false);
     const [bulkGenerating, setBulkGenerating] = useState(false);
+    const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
     const [visibleCount, setVisibleCount] = useState(50);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('ALL');
@@ -146,51 +147,63 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
 
         try {
             setBulkGenerating(true);
-            const promise = generateBulkAlerts(sessionId, {
-                date: referenceDate,
-                start_time: startTime,
-                end_time: endTime,
-                is_custom_range: isCustomRange,
-                levels: selectedLevels,
-                client_id: clientId
-            });
+            setBulkProgress({ current: 0, total: safeWatchlist.length });
 
-            const response = await toast.promise(promise, {
-                loading: `Generating alerts for ${safeWatchlist.length} stocks...`,
-                success: 'Bulk generation complete!',
-                error: 'Failed to generate bulk alerts'
-            });
+            const mainToast = toast.loading(`Starting bulk generation for ${safeWatchlist.length} stocks...`);
+            let totalNewAlerts = 0;
+            let successCount = 0;
+            let failCount = 0;
 
-            // Update alerts state directly from response for instant sync
-            if (response.alerts) {
-                setAlerts(response.alerts);
-            } else if (response.results) {
-                // Fallback: Fetch fresh alerts if for some reason not in response
-                const { getAlerts } = await import('../services/api');
-                const alertsData = await getAlerts(sessionId, clientId);
-                if (alertsData.alerts) setAlerts(alertsData.alerts);
+            // SEQUENTIAL PROCESSING: Loop through each stock to avoid timeouts
+            // and keep the connection alive.
+            for (let i = 0; i < safeWatchlist.length; i++) {
+                const stock = safeWatchlist[i];
+                setBulkProgress({ current: i + 1, total: safeWatchlist.length });
+
+                try {
+                    // Update main toast with progress
+                    toast.loading(`Processing ${stock.symbol} (${i + 1}/${safeWatchlist.length})...`, { id: mainToast });
+
+                    const response = await generateAlerts(sessionId, {
+                        symbol: stock.symbol,
+                        token: stock.token,
+                        exchange: stock.exch_seg || 'NSE',
+                        date: referenceDate,
+                        start_time: startTime,
+                        end_time: endTime,
+                        is_custom_range: isCustomRange,
+                        levels: selectedLevels,
+                        client_id: clientId
+                    });
+
+                    if (response.alerts) {
+                        // The backend now returns the full list for that stock context
+                        setAlerts(response.alerts);
+                        totalNewAlerts += (response.count || 0);
+                    }
+                    successCount++;
+                } catch (stockErr) {
+                    console.error(`Failed for ${stock.symbol}:`, stockErr);
+                    failCount++;
+                }
             }
 
-            // Show detailed summary via toast
-            const successCount = response.results.filter(r => r.success).length;
-            const failCount = response.results.filter(r => !r.success).length;
+            toast.dismiss(mainToast);
 
-            if (response.total_alerts > 0 || response.total_duplicates > 0) {
-                toast(`New Alerts: ${response.total_alerts} | Duplicates: ${response.total_duplicates}`, {
-                    icon: response.total_alerts > 0 ? '🚀' : 'ℹ️',
-                    duration: 4000
-                });
+            if (successCount > 0) {
+                toast.success(`Success! Generated alerts for ${successCount} stocks.`);
             }
 
             if (failCount > 0) {
-                toast(`Processed: ${successCount}/${response.total_stocks} (Failed: ${failCount})`, { icon: '⚠️' });
+                toast.error(`Failed to process ${failCount} stocks.`, { duration: 5000 });
             }
 
         } catch (err) {
-            console.error('Bulk generate alerts error:', err);
-            // Error toast handled by toast.promise
+            console.error('Bulk generate logic error:', err);
+            toast.error('Critical failure in bulk generation');
         } finally {
             setBulkGenerating(false);
+            setBulkProgress({ current: 0, total: 0 });
         }
     };
 
@@ -420,7 +433,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                         {bulkGenerating ? (
                             <>
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Processing {safeWatchlist.length} stocks...
+                                Processing {bulkProgress.current}/{bulkProgress.total}...
                             </>
                         ) : (
                             `🚀 Generate for All Watchlist (${safeWatchlist.length})`
