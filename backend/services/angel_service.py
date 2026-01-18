@@ -147,8 +147,13 @@ class AngelService:
             try:
                 return smart_api.getCandleData(req)
             except Exception as e:
-                if "parse" in str(e) or "timeout" in str(e):
+                err_str = str(e).lower()
+                if "parse" in err_str or "timeout" in err_str:
                     time.sleep(2)
+                    continue
+                if "too many requests" in err_str or "rate limit" in err_str or "throttle" in err_str:
+                    print(f"[WARN] Angel API Rate Limit hit. Retrying in 5s... (Attempt {i+1}/{retries})")
+                    time.sleep(5)
                     continue
                 raise e
         return None
@@ -160,7 +165,7 @@ class AngelService:
         try:
             # 1. Try local JSON file first (fastest)
             if os.path.exists(SCRIPMASTER_FILE):
-                print("🚀 Loading Scrips from local cache...")
+                print("[INFO] Loading Scrips from local cache...")
                 with open(SCRIPMASTER_FILE, 'r') as f:
                     self.scrips = json.load(f)
                 
@@ -177,7 +182,7 @@ class AngelService:
                         self.scrips.append(core)
                 
                 self.master_loaded = True
-                print(f"✅ {len(self.scrips)} symbols loaded from local file (including cores).")
+                print(f"[OK] {len(self.scrips)} symbols loaded from local file (including cores).")
                 return
 
             # 2. Try GCS if local missing
@@ -189,18 +194,18 @@ class AngelService:
                     bucket = client.bucket(bucket_name)
                     blob = bucket.blob("scripmaster.json")
                     if blob.exists():
-                        print("☁️ Downloading Scrip Master from GCS...")
+                        print("[INFO] Downloading Scrip Master from GCS...")
                         blob.download_to_filename(SCRIPMASTER_FILE)
                         with open(SCRIPMASTER_FILE, 'r') as f:
                             self.scrips = json.load(f)
                         self.master_loaded = True
-                        print(f"✅ Loaded {len(self.scrips)} symbols from GCS.")
+                        print(f"[OK] Loaded {len(self.scrips)} symbols from GCS.")
                         return
                 except Exception as ge:
-                    print(f"⚠️ GCS Scrip Master check failed: {ge}")
+                    print(f"[WARN] GCS Scrip Master check failed: {ge}")
 
             # 3. Remote Download if both missing
-            print("🌐 Local and GCS cache missing, downloading from Angel One...")
+            print("[INFO] Local and GCS cache missing, downloading from Angel One...")
             r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=15)
             data = r.json()
             
@@ -228,15 +233,15 @@ class AngelService:
             if bucket_name:
                 try:
                     blob.upload_from_filename(SCRIPMASTER_FILE)
-                    print(f"☁️ Synced Scrip Master to GCS bucket: {bucket_name}")
+                    print(f"[INFO] Synced Scrip Master to GCS bucket: {bucket_name}")
                 except Exception as ue:
-                    print(f"❌ GCS Scrip Upload failed: {ue}")
+                    print(f"[ERROR] GCS Scrip Upload failed: {ue}")
 
             self.master_loaded = True
-            print(f"✅ Downloaded and cached {len(self.scrips)} symbols.")
+            print(f"[OK] Downloaded and cached {len(self.scrips)} symbols.")
             
         except Exception as e:
-            print(f"❌ Scrip Master Error: {e}")
+            print(f"[ERROR] Scrip Master Error: {e}")
             
         finally:
             pass

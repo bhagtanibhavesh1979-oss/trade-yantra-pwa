@@ -1,21 +1,20 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-    // 1. Prioritize environment variable (highest priority)
+    // 1. Detective work based on location (Highest priority for local dev)
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) return 'http://127.0.0.1:8002';
+
+    // 2. Prioritize environment variable for cloud/custom deployments
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // 2. Detective work based on location
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    // Default Fallbacks
-    if (isLocal) return 'http://localhost:8002';
-
-    // Google Cloud Run API Endpoint (ibynqazflq-uc)
-    return 'https://trade-yantra-api-ibynqazflq-uc.a.run.app';
+    // Default Fallback
+    return 'https://trade-yantra-api-603872130396.us-central1.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
+console.log('🌐 API_BASE_URL:', API_BASE_URL);
 
 // Axios instance with default config
 const api = axios.create({
@@ -63,7 +62,7 @@ export const logout = async (sessionId) => {
 };
 
 export const checkSession = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/auth/session/${sessionId}?client_id=${clientId}` : `/api/auth/session/${sessionId}`;
+    const url = clientId ? `/api/auth/verify/${sessionId}?client_id=${clientId}` : `/api/auth/verify/${sessionId}`;
     const response = await api.get(url);
     return response.data;
 };
@@ -86,10 +85,11 @@ export const addToWatchlist = async (sessionId, symbol, token, exchSeg, clientId
     return response.data;
 };
 
-export const removeFromWatchlist = async (sessionId, token) => {
+export const removeFromWatchlist = async (sessionId, token, clientId = null) => {
     const response = await api.delete('/api/watchlist/remove', {
         data: {
             session_id: sessionId,
+            client_id: clientId,
             token: token,
         },
     });
@@ -104,9 +104,10 @@ export const refreshWatchlist = async (sessionId, clientId = null) => {
     return response.data;
 };
 
-export const setWatchlistDate = async (sessionId, date) => {
+export const setWatchlistDate = async (sessionId, date, clientId = null) => {
     const response = await api.post('/api/watchlist/set-date', {
         session_id: sessionId,
+        client_id: clientId,
         date: date,
     });
     return response.data;
@@ -144,28 +145,41 @@ export const generateBulkAlerts = async (sessionId, params) => {
     return response.data;
 };
 
-export const deleteAlert = async (sessionId, alertId) => {
+export const deleteAlert = async (sessionId, alertId, clientId = null) => {
     const response = await api.delete('/api/alerts/delete', {
         data: {
             session_id: sessionId,
+            client_id: clientId,
             alert_id: alertId,
         },
     });
     return response.data;
 };
 
-export const clearAllAlerts = async (sessionId) => {
+export const clearAllAlerts = async (sessionId, clientId = null) => {
     const response = await api.delete('/api/alerts/clear-all', {
         data: {
             session_id: sessionId,
+            client_id: clientId,
         },
     });
     return response.data;
 };
 
-export const pauseAlerts = async (sessionId, isPaused) => {
+export const deleteMultipleAlerts = async (sessionId, alertIds, clientId = null) => {
+    // Using POST for delete-multiple to ensure body is handled correctly by all network layers
+    const response = await api.post('/api/alerts/delete-multiple', {
+        session_id: sessionId,
+        client_id: clientId,
+        alert_ids: alertIds,
+    });
+    return response.data;
+};
+
+export const pauseAlerts = async (sessionId, isPaused, clientId = null) => {
     const response = await api.post('/api/alerts/pause', {
         session_id: sessionId,
+        client_id: clientId,
         paused: isPaused,
     });
     return response.data;
@@ -193,9 +207,32 @@ export const closePaperTrade = async (sessionId, tradeId, ltp) => {
     return response.data;
 };
 
+// ... existing code ...
 export const clearPaperTrades = async (sessionId) => {
     const response = await api.post(`/api/paper/clear/${sessionId}`);
     return response.data;
 };
+
+export const setVirtualBalance = async (sessionId, amount) => {
+    const response = await api.post(`/api/paper/balance/${sessionId}`, { amount });
+    return response.data;
+};
+
+export const setStopLoss = async (sessionId, tradeId, slPrice) => {
+    const response = await api.post(`/api/paper/stoploss/${sessionId}/${tradeId}`, { sl_price: slPrice });
+    return response.data;
+};
+
+export const manualTrade = async (sessionId, symbol, token, ltp, side, quantity) => {
+    const response = await api.post(`/api/paper/trade/${sessionId}`, {
+        symbol,
+        token,
+        ltp,
+        side,
+        quantity: parseInt(quantity) || 100
+    });
+    return response.data;
+};
+// ... existing code ...
 
 export default api;

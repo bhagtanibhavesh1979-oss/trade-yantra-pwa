@@ -1,17 +1,27 @@
 import { useState, useEffect } from 'react';
-import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist } from '../services/api';
+import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist, manualTrade } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisible = true }) {
-    const sessionId = session?.sessionId;
-    const clientId = session?.clientId;
+    const sessionId = session?.sessionId || session?.session_id;
+    const clientId = session?.clientId || session?.client_id;
+
+    // Debug session
+    useEffect(() => {
+        if (session && !sessionId) {
+            console.error('[WatchlistTab] Missing Session ID:', session);
+            toast.error('Session Invalid. Please Login Again.');
+        }
+    }, [session, sessionId]);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearchResults, setShowSearchResults] = useState(false);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [selectedStock, setSelectedStock] = useState(null);
+    const [manualQty, setManualQty] = useState(100);
 
     // Sorting only
     const [sortBy, setSortBy] = useState('none');
@@ -78,21 +88,24 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
 
     const handleRemoveStock = async (token) => {
         try {
-            await removeFromWatchlist(sessionId, token);
+            await removeFromWatchlist(sessionId, token, clientId);
             setWatchlist(watchlist.filter(s => s.token !== token));
             setSelectedStock(null);
+            toast.success('Stock removed');
         } catch (err) {
             console.error('Remove stock error:', err);
+            toast.error('Failed to remove stock');
         }
     };
 
     const handleRefresh = async () => {
         try {
             setRefreshing(true);
-            await refreshWatchlist(sessionId);
-            // Watchlist will be updated by the useEffect polling
+            await refreshWatchlist(sessionId, clientId);
+            toast.success('Refresh started');
         } catch (err) {
             console.error('Refresh error:', err);
+            toast.error('Failed to refresh');
         } finally {
             setRefreshing(false);
         }
@@ -146,7 +159,7 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search symbols (e.g., TATA, RELIANCE)..."
-                        className="w-full pl-10 pr-10 py-2 bg-[#0A0E27] border border-[#2D3748] rounded-lg text-white focus:outline-none focus:border-[#667EEA]"
+                        className="w-full pl-10 pr-10 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]"
                     />
                     {loading && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -167,8 +180,8 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                                     className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#2D3748] transition-colors border-b border-[#2D3748]/50 last:border-0 cursor-pointer group"
                                 >
                                     <div className="flex-1">
-                                        <div className="text-white font-medium group-hover:text-[#667EEA] transition-colors">{stock.symbol}</div>
-                                        <div className="text-[10px] text-gray-500 font-mono">TOKEN: {stock.token}</div>
+                                        <div className="text-[var(--text-primary)] font-medium group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</div>
+                                        <div className="text-[10px] text-[var(--text-muted)] font-mono">TOKEN: {stock.token}</div>
                                     </div>
                                     <button
                                         className="px-3 py-1.5 bg-[#667EEA] hover:bg-blue-600 text-white text-[10px] font-bold rounded-md shadow-lg transition-all active:scale-95 flex items-center gap-1"
@@ -192,7 +205,7 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 bg-[#222844] border border-[#2D3748] rounded-lg text-white text-sm focus:outline-none focus:border-[#667EEA]"
+                        className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-blue)]"
                     >
                         <option value="none">Sort: Default</option>
                         <option value="sym_az">Sort: A-Z</option>
@@ -302,11 +315,11 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
             {/* Stock Details Modal */}
             {selectedStock && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setSelectedStock(null)}>
-                    <div className="bg-[#222844] w-full max-w-sm rounded-xl border border-[#2D3748] shadow-2xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
+                    <div className="bg-[var(--bg-card)] w-full max-w-sm rounded-xl border border-[var(--border-color)] shadow-xl p-4 space-y-4" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="text-xl font-bold text-white">{selectedStock.symbol}</h3>
-                                <p className="text-sm text-gray-400">Token: {selectedStock.token}</p>
+                                <h3 className="text-xl font-bold text-[var(--text-primary)]">{selectedStock.symbol}</h3>
+                                <p className="text-sm text-[var(--text-muted)]">Token: {selectedStock.token}</p>
                             </div>
                             <button onClick={() => setSelectedStock(null)} className="text-gray-400 hover:text-white p-1 bg-white/5 rounded-full transition-colors">
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,46 +355,99 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                                     {selectedStock.ltp - selectedStock.pdc >= 0 ? '+' : ''}{(selectedStock.ltp - selectedStock.pdc).toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
-                                <div className="text-gray-400 text-xs text-center">PDC</div>
-                                <div className="text-lg font-semibold text-white text-center">
+                            <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <div className="text-[var(--text-muted)] text-xs text-center">PDC</div>
+                                <div className="text-lg font-semibold text-[var(--text-primary)] text-center">
                                     ₹{selectedStock.pdc?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
-                                <div className="text-gray-400 text-xs text-center uppercase tracking-tighter">High ({referenceDate})</div>
-                                <div className="text-lg font-semibold text-white text-center">
+                            <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <div className="text-[var(--text-muted)] text-xs text-center uppercase tracking-tighter">High ({referenceDate})</div>
+                                <div className="text-lg font-semibold text-[var(--text-primary)] text-center">
                                     ₹{selectedStock.pdh?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748] col-span-2">
-                                <div className="text-gray-400 text-xs text-center uppercase tracking-tighter">Low ({referenceDate})</div>
-                                <div className="text-lg font-semibold text-white text-center">
+                            <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)] col-span-2">
+                                <div className="text-[var(--text-muted)] text-xs text-center uppercase tracking-tighter">Low ({referenceDate})</div>
+                                <div className="text-lg font-semibold text-[var(--text-primary)] text-center">
                                     ₹{selectedStock.pdl?.toFixed(2)}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex gap-2">
-                            <a
-                                href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace('-EQ', '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-1 py-3 bg-[#667EEA] hover:bg-blue-600 text-white rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-                                </svg>
-                                TradingView
-                            </a>
-                            <button
-                                onClick={() => handleRemoveStock(selectedStock.token)}
-                                className="px-4 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg font-semibold transition-all flex items-center justify-center border border-red-500/20"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center gap-2 bg-[var(--bg-primary)] p-2 rounded-lg border border-[var(--border-color)]/30 self-start">
+                                <label className="text-[10px] text-[var(--text-muted)] font-bold uppercase">Qty</label>
+                                <input
+                                    type="number"
+                                    value={manualQty}
+                                    onChange={(e) => setManualQty(e.target.value)}
+                                    className="w-16 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-center text-sm text-[var(--text-primary)] font-bold outline-none focus:border-[var(--accent-blue)]"
+                                />
+                            </div>
+
+                            <div className="flex gap-2 h-12 w-full">
+                                <a
+                                    href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace('-EQ', '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-12 bg-[#2D3748] hover:bg-[#4A5568] text-white rounded-lg flex items-center justify-center transition-colors"
+                                    title="Open Chart"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+                                    </svg>
+                                </a>
+                                <button
+                                    onClick={async () => {
+                                        const price = parseFloat(selectedStock.ltp || selectedStock.close || 0);
+                                        if (price <= 0) {
+                                            toast.error('Invalid Price (0)');
+                                            return;
+                                        }
+                                        try {
+                                            await manualTrade(sessionId, selectedStock.symbol, selectedStock.token, price, 'BUY', manualQty);
+                                            toast.success(`Bought ${selectedStock.symbol}`);
+                                            setSelectedStock(null);
+                                        } catch (e) {
+                                            console.error(e);
+                                            toast.error(e.response?.data?.detail || e.message || 'Buy Failed');
+                                        }
+                                    }}
+                                    className="flex-1 bg-[#48BB78] hover:bg-[#38A169] text-white rounded-lg font-bold transition-colors shadow-lg shadow-green-900/20 text-xl"
+                                >
+                                    B
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        const price = parseFloat(selectedStock.ltp || selectedStock.close || 0);
+                                        if (price <= 0) {
+                                            toast.error('Invalid Price (0)');
+                                            return;
+                                        }
+                                        try {
+                                            await manualTrade(sessionId, selectedStock.symbol, selectedStock.token, price, 'SELL', manualQty);
+                                            toast.success(`Sold ${selectedStock.symbol}`);
+                                            setSelectedStock(null);
+                                        } catch (e) {
+                                            console.error(e);
+                                            toast.error(e.response?.data?.detail || e.message || 'Sell Failed');
+                                        }
+                                    }}
+                                    className="flex-1 bg-[#F56565] hover:bg-[#E53E3E] text-white rounded-lg font-bold transition-colors shadow-lg shadow-red-900/20 text-xl"
+                                >
+                                    S
+                                </button>
+                                <button
+                                    onClick={() => handleRemoveStock(selectedStock.token)}
+                                    className="w-12 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-lg font-semibold transition-all flex items-center justify-center border border-red-500/20"
+                                    title="Remove from Watchlist"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

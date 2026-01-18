@@ -21,6 +21,7 @@ class Session:
         self.alerts = []  # List of {id, symbol, token, condition, price, active}
         self.logs = []  # List of {time, symbol, msg}
         self.paper_trades = [] # List of virtual trade objects
+        self.virtual_balance = 0.0 # Virtual wallet balance
         self.is_paused = False
         self.auto_paper_trade = False
         self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
@@ -71,7 +72,7 @@ class SessionManager:
                             self._active_saves.remove(session_id)
                             break
             except Exception as e:
-                print(f"❌ Background save FAILED for session {session_id}: {e}")
+                print(f"[ERROR] Background save FAILED for session {session_id}: {e}")
                 with self.lock:
                     self._active_saves.discard(session_id)
                     
@@ -85,13 +86,15 @@ class SessionManager:
         session = Session(session_id, client_id, jwt_token, feed_token, api_key)
         
         if existing_data:
-            print(f"✅ Restoring data for client {client_id} from JSON")
+            print(f"[OK] Restoring data for client {client_id} from JSON")
             session.watchlist = existing_data.get('watchlist', [])
             session.alerts = existing_data.get('alerts', [])
             session.logs = existing_data.get('logs', [])
             session.paper_trades = existing_data.get('paper_trades', [])
+            session.virtual_balance = existing_data.get('virtual_balance', 0.0)
             session.is_paused = existing_data.get('is_paused', False)
             session.auto_paper_trade = existing_data.get('auto_paper_trade', False)
+            print(f"[OK] Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts, {len(session.paper_trades)} paper trades, Balance: {session.virtual_balance}")
         
         with self.lock:
             self.sessions[session_id] = session
@@ -112,7 +115,7 @@ class SessionManager:
         
         # 2. SELF-HEALING: Try client_id if session_id not found
         if not session_data and client_id:
-            print(f"⚠️ Session {session_id} not found. Healing via client_id {client_id}...")
+            print(f"[WARN] Session {session_id} not found. Healing via client_id {client_id}...")
             session_data = persistence_service.get_latest_session_by_client_id(client_id)
             
         # 3. LAST RESORT: Search for ANY latest record
@@ -128,11 +131,11 @@ class SessionManager:
                         latest_sid = sid
                 
                 if latest_sid:
-                    print(f"💡 Found dormant record {latest_sid}. Healing...")
+                    print(f"[INFO] Found dormant record {latest_sid}. Healing...")
                     session_data = data[latest_sid]
 
         if session_data:
-            print(f"✅ Recovered session data for client {session_data['client_id']}")
+            print(f"[OK] Recovered session data for client {session_data['client_id']}")
             session = Session(
                 session_id,
                 session_data['client_id'],
@@ -144,6 +147,7 @@ class SessionManager:
             session.alerts = session_data.get('alerts', [])
             session.logs = session_data.get('logs', [])
             session.paper_trades = session_data.get('paper_trades', [])
+            session.virtual_balance = session_data.get('virtual_balance', 0.0)
             session.is_paused = session_data.get('is_paused', False)
             session.auto_paper_trade = session_data.get('auto_paper_trade', False)
             session.last_activity = datetime.now()
@@ -158,9 +162,9 @@ class SessionManager:
                     smart_api = SmartConnect(api_key=session.api_key)
                     smart_api.setAccessToken(session.jwt_token)
                     session.smart_api = smart_api
-                    print(f"✅ SmartAPI re-initialized for {session.client_id}")
+                    print(f"[OK] SmartAPI re-initialized for {session.client_id}")
                 except Exception as e:
-                    print(f"❌ Failed to re-initialize SmartAPI: {e}")
+                    print(f"[ERROR] Failed to re-initialize SmartAPI: {e}")
 
             return session
         

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss } from '../services/api';
 import toast from 'react-hot-toast';
 
-const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: propSetTrades }) => {
+const TradesTab = ({ sessionId, watchlist, trades: propTrades, setTrades: propSetTrades }) => {
     const [summary, setSummary] = useState({
         auto_paper_trade: false,
         virtual_balance: 0.0,
@@ -20,14 +20,23 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     const trades = propTrades || localTrades;
     const setTrades = propSetTrades || setLocalTrades;
 
+    // COMPACT SUMMARY: Derived from live trades list to ensure it's always in sync with WebSocket
+    const openTrades = trades?.filter(t => t.status === 'OPEN') || [];
+    const closedTrades = trades?.filter(t => t.status === 'CLOSED') || [];
+    const liveTotalPnl = trades?.reduce((sum, t) => sum + (t.pnl || 0), 0) || 0;
+
     const fetchSummary = async (showLoading = false) => {
         if (showLoading) setLoading(true);
         try {
             const data = await getPaperSummary(sessionId);
             setSummary(data);
-            if (!propTrades && data.trades) setTrades(data.trades);
+
+            // Periodically sync trades from server to ensure status/PNL consistency
+            if (data.trades) {
+                setTrades(data.trades);
+            }
         } catch (err) {
-            console.error('Failed to fetch paper summary:', err);
+            console.error('Failed to fetch trades summary:', err);
         } finally {
             setLoading(false);
         }
@@ -116,7 +125,7 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     };
 
     const handleClearHistory = async () => {
-        if (!window.confirm('Clear all paper trade history?')) return;
+        if (!window.confirm('Clear all trade history?')) return;
         try {
             await clearPaperTrades(sessionId);
             toast.success('History cleared');
@@ -126,23 +135,30 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
         }
     };
 
+    // Relaxed loading state check
     if (loading && !summary) {
-        return <div className="p-8 text-center text-gray-400">Loading Paper Trading Data...</div>;
+        return <div className="p-8 text-center text-gray-400">Loading Trades Data...</div>;
     }
 
-    const openTrades = trades?.filter(t => t.status === 'OPEN') || [];
-    const closedTrades = trades?.filter(t => t.status === 'CLOSED') || [];
+    // STATS CALCULATION
+    const totalClosed = closedTrades.length;
+    const wins = closedTrades.filter(t => t.pnl > 0).length;
+    const losses = closedTrades.filter(t => t.pnl <= 0).length;
+    const winRate = totalClosed > 0 ? ((wins / totalClosed) * 100).toFixed(0) : 0;
+
+    const handleDownloadReport = () => {
+        const url = `/api/paper/export/${sessionId}`;
+        window.open(url, '_blank');
+    };
 
     return (
         <div className="w-full space-y-4 pb-24 px-4 overflow-x-hidden">
             {/* Wallet Section */}
-            <div className="glass-card p-5 rounded-2xl border border-[var(--border-color)] bg-gradient-to-br from-[#1A1F3A] to-[#0A0E27] shadow-xl">
+            <div className="glass-card p-5 rounded-2xl border border-[var(--border-color)] shadow-xl">
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest mb-1">
-                            Virtual Wallet Balance
-                        </div>
-                        <div className="text-3xl font-bold text-white flex items-baseline gap-1">
+                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest mb-1">Virtual Wallet Balance</div>
+                        <div className="text-3xl font-bold text-[var(--text-primary)] flex items-baseline gap-1">
                             <span className="text-sm text-[var(--text-muted)] font-normal">₹</span>
                             {(summary?.virtual_balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </div>
@@ -169,10 +185,12 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                                     placeholder="Amount (e.g. 100000)"
                                     value={addAmount}
                                     onChange={(e) => setAddAmount(e.target.value)}
+                                    // FIXED CSS HERE: min-w-0 + flex-1
                                     className="flex-1 min-w-0 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-xl px-4 py-2 outline-none focus:border-[var(--accent-blue)] transition-all"
                                 />
                                 <button
                                     onClick={handleAddMoney}
+                                    // FIXED CSS HERE: px-4 and whitespace-nowrap
                                     className="bg-[var(--success-neon)] text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-green-500/20 whitespace-nowrap"
                                 >
                                     Confirm
@@ -185,50 +203,62 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                 {summary?.virtual_balance <= 0 && !isAddingMoney && (
                     <div className="mt-3 p-2 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2">
                         <span className="text-lg">⚠️</span>
-                        <p className="text-[10px] text-red-400 font-medium uppercase tracking-wider">
-                            Balance is 0. Auto-trades are paused.
-                        </p>
+                        <p className="text-[10px] text-red-400 font-medium uppercase tracking-wider">Balance is 0. Auto-trades are paused.</p>
                     </div>
                 )}
             </div>
 
-            {/* Control Panel */}
-            <div className="glass-card p-5 rounded-2xl border border-[var(--border-color)]">
-                <div className="flex items-center justify-between mb-4">
-                    <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            Strategy Trades
-                        </h2>
-                        <p className="text-xs text-[var(--text-muted)]">Live execution simulation based on your alerts</p>
-                    </div>
+            {/* Performance Stats Widget */}
+            <div className="glass-card p-4 rounded-2xl border border-[var(--border-color)]">
+                <div className="flex justify-between items-center mb-3">
+                    <h3 className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-widest">Performance Today</h3>
                     <button
-                        onClick={handleToggle}
-                        disabled={toggling}
-                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${summary?.auto_paper_trade
-                            ? 'bg-[var(--success-neon)] text-white shadow-[0_0_15px_rgba(72,187,120,0.4)]'
-                            : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
-                            }`}
+                        onClick={handleDownloadReport}
+                        className="text-[10px] flex items-center gap-1 bg-[#2D3748] hover:bg-[#4A5568] px-2 py-1 rounded text-white transition-colors"
                     >
-                        {summary?.auto_paper_trade ? 'Auto Exec: ON' : 'Auto Exec: OFF'}
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        Download CSV
                     </button>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-[var(--bg-secondary)] p-3 rounded-xl border border-[var(--border-color)]/50">
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Total P&L</div>
-                        <div className={`text-lg font-bold ${summary?.summary?.total_pnl >= 0 ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
-                            ₹{summary?.summary?.total_pnl?.toFixed(2)}
+                <div className="grid grid-cols-4 gap-2 text-center divide-x divide-[var(--border-color)]/30">
+                    <div>
+                        <div className="text-[20px] font-black text-[#667EEA]">{winRate}%</div>
+                        <div className="text-[9px] text-[var(--text-muted)] uppercase">Win Rate</div>
+                    </div>
+                    <div>
+                        <div className="text-[20px] font-black text-[var(--success-neon)]">{wins}</div>
+                        <div className="text-[9px] text-[var(--text-muted)] uppercase">Wins</div>
+                    </div>
+                    <div>
+                        <div className="text-[20px] font-black text-[var(--danger-neon)]">{losses}</div>
+                        <div className="text-[9px] text-[var(--text-muted)] uppercase">Losses</div>
+                    </div>
+                    <div>
+                        <div className={`text-[16px] font-black ${liveTotalPnl >= 0 ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
+                            {liveTotalPnl >= 0 ? '+' : ''}{liveTotalPnl.toFixed(0)}
                         </div>
-                    </div>
-                    <div className="bg-[var(--bg-secondary)] p-3 rounded-xl border border-[var(--border-color)]/50">
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Open</div>
-                        <div className="text-lg font-bold text-white">{openTrades.length}</div>
-                    </div>
-                    <div className="bg-[var(--bg-secondary)] p-3 rounded-xl border border-[var(--border-color)]/50">
-                        <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Closed</div>
-                        <div className="text-lg font-bold text-[var(--text-secondary)]">{closedTrades.length}</div>
+                        <div className="text-[9px] text-[var(--text-muted)] uppercase">Net P&L</div>
                     </div>
                 </div>
+            </div>
+
+            {/* Strategy Control */}
+            <div className="glass-card p-4 rounded-2xl border border-[var(--border-color)] flex items-center justify-between">
+                <div>
+                    <h2 className="text-sm font-bold text-[var(--text-primary)]">Auto Execution</h2>
+                    <p className="text-[10px] text-[var(--text-muted)]">Automated entry on alerts</p>
+                </div>
+                <button
+                    onClick={handleToggle}
+                    disabled={toggling}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${summary?.auto_paper_trade
+                        ? 'bg-[var(--success-neon)] text-white shadow-[0_0_15px_rgba(72,187,120,0.4)]'
+                        : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                        }`}
+                >
+                    {summary?.auto_paper_trade ? 'ACTIVE' : 'DISABLED'}
+                </button>
             </div>
 
             {/* Active Positions */}
@@ -244,13 +274,13 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-white">{trade.symbol}</span>
+                                        <span className="font-bold text-[var(--text-primary)]">{trade.symbol}</span>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${trade.side === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {trade.side}
                                         </span>
                                     </div>
                                     <div className="text-xs text-[var(--text-muted)] mt-1">
-                                        Entry: ₹{trade.entry_price.toFixed(2)} • {trade.trigger_level}
+                                        Entry: ₹{trade.entry_price.toFixed(2)} • Qty: {trade.quantity || 100} • {trade.trigger_level}
                                     </div>
                                     {trade.stop_loss && (
                                         <div className="text-[10px] text-red-400/80 font-medium mt-0.5">
@@ -308,9 +338,9 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                         {closedTrades.slice(0, 10).map(trade => (
                             <div key={trade.id} className="bg-[var(--bg-secondary)] p-3 rounded-lg border border-[var(--border-color)]/30 flex justify-between items-center text-sm">
                                 <div>
-                                    <div className="font-bold text-white uppercase tracking-tight">{trade.symbol}</div>
+                                    <div className="font-bold text-[var(--text-primary)] uppercase tracking-tight">{trade.symbol}</div>
                                     <div className="text-[10px] text-[var(--text-muted)]">
-                                        {trade.side} @ {trade.entry_price.toFixed(2)} → {trade.exit_price?.toFixed(2)}
+                                        {trade.side} x {trade.quantity || 100} @ {trade.entry_price.toFixed(2)} → {trade.exit_price?.toFixed(2)}
                                     </div>
                                 </div>
                                 <div className={`font-bold ${trade.pnl >= 0 ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
@@ -325,4 +355,4 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     );
 };
 
-export default PaperPositions;
+export default TradesTab;

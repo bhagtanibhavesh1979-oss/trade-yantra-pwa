@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts } from '../services/api';
+import { generateAlerts, generateBulkAlerts, deleteAlert, pauseAlerts, clearAllAlerts, deleteMultipleAlerts } from '../services/api';
 import toast from 'react-hot-toast';
 import { Skeleton } from './Skeleton';
 
@@ -9,6 +9,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
     const [visibleCount, setVisibleCount] = useState(50);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('ALL');
+    const [selectedIds, setSelectedIds] = useState(new Set());
 
     // Ensure watchlist is always an array
     const safeWatchlist = Array.isArray(watchlist) ? watchlist : [];
@@ -176,6 +177,14 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
             // Show detailed summary via toast
             const successCount = response.results.filter(r => r.success).length;
             const failCount = response.results.filter(r => !r.success).length;
+
+            if (response.total_alerts > 0 || response.total_duplicates > 0) {
+                toast(`New Alerts: ${response.total_alerts} | Duplicates: ${response.total_duplicates}`, {
+                    icon: response.total_alerts > 0 ? '🚀' : 'ℹ️',
+                    duration: 4000
+                });
+            }
+
             if (failCount > 0) {
                 toast(`Processed: ${successCount}/${response.total_stocks} (Failed: ${failCount})`, { icon: '⚠️' });
             }
@@ -190,7 +199,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
 
     const handleDeleteAlert = async (alertId) => {
         try {
-            await deleteAlert(sessionId, alertId);
+            await deleteAlert(sessionId, alertId, clientId);
             setAlerts(alerts.filter(a => a.id !== alertId));
             toast.success('Alert deleted');
         } catch (err) {
@@ -201,7 +210,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
 
     const handleTogglePause = async (newValue) => {
         try {
-            await pauseAlerts(sessionId, newValue);
+            await pauseAlerts(sessionId, newValue, clientId);
             setIsPaused(newValue);
             toast.success(newValue ? 'Alerts Paused' : 'Monitoring Resumed');
         } catch (err) {
@@ -211,16 +220,67 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
     };
 
     const handleClearAllAlerts = async () => {
-        if (!confirm(`Are you sure you want to delete all ${alerts.length} alerts?`)) {
-            return;
-        }
+        if (alerts.length === 0) return;
+
+        console.log('🧹 Manual Clear All triggered...');
         try {
-            await clearAllAlerts(sessionId);
+            console.log('🧹 Clearing all alerts...');
+            const response = await clearAllAlerts(sessionId, clientId);
+            console.log('✅ Server response:', response);
             setAlerts([]);
-            toast.success('All alerts cleared');
+            setSelectedIds(new Set());
+            toast.success(response.message || 'All alerts cleared');
         } catch (err) {
             console.error('Clear all alerts error:', err);
             toast.error('Failed to clear alerts');
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === filteredAlerts.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(filteredAlerts.map(a => a.id)));
+        }
+    };
+
+    const toggleSelectOne = (id) => {
+        const next = new Set(selectedIds);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        setSelectedIds(next);
+    };
+
+    const handleDeleteSelected = async () => {
+        const ids = Array.from(selectedIds);
+        console.log('Attempting to delete alerts, selected count:', ids.length);
+
+        if (ids.length === 0) {
+            toast.error('No alerts selected');
+            return;
+        }
+
+        console.log('🗑️ Deleting selected alerts:', ids);
+        const loadingToast = toast.loading(`Deleting ${ids.length} alerts...`);
+
+        try {
+            const response = await deleteMultipleAlerts(sessionId, ids, clientId);
+            console.log('✅ Bulk delete response:', response);
+
+            // Use snapshot of ids for filtering to avoid closure issues
+            const idsSet = new Set(ids);
+            setAlerts(prev => prev.filter(a => !idsSet.has(a.id)));
+            setSelectedIds(new Set());
+
+            toast.dismiss(loadingToast);
+            toast.success(`Deleted ${response.count || ids.length} alerts`);
+        } catch (err) {
+            console.error('Delete selected error:', err);
+            toast.dismiss(loadingToast);
+            toast.error(err.response?.data?.detail || 'Failed to delete selected alerts');
         }
     };
 
@@ -386,16 +446,48 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                                 🔄 History
                             </button>
                         )}
-                        {alerts.length > 0 && (
+
+                        {selectedIds.size > 0 && (
                             <button
-                                onClick={handleClearAllAlerts}
-                                className="px-3 py-1.5 bg-[var(--danger-neon)] hover:brightness-110 text-white text-sm font-medium rounded-lg transition-all flex items-center gap-2"
+                                onClick={() => {
+                                    console.log('Delete Clicked');
+                                    handleDeleteSelected();
+                                }}
+                                style={{ backgroundColor: 'red', color: 'white', padding: '10px', borderRadius: '8px', zIndex: 1000, position: 'relative' }}
                             >
-                                🗑️ Clear
+                                DELETE SELECTED ({selectedIds.size})
+                            </button>
+                        )}
+
+                        {alerts.length > 0 && selectedIds.size === 0 && (
+                            <button
+                                onClick={() => {
+                                    console.log('Clear All Clicked');
+                                    handleClearAllAlerts();
+                                }}
+                                style={{ backgroundColor: 'rgba(255,0,0,0.1)', color: 'red', border: '1px solid red', padding: '10px', borderRadius: '8px' }}
+                            >
+                                CLEAR ALL
                             </button>
                         )}
                     </div>
                 </div>
+
+                {alerts.length > 0 && (
+                    <div className="flex items-center gap-3 px-1 py-1">
+                        <label className="flex items-center gap-2 cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.size === filteredAlerts.length && filteredAlerts.length > 0}
+                                onChange={toggleSelectAll}
+                                className="w-4 h-4 rounded border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--accent-blue)] focus:ring-[var(--accent-blue)] cursor-pointer"
+                            />
+                            <span className="text-xs text-[var(--text-secondary)] group-hover:text-white transition-colors">
+                                Select All {filteredAlerts.length < alerts.length && '(Filtered)'}
+                            </span>
+                        </label>
+                    </div>
+                )}
 
                 {/* Search and Filters */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pb-2">
@@ -487,31 +579,46 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                                 return (
                                     <div
                                         key={alert.id}
-                                        className={`glass-card rounded-xl p-4 border-l-4 ${borderColorClass} hover:border-[var(--accent-blue)] transition-all duration-300 group shadow-sm`}
+                                        onClick={() => toggleSelectOne(alert.id)}
+                                        className={`glass-card rounded-xl p-4 border-l-4 ${borderColorClass} ${selectedIds.has(alert.id) ? 'bg-[var(--accent-blue)]/10 border-r-2 border-r-[var(--accent-blue)]' : 'hover:border-[var(--accent-blue)]'} transition-all duration-300 group shadow-sm cursor-pointer relative`}
                                     >
                                         <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <span className="text-2xl bg-[var(--bg-secondary)] p-2 rounded-lg">{icon}</span>
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="text-[var(--text-primary)] font-bold text-base">{alert.symbol}</h4>
-                                                        <span className="text-[10px] bg-[var(--bg-secondary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded font-mono uppercase">
-                                                            {typeLabel}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 mt-0.5">
-                                                        <span className={`font-mono font-bold text-lg ${colorClass}`}>
-                                                            ₹{alert.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                                                        </span>
-                                                        <span className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-tighter">
-                                                            {alert.condition}
-                                                        </span>
+                                            <div className="flex items-center gap-3">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(alert.id)}
+                                                    onChange={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleSelectOne(alert.id);
+                                                    }}
+                                                    className="w-4 h-4 rounded border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--accent-blue)] focus:ring-[var(--accent-blue)] cursor-pointer"
+                                                />
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xl bg-[var(--bg-secondary)] p-2 rounded-lg">{icon}</span>
+                                                    <div>
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-[var(--text-primary)] font-bold text-base">{alert.symbol}</h4>
+                                                            <span className="text-[10px] bg-[var(--bg-secondary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded font-mono uppercase">
+                                                                {typeLabel}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className={`font-mono font-bold text-lg ${colorClass}`}>
+                                                                ₹{alert.price?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                                            </span>
+                                                            <span className="text-[var(--text-secondary)] text-xs font-medium uppercase tracking-tighter">
+                                                                {alert.condition}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
                                             <button
-                                                onClick={() => handleDeleteAlert(alert.id)}
-                                                className="opacity-0 group-hover:opacity-100 p-2 text-[var(--text-muted)] hover:text-white hover:bg-[var(--danger-neon)] rounded-lg transition-all duration-200"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteAlert(alert.id);
+                                                }}
+                                                className="p-2 text-red-400 hover:text-white hover:bg-red-500 rounded-lg transition-all duration-200"
                                                 title="Delete Alert"
                                             >
                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -534,6 +641,19 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                     </>
                 )}
             </div>
+            {/* Emergency Floating Button */}
+            <button
+                onClick={() => {
+                    if (window.confirm("Clear ALL alerts locally and force sync?")) {
+                        setAlerts([]);
+                        setSelectedIds(new Set());
+                        toast.success("Emergency local clear complete");
+                    }
+                }}
+                className="fixed bottom-24 right-4 z-[9999] bg-orange-600 text-white p-3 rounded-full shadow-2xl font-bold text-xs"
+            >
+                ⚠️ CLEAR
+            </button>
         </div>
     );
 }

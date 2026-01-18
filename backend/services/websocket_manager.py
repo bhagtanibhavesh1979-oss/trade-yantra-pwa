@@ -12,10 +12,6 @@ from typing import Dict, List, Callable, Optional
 import datetime
 
 def check_and_trigger_alerts(session_id: str, stock: dict):
-    """
-    Check alerts for a given stock and trigger if conditions are met.
-    This runs on the backend to ensure logs are created even if UI is disconnected.
-    """
     from services.session_manager import session_manager
     from services.alert_service import check_alert_trigger, create_alert_log
     
@@ -27,122 +23,111 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
     for alert in list(session.alerts):
         if str(alert['token']) == str(stock['token']) and alert.get('active', True):
             if check_alert_trigger(alert, stock):
-                # Triggered!
-                print(f"🔔 ALERT TRIGGERED: {stock['symbol']} hit {alert['price']} ({alert['condition']}) at LTP: {stock['ltp']}")
                 log_entry = create_alert_log(stock, alert)
                 session.logs.insert(0, log_entry)
                 session.alerts.remove(alert)
                 triggered_alerts.append({"alert": alert, "log": log_entry})
                 
     if triggered_alerts:
-        # Check for Paper Trading
         if session.auto_paper_trade:
             from services.paper_service import paper_service
             for triggered in triggered_alerts:
                 alert = triggered['alert']
-                # Determine side based on alert type/name
                 side = None
                 alert_name = str(alert.get('type', '')).upper()
-                
-                # Support levels -> BUY
                 if any(x in alert_name for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']):
                     side = 'BUY'
-                # Resistance levels -> SELL
                 elif any(x in alert_name for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
                     side = 'SELL'
-                
+                if not side:
+                    if alert.get('condition') == 'BELOW': side = 'BUY'
+                    elif alert.get('condition') == 'ABOVE': side = 'SELL'
                 if side:
                     paper_service.create_virtual_trade(session_id, stock, side, alert_name)
 
-        # Save session immediately so logs and alert removals persist
         session_manager.save_session(session_id)
-        
-        # Broadcast to all connected WebSockets for this session
         from services.websocket_manager import ws_manager
+        paper_trades_data = getattr(session, 'paper_trades', [])
         for triggered in triggered_alerts:
             ws_manager.broadcast_callbacks[session_id](session_id, {
                 "type": "alert_triggered",
                 "data": {
                     "alert": triggered['alert'],
-                    "log": triggered['log']
+                    "log": triggered['log'],
+                    "paper_trades": paper_trades_data
                 }
             })
 
 class WebSocketManager:
     def __init__(self):
-        self.connections: Dict[str, SmartWebSocketV2] = {}  # session_id -> websocket
-        self.token_maps: Dict[str, Dict] = {}  # session_id -> {token -> stock_data}
-        self.broadcast_callbacks: Dict[str, Callable] = {}  # session_id -> callback
+        self.connections: Dict[str, SmartWebSocketV2] = {}
+        self.token_maps: Dict[str, Dict] = {}
+        self.broadcast_callbacks: Dict[str, Callable] = {}
         self.lock = threading.Lock()
         self.heartbeat_thread = None
         self.running = True
 
     def _start_heartbeat(self):
-        """
-        Sends a ping every 20 seconds to keep Cloud Run and Mobile connections alive
-        Enhanced with error handling and automatic restart on failure
-        """
         consecutive_errors = 0
         max_errors = 5
-        
         while self.running:
             try:
-                # HEARTBEAT increased to 5s for Cloud Run/Mobile stability
                 time.sleep(5)
                 with self.lock:
                     active_sessions = list(self.broadcast_callbacks.items())
-                    
-                if active_sessions:
-                    print(f"💓 Heartbeat: {len(active_sessions)} active WebSocket connections")
-                    
                 for session_id, callback in active_sessions:
                     try:
-                        # Send a tiny ping message
                         callback(session_id, {"type": "heartbeat", "data": {"timestamp": time.time()}})
-                        consecutive_errors = 0  # Reset on success
-                    except Exception as e:
+                        consecutive_errors = 0
+                    except:
                         consecutive_errors += 1
-                        print(f"⚠️ Heartbeat failed for {session_id}: {e}")
                         if consecutive_errors >= max_errors:
-                            print(f"❌ Too many heartbeat failures ({consecutive_errors}), cleaning up session {session_id}")
                             with self.lock:
                                 if session_id in self.broadcast_callbacks:
                                     del self.broadcast_callbacks[session_id]
                             consecutive_errors = 0
-                            
-            except Exception as e:
-                print(f"❌ Heartbeat thread error: {e}")
-                time.sleep(5)  # Wait a bit before retrying
+            except:
+                time.sleep(5)
 
     def start_websocket(self, session_id: str, jwt_token: str, api_key: str, 
                        client_id: str, feed_token: str, watchlist: List[Dict],
                        broadcast_callback: Callable):
-        
-        # Start heartbeat thread if not running
         if self.heartbeat_thread is None:
             self.heartbeat_thread = threading.Thread(target=self._start_heartbeat, daemon=True)
             self.heartbeat_thread.start()
 
         try:
             sws = SmartWebSocketV2(jwt_token, api_key, client_id, feed_token)
-        except Exception as e:
-            print(f"WebSocket Init Error for {session_id}: {e}")
+        except:
             return False
 
         token_map = {str(s['token']): s for s in watchlist}
-        
         with self.lock:
             self.connections[session_id] = sws
             self.token_maps[session_id] = token_map
             self.broadcast_callbacks[session_id] = broadcast_callback
 
-        def on_data(wsapp, message):
-            # DYNAMIC LOOKUP: Always get the latest callback for this session
-            # This allows the stream to survive cross-tab refreshes
-            def _get_callback():
-                with self.lock:
-                    return self.broadcast_callbacks.get(session_id)
+        def _get_callback():
+            with self.lock:
+                return self.broadcast_callbacks.get(session_id)
 
+        def _broadcast_price(callback, token_id, symbol, current_ltp):
+            from services.session_manager import session_manager
+            session = session_manager.get_session(session_id)
+            paper_trades_data = []
+            if session and getattr(session, 'paper_trades', []):
+                from services.paper_service import paper_service
+                paper_service.update_live_pnl(session_id, token_map)
+                paper_trades_data = session.paper_trades
+                
+            callback(session_id, {
+                'type': 'price_update',
+                'data': {
+                    'token': str(token_id), 'symbol': symbol, 'ltp': current_ltp, 'paper_trades': paper_trades_data
+                }
+            })
+
+        def on_data(wsapp, message):
             try:
                 callback = _get_callback()
                 if not callback: return
@@ -157,10 +142,7 @@ class WebSocketManager:
                             if stock:
                                 stock['ltp'] = float(raw_price) / 100.0 if 'last_traded_price' in tick else float(raw_price)
                                 check_and_trigger_alerts(session_id, stock)
-                                callback(session_id, {
-                                    'type': 'price_update',
-                                    'data': {'token': str(token), 'symbol': stock['symbol'], 'ltp': stock['ltp']}
-                                })
+                                _broadcast_price(callback, str(token), stock['symbol'], stock['ltp'])
                 
                 elif isinstance(message, bytes) and len(message) > 50:
                     token_bytes = message[2:27]
@@ -172,84 +154,50 @@ class WebSocketManager:
                     if stock:
                         stock['ltp'] = real_price
                         check_and_trigger_alerts(session_id, stock)
-                        
-                        # Update Paper PNL & Broadcast
-                        from services.session_manager import session_manager
-                        session = session_manager.get_session(session_id)
-                        
-                        paper_trades_data = []
-                        if session and getattr(session, 'auto_paper_trade', False):
-                            from services.paper_service import paper_service
-                            paper_service.update_live_pnl(session_id, token_map)
-                            paper_trades_data = getattr(session, 'paper_trades', [])
-                            
-                        callback(session_id, {
-                            'type': 'price_update',
-                            'data': {
-                                'token': str(token), 
-                                'symbol': stock['symbol'], 
-                                'ltp': real_price, 
-                                'paper_trades': paper_trades_data
-                            }
-                        })
-            except Exception as e:
-                pass
+                        _broadcast_price(callback, str(token), stock['symbol'], real_price)
+            except: pass
 
         def on_open(wsapp):
-            print(f"WebSocket Connected for {session_id}")
             with self.lock:
                 callback = self.broadcast_callbacks.get(session_id)
             if callback:
                 callback(session_id, {'type': 'status', 'data': {'status': 'CONNECTED'}})
             
-            # Auto-subscribe major indices with correct exchange
             auto_indices = {
-                "1": ["99926000", "99926009", "99926012", "99926013", "99926023", "99926003", "99926011", "99926015", "99926024", "99926010"], # NSE
-                "3": ["99919000"] # BSE
+                "1": ["99926000", "99926009", "99926012", "99926013", "99926023", "99926003", "99926011", "99926015", "99926024", "99926010"],
+                "3": ["99919000"]
             }
-            
-            # Map tokens to their exchange from watchlist
             exchange_tokens = {"1": [], "3": []}
             for stock in watchlist:
                 exch = str(stock.get('exch_seg', 'NSE')).upper()
                 exch_type = "3" if "BSE" in exch else "1"
                 exchange_tokens[exch_type].append(str(stock['token']))
             
-            # Add auto-indices if not already in watchlist
             watchlist_tokens = [str(s['token']) for s in watchlist]
             for etype, tokens in auto_indices.items():
                 for t in tokens:
                     if t not in watchlist_tokens:
                         exchange_tokens[etype].append(t)
-                        # Add to token_map for price updates
                         if t not in token_map:
-                            symbol = "NIFTY 50" if t == "99926000" else \
-                                     "NIFTY BANK" if t == "99926009" else \
-                                     "SENSEX" if t == "99919000" else "INDEX"
+                            symbol = "INDEX"
                             token_map[t] = {"symbol": symbol, "token": t, "ltp": 0}
 
-            # Subscribe to all
             for etype, tokens in exchange_tokens.items():
                 if tokens:
                     try:
                         sws.subscribe("watchlist", 3, [{"exchangeType": int(etype), "tokens": tokens}])
-                        print(f"📡 Subscribed to {len(tokens)} tokens on Exchange Type {etype}")
-                    except Exception as e:
-                        print(f"❌ Subscription failed for {etype}: {e}")
+                    except: pass
 
         def on_close(wsapp, code, reason):
-            print(f"WebSocket Closed for {session_id}")
             broadcast_callback(session_id, {'type': 'status', 'data': {'status': 'DISCONNECTED'}})
 
         sws.on_data = on_data
         sws.on_open = on_open
         sws.on_close = on_close
-        
         threading.Thread(target=sws.connect, daemon=True).start()
         return True
 
     def subscribe_token(self, session_id: str, token: str, stock_data: dict):
-        """Add a single token to an existing WebSocket subscription"""
         with self.lock:
             sws = self.connections.get(session_id)
             token_map = self.token_maps.get(session_id)
@@ -259,14 +207,11 @@ class WebSocketManager:
                 exch_type = 3 if "BSE" in exch else 1
                 try:
                     sws.subscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [str(token)]}])
-                    print(f"✅ Subscribed to new token: {token} on Exch {exch_type} for session {session_id}")
                     return True
-                except Exception as e:
-                    print(f"❌ Failed to subscribe to token {token}: {e}")
+                except: pass
         return False
 
     def unsubscribe_token(self, session_id: str, token: str):
-        """Remove a token from subscription"""
         with self.lock:
             sws = self.connections.get(session_id)
             token_map = self.token_maps.get(session_id)

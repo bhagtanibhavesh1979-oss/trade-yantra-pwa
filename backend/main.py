@@ -12,6 +12,11 @@ from dotenv import load_dotenv
 
 # Diagnostics for Google Cloud Run
 print("--- STARTING TRADE YANTRA BACKEND ---")
+# FORCE UTF-8 for Windows Console
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
+
 print(f"DEBUG: PATH = {os.getcwd()}")
 print(f"DEBUG: PORT ENV = {os.environ.get('PORT', 'Not Set')}")
 sys.stdout.flush()
@@ -33,17 +38,17 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     """ Startup and shutdown events """
     import sys
-    print("🚀 Trade Yantra Backend Starting on GCP...")
+    print("[INFO] Trade Yantra Backend Starting on GCP...")
     sys.stdout.flush()
     
     # Load scrip master in background
     import threading
     from services.angel_service import angel_service
-    print("⏳ Starting Scrip Master background loader...")
+    print("[INFO] Starting Scrip Master background loader...")
     sys.stdout.flush()
     threading.Thread(target=angel_service.load_scrip_master, daemon=True).start()
     
-    print("✅ Backend Startup Sequence Complete!")
+    print("[OK] Backend Startup Sequence Complete!")
     sys.stdout.flush()
     yield
     
@@ -59,21 +64,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration - Updated to avoid Startup Crash with '*'
-default_origins = "https://trade-yantra-pwa-3llk.vercel.app,http://localhost:5173"
-allowed_origins_str = os.getenv("CORS_ORIGINS", default_origins)
-
-if allowed_origins_str == "*":
-    allowed_origins = ["*"]
-    allow_all_credentials = False # Starlette requirement
-else:
-    allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
-    allow_all_credentials = True
-
+# CORS Configuration - PERMISSIVE DEBUG MODE
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=allow_all_credentials,
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

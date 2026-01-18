@@ -33,30 +33,35 @@ class CreateAlertRequest(BaseModel):
 
 class GenerateAlertsRequest(BaseModel):
     session_id: str
-    symbol: str  # Required now
-    date: str    # "YYYY-MM-DD"
+    client_id: Optional[str] = None
+    symbol: str
+    date: str
     start_time: str = "09:15"
     end_time: str = "15:30"
     is_custom_range: bool = False
-    levels: List[str] = ["High", "Low"] # Default targets
-    token: str = None  # Optional: manually provide token (for indices)
-    exchange: str = None # Optional: manually provide exchange (for indices)
+    levels: List[str] = ["High", "Low"]
+    token: Optional[str] = None
+    exchange: Optional[str] = None
 
 class DeleteAlertRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
     alert_id: str
 
 class PauseRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
     paused: bool
 
 class GenerateBulkAlertsRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
     date: str    # "YYYY-MM-DD"
     start_time: str = "09:15"
     end_time: str = "15:30"
     is_custom_range: bool = False
     levels: List[str] = ["High", "Low", "R1", "S1"]  # Default targets
+
 
 @router.get("/{session_id}")
 async def get_alerts(session_id: str, client_id: Optional[str] = None):
@@ -119,7 +124,7 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
     """
     Generate High/Low alerts for a specific stock
     """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
@@ -181,7 +186,7 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
     # CRITICAL: Save session to database after generating alerts
     if count > 0:
         session_manager.save_session(req.session_id)
-        print(f"✅ Saved {count} new alerts to database for session {req.session_id}")
+        print(f"[OK] Saved {count} new alerts to database for session {req.session_id}")
             
     print(f"DEBUG: Successfully added {count} alerts: {[a['price'] for a in added_alerts]}")
     
@@ -208,7 +213,7 @@ async def delete_alert(req: DeleteAlertRequest):
     """
     Delete an alert
     """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
@@ -228,14 +233,45 @@ async def delete_alert(req: DeleteAlertRequest):
 
 class ClearAllAlertsRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
+
+class DeleteMultipleAlertsRequest(BaseModel):
+    session_id: str
+    client_id: Optional[str] = None
+    alert_ids: List[str]
+
+@router.post("/delete-multiple")
+async def delete_multiple_alerts(req: DeleteMultipleAlertsRequest):
+    """
+    Delete multiple alerts at once
+    """
+    print(f"[DEBUG] Delete Multiple Alerts Request: SID={req.session_id}, CID={req.client_id}, Count={len(req.alert_ids)}")
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    initial_len = len(session.alerts)
+    session.alerts = [a for a in session.alerts if a['id'] not in req.alert_ids]
+    deleted_count = initial_len - len(session.alerts)
+    
+    # Save session
+    session_manager.save_session(req.session_id)
+    
+    return {
+        "success": True,
+        "message": f"Deleted {deleted_count} alerts",
+        "count": deleted_count
+    }
 
 @router.delete("/clear-all")
 async def clear_all_alerts(req: ClearAllAlertsRequest):
     """
     Delete all alerts at once
     """
-    session = session_manager.get_session(req.session_id)
+    print(f"[DEBUG] Clear All Alerts Request: SID={req.session_id}, CID={req.client_id}")
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
+        print(f"[ERROR] Clear All: Session {req.session_id} not found (Client: {req.client_id})")
         raise HTTPException(status_code=404, detail="Session not found")
     
     count = len(session.alerts)
@@ -255,7 +291,7 @@ async def toggle_pause(req: PauseRequest):
     """
     Pause or resume alert monitoring
     """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
@@ -275,7 +311,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     """
     Generate High/Low alerts for ALL stocks in watchlist
     """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
@@ -290,6 +326,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     print(f"DEBUG: Date={req.date}, Levels={req.levels}")
     
     total_alerts = 0
+    total_duplicates = 0
     results = []
     
     for stock in session.watchlist:
@@ -299,7 +336,8 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
             
             # RATE LIMIT: Angel One allows ~3 high-level API calls per sec
             # We add a small sleep to prevent "Too many requests" errors
-            await asyncio.sleep(0.35) 
+            # Increased to 0.45s to be safer during bulk operations
+            await asyncio.sleep(0.45) 
             
             new_alert_data = generate_high_low_alerts(
                 smart_api=session.smart_api,
@@ -313,11 +351,12 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
             )
             
             if not new_alert_data:
-                print(f"⚠️ No levels found for {symbol} on {req.date}")
+                print(f"[WARN] No levels found for {symbol} on {req.date}")
                 results.append({"symbol": symbol, "success": False, "error": "No data returned from API"})
                 continue
 
             stock_alerts_count = 0
+            stock_duplicates_count = 0
             
             for alert_data in new_alert_data:
                 # Filter by selected levels
@@ -332,7 +371,9 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     for a in session.alerts
                 )
                 
-                if not is_duplicate:
+                if is_duplicate:
+                    stock_duplicates_count += 1
+                else:
                     alert = create_alert(
                         symbol=symbol,
                         token=token,
@@ -344,28 +385,26 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     stock_alerts_count += 1
             
             total_alerts += stock_alerts_count
+            total_duplicates += stock_duplicates_count
             results.append({
                 "symbol": symbol,
                 "success": True,
-                "count": stock_alerts_count
+                "count": stock_alerts_count,
+                "duplicates": stock_duplicates_count
             })
+
             
             print(f"DEBUG: {symbol} - Successfully generated {stock_alerts_count} alerts")
             
         except Exception as e:
             logger.error(f"Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}", exc_info=True)
-            print(f"❌ ERROR: Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}")
+            print(f"[ERROR] Bulk generation failed for {stock.get('symbol', 'Unknown')}: {e}")
             results.append({
                 "symbol": stock.get('symbol', 'Unknown'),
                 "success": False,
                 "error": str(e)
             })
     
-    # CRITICAL: Save session to database after bulk generating alerts
-    if total_alerts > 0:
-        session_manager.save_session(req.session_id)
-        print(f"✅ Saved {total_alerts} bulk alerts to database for session {req.session_id}")
-            
     # Create log entry
     if total_alerts > 0:
         log_entry = {
@@ -375,15 +414,20 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
         }
         session.logs.insert(0, log_entry)
         session_manager.save_session(req.session_id)
+    else:
+        print(f"[INFO] Bulk generation finished: 0 new alerts created (Likely all duplicates or no data)")
     
     return {
         "success": True,
-        "message": f"Generated {total_alerts} alerts for {len(session.watchlist)} stocks",
+        "message": f"Generated {total_alerts} alerts ({total_duplicates} skipped as duplicates)",
         "total_alerts": total_alerts,
+        "total_duplicates": total_duplicates,
         "total_stocks": len(session.watchlist),
         "alerts": session.alerts, # Return FULL list for instant sync
         "results": results
     }
+
+
 
 @router.get("/logs/{session_id}")
 async def get_logs(session_id: str, client_id: Optional[str] = None):

@@ -5,7 +5,7 @@ import LogsTab from './LogsTab';
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
-import PaperPositions from './PaperPositions';
+import TradesTab from './TradesTab';
 import toast from 'react-hot-toast';
 
 function Dashboard({
@@ -44,8 +44,6 @@ function Dashboard({
         return 'dark';
     });
 
-    // ... existing useEffect ...
-
     useEffect(() => {
         localStorage.setItem('trade_yantra_theme', theme);
         if (theme === 'light') {
@@ -76,7 +74,7 @@ function Dashboard({
                     <div className="flex items-center gap-3">
                         <img src="/logo.png" alt="Logo" className="w-8 h-8 rounded-lg shadow-lg" />
                         <div>
-                            <h1 className="text-xl font-bold text-white">Trade Yantra</h1>
+                            <h1 className="text-xl font-bold text-[var(--text-primary)]">Trade Yantra</h1>
                             <p className="text-xs text-gray-400">Client: {session.clientId}</p>
                         </div>
                     </div>
@@ -147,7 +145,7 @@ function Dashboard({
                 {/* Market Indices (Sticky at top of content or just below header) */}
                 <div className="px-2 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
                     <MarketOverview
-                        sessionId={session.sessionId}
+                        sessionId={session.sessionId || session.session_id}
                         isVisible={isVisible}
                         onAlertClick={handleIndexAlertClick}
                     />
@@ -166,8 +164,8 @@ function Dashboard({
                 )}
                 {activeTab === 'alerts' && (
                     <AlertsTab
-                        clientId={session.clientId}
-                        sessionId={session.sessionId}
+                        clientId={session.clientId || session.client_id}
+                        sessionId={session.sessionId || session.session_id}
                         watchlist={watchlist}
                         alerts={alerts}
                         setAlerts={setAlerts}
@@ -184,8 +182,8 @@ function Dashboard({
                     <LogsTab logs={logs} />
                 )}
                 {activeTab === 'paper' && (
-                    <PaperPositions
-                        sessionId={session.sessionId}
+                    <TradesTab
+                        sessionId={session.sessionId || session.session_id}
                         watchlist={watchlist}
                         trades={paperTrades}
                         setTrades={setPaperTrades}
@@ -208,7 +206,7 @@ function Dashboard({
                         className={`flex flex-col items-center justify-center w-full h-full ${activeTab === 'paper' ? 'text-[#667EEA]' : 'text-gray-400'}`}
                     >
                         <span className="text-xl">💰</span>
-                        <span className="text-xs mt-1">Paper</span>
+                        <span className="text-xs mt-1">Trades</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('alerts')}

@@ -162,7 +162,7 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
                                     </div>
 
                                     <div className="flex items-baseline gap-2">
-                                        <span className={`text-lg font-bold ${isPositive ? 'text-[var(--text-primary)]' : 'text-[var(--text-primary)]'}`}>
+                                        <span className="text-lg font-bold text-[var(--text-primary)]">
                                             {index.ltp?.toLocaleString('en-IN') || '0.00'}
                                         </span>
                                     </div>
@@ -186,7 +186,7 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
                             initial={{ scale: 0.9, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.9, opacity: 0 }}
-                            className="bg-[#1A202C] dark:bg-[#1A202C] bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-[var(--border-color)] overflow-hidden"
+                            className="bg-[var(--bg-card)] w-full max-w-lg rounded-2xl shadow-xl border border-[var(--border-color)] overflow-hidden"
                         >
                             <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
                                 <div>
@@ -219,7 +219,7 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
 
                             <div className="p-4">
                                 {/* TradingView Widget */}
-                                <div className="w-full h-64 bg-black rounded-xl overflow-hidden border border-[var(--border-color)]">
+                                <div className="w-full h-64 bg-[var(--bg-primary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
                                     <iframe
                                         key={selectedChartIndex.token}
                                         src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76230&symbol=${encodeURIComponent(getTradingViewSymbol(selectedChartIndex.symbol, selectedChartIndex.exch))}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FKolkata&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=in&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=${encodeURIComponent(getTradingViewSymbol(selectedChartIndex.symbol, selectedChartIndex.exch))}`}

@@ -13,249 +13,166 @@ import time
 
 router = APIRouter(prefix="/api/watchlist", tags=["Watchlist"])
 
-@router.get("/debug/all")
-async def debug_all():
-    """
-    Debug: Return all sessions and their watchlists
-    """
-    sessions = session_manager.get_all_sessions()
-    debug_data = {}
-    for sid, s in sessions.items():
-        debug_data[sid] = {
-            "client_id": s.client_id,
-            "watchlist": s.watchlist,
-            "alerts_count": len(s.alerts)
-        }
-    return debug_data
-
 class AddStockRequest(BaseModel):
     session_id: str
-    client_id: Optional[str] = None # For robust Self-Healing
+    client_id: Optional[str] = None
     symbol: str
     token: str
     exch_seg: str = "NSE"
 
 class RemoveStockRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
     token: str
 
 class RefreshRequest(BaseModel):
     session_id: str
+    client_id: Optional[str] = None
 
 @router.get("/{session_id}")
 async def get_watchlist(session_id: str, client_id: Optional[str] = None):
-    """
-    Get user's watchlist
-    """
-    print(f"🔍 Getting watchlist for session {session_id} (Client: {client_id})")
-    session = session_manager.get_session(session_id, client_id=client_id)
-    if not session:
-        print(f"❌ Session {session_id} not found for watchlist")
-        # Return empty watchlist but with error info to help frontend
-        return {
-            "error": "Session not found",
-            "session_id": session_id,
-            "watchlist": []
-        }
-    
-    return {
-        "watchlist": session.watchlist
-    }
+    try:
+        session = session_manager.get_session(session_id, client_id=client_id)
+        if not session:
+            return {"watchlist": []}
+        return {"watchlist": session.watchlist}
+    except:
+        return {"watchlist": []}
 
 @router.post("/add")
 async def add_stock(req: AddStockRequest):
-    """
-    Add stock to watchlist
-    Fetches initial LTP and reference data, then subscribes to WebSocket
-    """
-    # Use client_id for robust self-healing during add
-    session = session_manager.get_session(req.session_id, client_id=req.client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    
-    # Check if already exists
-    if any(s['token'] == req.token for s in session.watchlist):
-        raise HTTPException(status_code=400, detail="Stock already in watchlist")
-    
-    # Create stock entry
-    stock_data = {
-        "symbol": req.symbol,
-        "token": req.token,
-        "exch_seg": req.exch_seg,
-        "ltp": 0.0,
-        "pdc": 0.0,
-        "pdh": 0.0,
-        "pdl": 0.0,
-        "loading": True
-    }
-    
-    session.watchlist.append(stock_data)
-    
-    # Subscribe to WebSocket if connected
-    ws_manager.subscribe_token(req.session_id, req.token, stock_data)
-    
-    # Fetch data in background
-    def fetch_data():
-        # Use the authenticated SmartAPI instance from session
-        smart_api = session.smart_api
-        if not smart_api:
-            print(f"No SmartAPI instance in session for {req.symbol}")
-            stock_data['loading'] = False
-            return
+    try:
+        session = session_manager.get_session(req.session_id, client_id=req.client_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
         
-        # Fetch LTP
-        ltp = angel_service.fetch_ltp(smart_api, req.symbol, req.token, exchange=req.exch_seg)
-        if ltp:
-            stock_data['ltp'] = ltp
+        if any(s['token'] == req.token for s in session.watchlist):
+            raise HTTPException(status_code=400, detail="Stock already in watchlist")
         
-        # 1. Fetch High/Low for the session's selected date (Strategy Reference)
-        print(f"DEBUG: Background fetch for {req.symbol} High/Low (Date: {session.selected_date})...")
-        pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
-            smart_api, req.token, exchange=req.exch_seg, specific_date=session.selected_date
-        )
+        stock_data = {
+            "symbol": req.symbol,
+            "token": req.token,
+            "exch_seg": req.exch_seg,
+            "ltp": 0.0,
+            "pdc": 0.0,
+            "pdh": 0.0,
+            "pdl": 0.0,
+            "loading": True
+        }
         
-        # 2. Fetch Actual Previous Day Close (Daily Change Reference)
-        # We pass None for specific_date to get the most recent trading day
-        print(f"DEBUG: Background fetch for {req.symbol} Actual PDC...")
-        _, _, pdc = angel_service.fetch_previous_day_high_low(
-            smart_api, req.token, exchange=req.exch_seg, specific_date=None
-        )
+        session.watchlist.append(stock_data)
+        ws_manager.subscribe_token(req.session_id, req.token, stock_data)
+        
+        def fetch_data():
+            try:
+                smart_api = session.smart_api
+                if not smart_api: return
+                
+                ltp = angel_service.fetch_ltp(smart_api, req.symbol, req.token, exchange=req.exch_seg)
+                if ltp: stock_data['ltp'] = ltp
+                
+                pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
+                    smart_api, req.token, exchange=req.exch_seg, specific_date=session.selected_date
+                )
+                _, _, pdc = angel_service.fetch_previous_day_high_low(
+                    smart_api, req.token, exchange=req.exch_seg, specific_date=None
+                )
 
-        print(f"DEBUG: Background fetch for {req.symbol} result: PDH={pdh}, PDL={pdl}, PDC={pdc}")
-        if pdh is not None: stock_data['pdh'] = pdh
-        if pdl is not None: stock_data['pdl'] = pdl
-        if pdc is not None: stock_data['pdc'] = pdc
+                if pdh is not None: stock_data['pdh'] = pdh
+                if pdl is not None: stock_data['pdl'] = pdl
+                if pdc is not None: stock_data['pdc'] = pdc
+                
+                stock_data['loading'] = False
+                session_manager.save_session(req.session_id)
+            except:
+                pass
         
-        stock_data['loading'] = False
-        # Save session after update
+        threading.Thread(target=fetch_data, daemon=True).start()
         session_manager.save_session(req.session_id)
-    
-    threading.Thread(target=fetch_data, daemon=True).start()
-    
-    # Save session
-    session_manager.save_session(req.session_id)
-    print(f"✅ Watchlist modification saved for {req.session_id}")
-    
-    return {
-        "success": True,
-        "message": f"Added {req.symbol} to watchlist",
-        "stock": stock_data
-    }
+        
+        return {
+            "success": True,
+            "message": f"Added {req.symbol} to watchlist",
+            "stock": stock_data
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 class SetDateRequest(BaseModel):
     session_id: str
-    date: str # YYYY-MM-DD
+    client_id: Optional[str] = None
+    date: str
 
 @router.post("/set-date")
 async def set_watchlist_date(req: SetDateRequest):
-    """
-    Set the reference date for High/Low calculations in the watchlist
-    """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     session.selected_date = req.date
     session_manager.save_session(req.session_id)
-    
-    return {
-        "success": True,
-        "message": f"Watchlist date set to {req.date}"
-    }
+    return {"success": True, "message": f"Watchlist date set to {req.date}"}
 
 @router.delete("/remove")
 async def remove_stock(req: RemoveStockRequest):
-    """
-    Remove stock from watchlist
-    """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Remove from watchlist
     initial_len = len(session.watchlist)
     session.watchlist = [s for s in session.watchlist if s['token'] != req.token]
     
     if len(session.watchlist) == initial_len:
-        raise HTTPException(status_code=404, detail="Stock not found in watchlist")
+        raise HTTPException(status_code=404, detail="Stock not found")
     
-    # Unsubscribe from WebSocket
     ws_manager.unsubscribe_token(req.session_id, req.token)
-    
-    # Remove related alerts
     session.alerts = [a for a in session.alerts if a['token'] != req.token]
-    
-    # Save session
     session_manager.save_session(req.session_id)
     
-    return {
-        "success": True,
-        "message": f"Removed stock from watchlist"
-    }
+    return {"success": True, "message": "Removed stock"}
 
 @router.post("/refresh")
 async def refresh_watchlist(req: RefreshRequest):
-    """
-    Refresh LTP and High/Low data for all stocks
-    """
-    session = session_manager.get_session(req.session_id)
+    session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     def refresh_all():
-        smart_api = session.smart_api
-        if not smart_api:
-            print("No SmartAPI instance in session for refresh")
-            return
-        
-        for stock in session.watchlist:
-            stock['loading'] = True
+        try:
+            smart_api = session.smart_api
+            if not smart_api: return
             
-            # Fetch LTP
-            exch = stock.get('exch_seg', 'NSE')
-            ltp = angel_service.fetch_ltp(smart_api, stock['symbol'], stock['token'], exchange=exch)
-            if ltp:
-                stock['ltp'] = ltp
-            
-            # 1. Fetch High/Low for the session's selected date (Strategy Reference)
-            pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
-                smart_api, stock['token'], exchange=exch, specific_date=session.selected_date
-            )
-            
-            # 2. Fetch Actual Previous Day Close (Daily Change Reference) 
-            _, _, pdc = angel_service.fetch_previous_day_high_low(
-                smart_api, stock['token'], exchange=exch, specific_date=None
-            )
+            for stock in session.watchlist:
+                try:
+                    stock['loading'] = True
+                    exch = stock.get('exch_seg', 'NSE')
+                    ltp = angel_service.fetch_ltp(smart_api, stock['symbol'], stock['token'], exchange=exch)
+                    if ltp: stock['ltp'] = ltp
+                    
+                    pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
+                        smart_api, stock['token'], exchange=exch, specific_date=session.selected_date
+                    )
+                    _, _, pdc = angel_service.fetch_previous_day_high_low(
+                        smart_api, stock['token'], exchange=exch, specific_date=None
+                    )
 
-            if pdh is not None: stock['pdh'] = pdh
-            if pdl is not None: stock['pdl'] = pdl
-            if pdc is not None: stock['pdc'] = pdc
-            
-            stock['loading'] = False
-            # Small sleep to respect rate limits during bulk refresh
-            time.sleep(0.5)
-            
-        # Save session after all updates
-        session_manager.save_session(req.session_id)
+                    if pdh is not None: stock['pdh'] = pdh
+                    if pdl is not None: stock['pdl'] = pdl
+                    if pdc is not None: stock['pdc'] = pdc
+                    stock['loading'] = False
+                    time.sleep(0.5)
+                except:
+                    stock['loading'] = False
+            session_manager.save_session(req.session_id)
+        except:
+            pass
     
     threading.Thread(target=refresh_all, daemon=True).start()
-    
-    return {
-        "success": True,
-        "message": "Refreshing watchlist data in background"
-    }
+    return {"success": True, "message": "Refreshing in background"}
 
 @router.get("/search/{query}")
 async def search_symbols(query: str):
-    """
-    Search for stock symbols
-    """
-    if len(query) < 3:
-        return {"results": []}
-    
-    results = angel_service.search_symbols(query)
-    
-    return {
-        "results": results
-    }
-
+    if len(query) < 3: return {"results": []}
+    return {"results": angel_service.search_symbols(query)}

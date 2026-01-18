@@ -53,7 +53,6 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                 ws_manager.broadcast_callbacks[session_id] = broadcast_callback
         
         if not is_running:
-            print(f"🚀 Starting new Angel One WebSocket for {session_id}")
             ws_manager.start_websocket(
                 session_id,
                 session.jwt_token,
@@ -63,8 +62,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                 session.watchlist,
                 broadcast_callback
             )
+            print(f"[INFO] Starting new Angel One WebSocket for {session_id}")
         else:
-            print(f"🔄 Reusing existing Angel One WebSocket for {session_id}")
+            print(f"[INFO] Reusing existing Angel One WebSocket for {session_id}")
             # Immediately send status and last prices if possible
             await websocket.send_json({"type": "status", "data": {"status": "CONNECTED"}})
     

@@ -86,3 +86,6 @@ test_results.log
 # User Data
 backend/data/
 sessions.json
+
+.vercel
+.env*.local

@@ -54,7 +54,7 @@ def login(req: LoginRequest):
     # 2. Create local session
     create_start = time.time()
     session = session_manager.create_session(
-        client_id=req.client_id,
+        client_id=req.client_id.upper(),
         jwt_token=tokens['jwt_token'],
         feed_token=tokens['feed_token'],
         api_key=req.api_key
@@ -75,18 +75,18 @@ def login(req: LoginRequest):
         try:
             db_session = persistence_service.get_session_by_session_id(session.session_id)
             if db_session and db_session.get('client_id') == req.client_id:
-                print(f"✅ Session {session.session_id} verified in database")
-                print(f"✅ Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts")
+                print(f"[OK] Session {session.session_id} verified in database")
+                print(f"[OK] Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts")
                 break
             elif attempt < max_retries - 1:
-                print(f"⚠️ Session not found in database, retry {attempt + 1}/{max_retries}")
+                print(f"[WARN] Session not found in database, retry {attempt + 1}/{max_retries}")
                 time.sleep(retry_delay)
                 session_manager.save_session(session.session_id)
         except Exception as e:
-            print(f"⚠️ Database verification warning (attempt {attempt + 1}/{max_retries}): {e}")
+            print(f"[WARN] Database verification warning (attempt {attempt + 1}/{max_retries}): {e}")
             if attempt == max_retries - 1:
                 # Don't fail login - session is in memory
-                print(f"⚠️ Proceeding with in-memory session (database save will retry in background)")
+                print(f"[WARN] Proceeding with in-memory session (database save will retry in background)")
                 pass
     
     total_time = time.time() - start_time
@@ -104,8 +104,11 @@ async def logout(req: LogoutRequest):
     Logout and clear session
     """
     session = session_manager.get_session(req.session_id)
-    if session and session.smart_api:
-        angel_service.logout(session.smart_api)
+    if session:
+        # Final save to persist any recent P&L or logs
+        session_manager.save_session(req.session_id)
+        if session.smart_api:
+            angel_service.logout(session.smart_api)
         
     success = session_manager.delete_session(req.session_id)
     
@@ -117,23 +120,33 @@ async def logout(req: LogoutRequest):
         message="Logged out successfully"
     )
 
-@router.get("/session/{session_id}")
-async def check_session(session_id: str, client_id: Optional[str] = None):
+@router.get("/verify/{session_id}")
+async def verify_session(session_id: str, client_id: Optional[str] = None):
     """
     Check if session is valid and restore from DB if needed.
     Enhanced with client_id for robust Self-Healing.
     """
-    print(f"🔍 Verifying session: {session_id} (Client: {client_id})")
+    print(f"[INFO] Verifying session: {session_id} (Client: {client_id})")
     
     # get_session handles self-healing using client_id if provided
     session = session_manager.get_session(session_id, client_id=client_id)
     
     if not session:
-        print(f"❌ Session {session_id} could not be healed")
-        raise HTTPException(status_code=404, detail="Session not found - please login again")
+        # One last desperate attempt to heal from persistence directly
+        if client_id:
+             from services.persistence_service import persistence_service
+             restored = persistence_service.get_latest_session_by_client_id(client_id)
+             if restored:
+                 # Manually trigger healing logic if session_manager missed it
+                 session = session_manager.get_session(session_id, client_id) 
+        
+    if not session:
+        print(f"[ERROR] Session {session_id} could not be healed")
+        raise HTTPException(status_code=404, detail="Session expired or invalid")
     
-    print(f"✅ Verified session for client {session.client_id}")
+    print(f"[OK] Verified session for client {session.client_id}")
     return {
+        "success": True,
         "valid": True,
         "client_id": session.client_id,
         "created_at": session.created_at.isoformat(),

@@ -57,19 +57,21 @@ function App() {
 
   // Sync reference date to backend and refresh watchlist
   useEffect(() => {
-    if (!session) return;
+    const sid = session?.sessionId || session?.session_id;
+    const cid = session?.clientId || session?.client_id;
+    if (!sid) return;
     const syncAndRefresh = async () => {
       try {
         console.log('📅 Syncing reference date to backend:', referenceDate);
-        await setWatchlistDate(session.sessionId, referenceDate);
+        await setWatchlistDate(sid, referenceDate, cid);
         // Refresh watchlist to get new High/Low for this date
-        await refreshWatchlist(session.sessionId);
+        await refreshWatchlist(sid, cid);
       } catch (err) {
         console.error('Failed to sync date or refresh watchlist:', err);
       }
     };
     syncAndRefresh();
-  }, [referenceDate, session?.sessionId]);
+  }, [referenceDate, session?.sessionId, session?.session_id]);
 
 
   useEffect(() => {
@@ -90,7 +92,7 @@ function App() {
 
     // Use current session data from getSession() if not passed to ensure we have clientId
     const currentSession = session || getSession();
-    const clientId = currentSession?.clientId;
+    const clientId = currentSession?.clientId || currentSession?.client_id;
 
     try {
       const [alertsData, logsData, wlData, paperData] = await Promise.all([
@@ -107,33 +109,19 @@ function App() {
         healing: !!clientId
       });
 
-      // --- STATELESS PROTECTION ---
+      // --- DATA SYNC ---
       // If server returns data, it's the source of truth.
-      // If server returns EMPTY, but we have local data, KEEP local data (server might have restarted/lost state)
-
       if (Array.isArray(alertsData.alerts)) {
-        if (alertsData.alerts.length > 0) {
-          setAlerts(alertsData.alerts);
-        } else if (isManualSync) {
-          // Only clear alerts on manual sync if server is empty
-          setAlerts([]);
-        }
+        setAlerts(alertsData.alerts);
         setIsPaused(alertsData.is_paused || false);
       }
 
       if (Array.isArray(logsData.logs)) {
-        if (logsData.logs.length > 0) {
-          setLogs(logsData.logs);
-        }
+        setLogs(logsData.logs);
       }
 
       if (Array.isArray(wlData.watchlist)) {
-        if (wlData.watchlist.length > 0) {
-          setWatchlist(wlData.watchlist);
-        } else if (isManualSync && watchlist.length > 0) {
-          // Don't clear watchlist on accidental empty server response unless manual
-          setWatchlist([]);
-        }
+        setWatchlist(wlData.watchlist);
       }
 
       if (Array.isArray(paperData.trades)) {
@@ -258,10 +246,12 @@ function App() {
       // Set local state temporarily for fast UI load
       setSessionState(savedSession);
 
+      const sid = savedSession.sessionId || savedSession.session_id;
+      const cid = savedSession.clientId || savedSession.client_id;
       // Verify with backend
       import('./services/api').then(({ checkSession }) => {
-        console.log('🔍 Verifying background session:', savedSession.sessionId);
-        checkSession(savedSession.sessionId, savedSession.clientId).then((data) => {
+        console.log('🔍 Verifying background session:', sid);
+        checkSession(sid, cid).then((data) => {
           console.log('✅ Session verified at:', new Date().toLocaleTimeString());
         }).catch((err) => {
           const status = err.response?.status;
@@ -280,11 +270,11 @@ function App() {
         console.error('❌ Critical failure during session check:', importErr);
       });
 
-      connectWebSocket(savedSession.sessionId, savedSession.clientId);
+      connectWebSocket(sid, cid);
       requestNotificationPermission();
 
       // Silent restore on refresh (no toast)
-      loadData(savedSession.sessionId, false);
+      loadData(sid, false);
     }
 
     // CROSS-TAB SYNC: Detect if logged out in another tab
@@ -325,10 +315,12 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (sessionData) => {
+    const sid = sessionData.sessionId || sessionData.session_id;
+    const cid = sessionData.clientId || sessionData.client_id;
     setSession(sessionData); // Saves to storage via api.js setSession
     setSessionState(sessionData);
-    loadData(sessionData.sessionId);
-    connectWebSocket(sessionData.sessionId, sessionData.clientId);
+    loadData(sid);
+    connectWebSocket(sid, cid);
 
     // Request notification permission
     requestNotificationPermission();
@@ -349,7 +341,7 @@ function App() {
     try {
       if (session) {
         import('./services/api').then(({ logout }) => {
-          logout(session.sessionId).catch(e => console.warn('Backend logout failed:', e));
+          logout(session.sessionId || session.session_id).catch(e => console.warn('Backend logout failed:', e));
         });
       }
     } catch (err) {
