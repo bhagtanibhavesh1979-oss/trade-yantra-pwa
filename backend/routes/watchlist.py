@@ -115,7 +115,7 @@ async def set_watchlist_date(req: SetDateRequest):
     session_manager.save_session(req.session_id)
     return {"success": True, "message": f"Watchlist date set to {req.date}"}
 
-@router.delete("/remove")
+@router.post("/remove")
 async def remove_stock(req: RemoveStockRequest):
     session = session_manager.get_session(req.session_id, client_id=req.client_id)
     if not session:

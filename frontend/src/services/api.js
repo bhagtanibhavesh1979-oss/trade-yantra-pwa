@@ -86,12 +86,10 @@ export const addToWatchlist = async (sessionId, symbol, token, exchSeg, clientId
 };
 
 export const removeFromWatchlist = async (sessionId, token, clientId = null) => {
-    const response = await api.delete('/api/watchlist/remove', {
-        data: {
-            session_id: sessionId,
-            client_id: clientId,
-            token: token,
-        },
+    const response = await api.post('/api/watchlist/remove', {
+        session_id: sessionId,
+        client_id: clientId,
+        token: token,
     });
     return response.data;
 };
