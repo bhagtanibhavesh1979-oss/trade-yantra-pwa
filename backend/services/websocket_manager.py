@@ -20,7 +20,10 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
         return
 
     triggered_alerts = []
-    for alert in list(session.alerts):
+    # Make a copy to iterate safely
+    active_alerts = list(session.alerts)
+    
+    for alert in active_alerts:
         if str(alert['token']) == str(stock['token']) and alert.get('active', True):
             if check_alert_trigger(alert, stock):
                 log_entry = create_alert_log(stock, alert)
@@ -31,19 +34,78 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
     if triggered_alerts:
         if session.auto_paper_trade:
             from services.paper_service import paper_service
+            
+            # --- Helper to calculate Diff ---
+            # We use both remaining active session.alerts AND the triggered ones to find context
+            def calculate_diff_and_target(trigger_price, trigger_type, all_alerts):
+                diff = 0.0
+                
+                # 1. Try to find diff from High/Low
+                # We need to parse types to find pairs
+                # Types: AUTO_S1...S6, AUTO_R1...R6, AUTO_HIGH, AUTO_LOW
+                
+                # Simplify: Just group by type
+                levels = {}
+                for a in all_alerts:
+                    if str(a['token']) == str(stock['token']) and str(a.get('type','')).startswith('AUTO_'):
+                        levels[a['type']] = a['price']
+                
+                # Add current trigger if missing (it implies we know its price)
+                levels[trigger_type] = trigger_price
+
+                # Try to calculate Diff
+                if 'AUTO_HIGH' in levels and 'AUTO_LOW' in levels:
+                    diff = (levels['AUTO_HIGH'] - levels['AUTO_LOW']) / 2.0
+                elif 'AUTO_R1' in levels and 'AUTO_HIGH' in levels:
+                    diff = levels['AUTO_R1'] - levels['AUTO_HIGH']
+                elif 'AUTO_LOW' in levels and 'AUTO_S1' in levels:
+                    diff = levels['AUTO_LOW'] - levels['AUTO_S1']
+                elif 'AUTO_R2' in levels and 'AUTO_R1' in levels:
+                    diff = levels['AUTO_R2'] - levels['AUTO_R1']
+                elif 'AUTO_S1' in levels and 'AUTO_S2' in levels:
+                    diff = levels['AUTO_S1'] - levels['AUTO_S2']
+                
+                if diff <= 0: return None
+                
+                # Calculate Target
+                # S(N) -> +Diff
+                # LOW -> +2*Diff
+                # HIGH -> -2*Diff
+                # R(N) -> -Diff
+                
+                if 'AUTO_S' in trigger_type: return trigger_price + diff
+                if 'AUTO_R' in trigger_type: return trigger_price - diff
+                if trigger_type == 'AUTO_LOW': return trigger_price + (2 * diff)
+                if trigger_type == 'AUTO_HIGH': return trigger_price - (2 * diff)
+                
+                return None
+
+            # Collect all known alerts for this token (Active + Triggered)
+            all_known_alerts = list(session.alerts) + [t['alert'] for t in triggered_alerts]
+
             for triggered in triggered_alerts:
                 alert = triggered['alert']
                 side = None
-                alert_name = str(alert.get('type', '')).upper()
-                if any(x in alert_name for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']):
+                alert_type = str(alert.get('type', '')).upper()
+                
+                # --- Side Determination ---
+                if any(x in alert_type for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']):
                     side = 'BUY'
-                elif any(x in alert_name for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
+                elif any(x in alert_type for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']):
                     side = 'SELL'
                 if not side:
                     if alert.get('condition') == 'BELOW': side = 'BUY'
                     elif alert.get('condition') == 'ABOVE': side = 'SELL'
+                
                 if side:
-                    paper_service.create_virtual_trade(session_id, stock, side, alert_name)
+                    # Determine Target
+                    target_price = None
+                    if alert_type.startswith('AUTO_'):
+                        target_price = calculate_diff_and_target(alert['price'], alert_type, all_known_alerts)
+                        if target_price:
+                            print(f"[AUTO] Calculated Target for {stock['symbol']} ({alert_type}): {target_price:.2f}")
+
+                    paper_service.create_virtual_trade(session_id, stock, side, alert_type, target_price=target_price)
 
         session_manager.save_session(session_id)
         from services.websocket_manager import ws_manager
@@ -68,26 +130,56 @@ class WebSocketManager:
         self.running = True
 
     def _start_heartbeat(self):
+        """Send heartbeats to keep connections alive"""
         consecutive_errors = 0
-        max_errors = 5
+        max_errors = 10  # Increased from 5 to be more lenient
         while self.running:
             try:
-                time.sleep(5)
+                time.sleep(10)  # Heartbeat every 10 seconds
+                
+                # 1. Send Heartbeats
                 with self.lock:
                     active_sessions = list(self.broadcast_callbacks.items())
+                
                 for session_id, callback in active_sessions:
                     try:
                         callback(session_id, {"type": "heartbeat", "data": {"timestamp": time.time()}})
                         consecutive_errors = 0
-                    except:
+                    except Exception as e:
                         consecutive_errors += 1
                         if consecutive_errors >= max_errors:
+                            print(f"[WARN] Removing stale session {session_id} after {max_errors} consecutive errors")
                             with self.lock:
                                 if session_id in self.broadcast_callbacks:
                                     del self.broadcast_callbacks[session_id]
                             consecutive_errors = 0
-            except:
-                time.sleep(5)
+            
+                # 2. Auto-Square Off Check (Run periodically outside the broadcast loop)
+                # Safely copy data needed to check logic without holding lock during execution
+                session_tokens_copy = {}
+                try:
+                    with self.lock:
+                        session_ids = list(self.token_maps.keys())
+                        for sid in session_ids:
+                            # Shallow copy of the token map just for square off checking
+                            session_tokens_copy[sid] = self.token_maps[sid].copy()
+                except Exception:
+                    pass
+
+                # Check square off for each session without holding WS lock
+                # usage of paper_service here is now safe from deadlock with ws_manager.lock
+                if session_tokens_copy:
+                    try:
+                        from services.paper_service import paper_service
+                        for sid, tokens in session_tokens_copy.items():
+                            if tokens:
+                                paper_service.check_and_square_off(sid, tokens)
+                    except Exception as e:
+                        print(f"[ERROR] Auto-Square off check failed: {e}")
+
+            except Exception as e:
+                print(f"[ERROR] Heartbeat thread exception: {e}")
+                time.sleep(10)  # Match the normal sleep interval
 
     def start_websocket(self, session_id: str, jwt_token: str, api_key: str, 
                        client_id: str, feed_token: str, watchlist: List[Dict],

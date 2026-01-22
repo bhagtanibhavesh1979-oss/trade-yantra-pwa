@@ -8,8 +8,8 @@ const getWebSocketUrl = () => {
     // Otherwise detect if we are on localhost or production
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    // Use matching endpoint: ibynqazflq-uc
-    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-uc.a.run.app';
+    // Use matching endpoint: ibynqazflq-as (Asia-South1)
+    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-as.a.run.app';
 };
 
 const WS_BASE_URL = getWebSocketUrl();
@@ -72,11 +72,19 @@ class WebSocketClient {
             this.emit('error', error);
         };
 
-        this.ws.onclose = () => {
-            console.log('WebSocket disconnected');
+        this.ws.onclose = (event) => {
+            console.log('WebSocket disconnected, code:', event.code, 'reason:', event.reason);
             this.stopHeartbeat();
             this.emit('disconnected', { sessionId });
-            this.attemptReconnect();
+
+            // Only auto-reconnect if it wasn't a clean close
+            // Code 1000 = normal closure, don't reconnect  
+            // Code 1001 = going away (page refresh), don't reconnect
+            if (event.code !== 1000 && event.code !== 1001) {
+                this.attemptReconnect();
+            } else {
+                console.log('Clean disconnect, not reconnecting automatically');
+            }
         };
     }
 
@@ -125,24 +133,29 @@ class WebSocketClient {
         this.stopHeartbeat();
         this.lastSeen = Date.now();
 
-        // Ping every 5 seconds to match backend
+        // Ping every 10 seconds to match backend heartbeat  
         this.pingInterval = setInterval(() => {
             if (this.isConnected()) {
-                this.ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+                try {
+                    this.ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+                } catch (err) {
+                    console.error('Failed to send ping:', err);
+                }
             }
-        }, 5000);
+        }, 10000);
 
-        // Dead Man's Switch: Check if we haven't heard from server in 15s
-        // If server is silent for 15s, it's likely dead. Force reconnect.
+        // Watchdog: Only check if truly stale (no data for 90 seconds)
+        // Don't be too aggressive - Angel One might have quiet periods
         this.watchdogInterval = setInterval(() => {
             const idleTime = Date.now() - this.lastSeen;
-            if (idleTime > 15000) {
-                console.warn(`⚠️ Connection stalled (${Math.round(idleTime / 1000)}s). Forcing reconnect...`);
+            // Only reconnect if REALLY stalled (90+ seconds with zero messages)
+            if (idleTime > 90000 && this.isConnected()) {
+                console.warn(`⚠️ Connection appears stalled (${Math.round(idleTime / 1000)}s idle). Reconnecting...`);
                 if (this.ws) {
                     this.ws.close();
                 }
             }
-        }, 5000);
+        }, 30000); // Check every 30 seconds
     }
 
     stopHeartbeat() {
@@ -157,24 +170,28 @@ class WebSocketClient {
     }
 
     attemptReconnect() {
+        // Don't reconnect if we intentionally disconnected
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('Max reconnect attempts reached');
+            console.error('Max reconnect attempts reached or intentional disconnect');
             return;
         }
 
         this.reconnectAttempts++;
-        // Fast reconnect for first 3 attempts (1s), then backoff
+
+        // Progressive backoff: Start fast, then slow down
         let delay;
         if (this.reconnectAttempts <= 3) {
-            delay = 1000;
+            delay = 1000; // First 3: reconnect after 1 second
+        } else if (this.reconnectAttempts <= 10) {
+            delay = 3000; // Next 7: reconnect after 3 seconds
         } else {
-            delay = this.reconnectDelay * (1 + (this.reconnectAttempts * 0.2));
+            delay = 10000; // After that: 10 seconds
         }
 
-        console.log(`Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`);
+        console.log(`Reconnecting... (attempt ${this.reconnectAttempts}) in ${delay}ms`);
 
         setTimeout(() => {
-            if (this.sessionId) {
+            if (this.sessionId && this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.connect(this.sessionId, this.clientId);
             }
         }, delay);
@@ -232,14 +249,16 @@ class WebSocketClient {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 console.log('👀 App visible. Checking connection...');
-                this.checkAndRecover();
+                // Add a small delay to let the system stabilize after visibility change
+                setTimeout(() => this.checkAndRecover(), 2000);
             }
         });
 
         // 2. Reconnect when window gets focus
         window.addEventListener('focus', () => {
             console.log('🎯 App focused. Checking connection...');
-            this.checkAndRecover();
+            // Add a small delay to prevent race conditions
+            setTimeout(() => this.checkAndRecover(), 2000);
         });
 
         // 3. Reconnect when coming back online
@@ -254,15 +273,26 @@ class WebSocketClient {
 
         const idleTime = Date.now() - this.lastSeen;
 
-        // If disconnected OR stalled for more than 10s
-        if (!this.isConnected() || idleTime > 10000) {
-            console.warn(`♻️ Recovering connection... (Status: ${this.isConnected() ? 'Stalled' : 'Disconnected'})`);
-            if (this.ws) {
+        // If truly disconnected (not just idle)
+        if (!this.isConnected()) {
+            console.warn(`♻️ Recovering lost connection...`);
+            if (this.ws && this.ws.readyState !== WebSocket.CLOSED) {
                 this.ws.onclose = null; // Prevent double trigger
                 this.ws.close();
             }
             this.reconnectAttempts = 0; // Fresh start
             this.connect(this.sessionId, this.clientId);
+        } else if (idleTime > 90000) {
+            // Only if REALLY stale and still showing as connected
+            console.warn(`♻️ Connection stale for ${Math.round(idleTime / 1000)}s, refreshing...`);
+            if (this.ws) {
+                this.ws.onclose = null;
+                this.ws.close();
+            }
+            this.reconnectAttempts = 0;
+            this.connect(this.sessionId, this.clientId);
+        } else {
+            console.log('Connection healthy, no recovery needed');
         }
     }
 }

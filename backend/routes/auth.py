@@ -99,7 +99,7 @@ def login(req: LoginRequest):
     )
 
 @router.post("/logout", response_model=LogoutResponse)
-async def logout(req: LogoutRequest):
+def logout(req: LogoutRequest):
     """
     Logout and clear session
     """
@@ -121,7 +121,7 @@ async def logout(req: LogoutRequest):
     )
 
 @router.get("/verify/{session_id}")
-async def verify_session(session_id: str, client_id: Optional[str] = None):
+def verify_session(session_id: str, client_id: Optional[str] = None):
     """
     Check if session is valid and restore from DB if needed.
     Enhanced with client_id for robust Self-Healing.

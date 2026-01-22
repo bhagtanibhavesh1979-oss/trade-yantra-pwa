@@ -30,7 +30,7 @@ class RefreshRequest(BaseModel):
     client_id: Optional[str] = None
 
 @router.get("/{session_id}")
-async def get_watchlist(session_id: str, client_id: Optional[str] = None):
+def get_watchlist(session_id: str, client_id: Optional[str] = None):
     try:
         session = session_manager.get_session(session_id, client_id=client_id)
         if not session:

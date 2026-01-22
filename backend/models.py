@@ -13,6 +13,7 @@ class UserSession(Base):
     api_key = Column(String)
     is_paused = Column(Boolean, default=False)
     auto_paper_trade = Column(Boolean, default=False) # Enable virtual trades on alerts
+    virtual_balance = Column(Float, default=100000.0) # Virtual wallet balance
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow)
 

@@ -72,6 +72,14 @@ async def set_stop_loss(session_id: str, trade_id: str, req: SetStopLossRequest)
     paper_service.set_stop_loss(session_id, trade_id, req.sl_price)
     return {"status": "success", "stop_loss": req.sl_price}
 
+class SetTargetRequest(BaseModel):
+    target_price: float
+
+@router.post("/target/{session_id}/{trade_id}")
+async def set_target(session_id: str, trade_id: str, req: SetTargetRequest):
+    paper_service.set_target(session_id, trade_id, req.target_price)
+    return {"status": "success", "target_price": req.target_price}
+
 # --- NEW FEATURES ---
 
 class ManualTradeRequest(BaseModel):
@@ -105,7 +113,17 @@ async def export_trades(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    trades = session.paper_trades
+    # Combine active session trades with historical ones
+    from services.persistence_service import persistence_service
+    historical_trades = persistence_service.get_trade_history(session.client_id)
+    
+    # Merge logic: use trade ID to avoid duplicates
+    trades_map = {t['id']: t for t in historical_trades}
+    for t in session.paper_trades:
+        trades_map[t['id']] = t
+        
+    # Sort by created_at descending
+    trades = sorted(trades_map.values(), key=lambda x: x.get('created_at', ''), reverse=True)
     
     # Create CSV in memory
     output = io.StringIO()

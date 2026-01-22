@@ -133,22 +133,23 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
 
     token = req.token
     exchange = req.exchange or "NSE"
+    
+    # 1. Date Validation/Healing
+    gen_date = req.date
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    
+    if not gen_date or gen_date < "2026-01-01":
+        print(f"[WARN] Requested date '{gen_date}' is missing or too old. Defaulting to today: {today_str}")
+        gen_date = today_str
 
-    # If token not provided, look up in watchlist
-    if not token:
-        stock = next((s for s in session.watchlist if s['symbol'] == req.symbol), None)
-        if not stock:
-            raise HTTPException(status_code=404, detail="Stock not in watchlist and no token provided")
-        token = stock['token']
-
-    print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) on {req.date}")
+    print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) on {gen_date}")
     print(f"DEBUG: Levels requested: {req.levels}")
     
     new_alert_data = generate_high_low_alerts(
         session.smart_api, 
         req.symbol, 
         token, 
-        req.date, 
+        gen_date, 
         req.start_time, 
         req.end_time, 
         req.is_custom_range,
@@ -340,7 +341,15 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     
     logger.debug(f"Bulk generating alerts for {len(session.watchlist)} stocks. Session: {req.session_id}")
     print(f"DEBUG: Bulk generating alerts for {len(session.watchlist)} stocks")
-    print(f"DEBUG: Date={req.date}, Levels={req.levels}")
+    
+    # 0. Date Validation
+    gen_date = req.date
+    today_str = datetime.date.today().strftime("%Y-%m-%d")
+    if not gen_date or gen_date < "2026-01-01":
+        print(f"[WARN] Bulk Gen: Date '{gen_date}' is invalid/old. Healing to today: {today_str}")
+        gen_date = today_str
+
+    print(f"DEBUG: Date={gen_date}, Levels={req.levels}")
     
     # 1. REPLACE LOGIC: Clear ALL existing AUTO alerts before bulk generation
     # This ensures a clean slate as requested by the user.
@@ -367,7 +376,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     smart_api=session.smart_api,
                     symbol=symbol,
                     token=token,
-                    date=req.date,
+                    date=gen_date,
                     start_time=req.start_time,
                     end_time=req.end_time,
                     is_custom=req.is_custom_range,

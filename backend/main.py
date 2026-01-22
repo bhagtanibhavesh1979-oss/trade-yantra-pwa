@@ -127,9 +127,10 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=port,
         reload=False,
-        # WebSocket Optimization for Mobile Devices
-        # These keep the 'tunnel' open even if no trades are happening
-        ws_ping_interval=20.0, 
-        ws_ping_timeout=20.0,
-        timeout_keep_alive=60
+        # WebSocket Optimization for Stable Connections
+        # These settings MUST align with application-level heartbeat
+        ws_ping_interval=None,  # Disable uvicorn ping, we handle it at app level
+        ws_ping_timeout=None,   # Disable uvicorn timeout
+        timeout_keep_alive=120, # Keep HTTP connections alive for 2 minutes
+        timeout_graceful_shutdown=10
     )

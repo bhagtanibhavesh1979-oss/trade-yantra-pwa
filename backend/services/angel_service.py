@@ -11,10 +11,7 @@ import os
 import json
 from typing import Optional, Dict, List, Tuple
 
-# SCRIPMASTER_FILE = "scripmaster.json"
-# Use absolute path relative to this file
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SCRIPMASTER_FILE = os.path.join(os.path.dirname(BASE_DIR), "scripmaster.json")
+SCRIPMASTER_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripmaster.json")
 
 class AngelService:
     def __init__(self):

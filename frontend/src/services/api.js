@@ -9,17 +9,16 @@ const getBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // Default Fallback (US-Central1 - Original Working Region)
-    return 'https://trade-yantra-api-ibynnqazflq-uc.a.run.app';
+    // Default Fallback (Asia-South1 - Mumbai Region - NOW PRIMARY)
+    return 'https://trade-yantra-api-ibynnqazflq-as.a.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
 console.log('🌐 API_BASE_URL:', API_BASE_URL);
 
-// Axios instance with default config
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 30000, // 30 seconds for GCS cold starts
+    timeout: 60000, // 60 seconds to allow for Cloud Run cold starts
     headers: {
         'Content-Type': 'application/json',
     },
@@ -214,6 +213,11 @@ export const setVirtualBalance = async (sessionId, amount) => {
 
 export const setStopLoss = async (sessionId, tradeId, slPrice) => {
     const response = await api.post(`/api/paper/stoploss/${sessionId}/${tradeId}`, { sl_price: slPrice });
+    return response.data;
+};
+
+export const setTarget = async (sessionId, tradeId, targetPrice) => {
+    const response = await api.post(`/api/paper/target/${sessionId}/${tradeId}`, { target_price: targetPrice });
     return response.data;
 };
 

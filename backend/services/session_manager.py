@@ -33,6 +33,8 @@ class SessionManager:
     def __init__(self):
         self.sessions: Dict[str, Session] = {}
         self.lock = threading.Lock()
+        self._active_saves = set()
+        self._pending_saves = set()
         self._load_from_disk()
 
     def _load_from_disk(self):
@@ -47,11 +49,6 @@ class SessionManager:
             return
             
         def _save_bg():
-            if not hasattr(self, '_active_saves'):
-                self._active_saves = set()
-            if not hasattr(self, '_pending_saves'):
-                self._pending_saves = set()
-            
             with self.lock:
                 if session_id in self._active_saves:
                     # Mark as pending so it runs again after current finishes

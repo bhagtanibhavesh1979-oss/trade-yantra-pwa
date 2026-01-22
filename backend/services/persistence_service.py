@@ -124,44 +124,53 @@ class PersistenceService:
             _sync_gcs()
 
     def save_session(self, session_id: str, session):
-        """Save a single session data safely"""
-        data = self._read_all()
-        
-        session_data = {
-            "client_id": session.client_id,
-            "jwt_token": session.jwt_token,
-            "feed_token": session.feed_token,
-            "api_key": session.api_key,
-            "is_paused": getattr(session, 'is_paused', False),
-            "selected_date": getattr(session, 'selected_date', None),
-            "last_activity": datetime.now().isoformat(),
-            "watchlist": session.watchlist,
-            "alerts": session.alerts,
-            "logs": session.logs[:100] if hasattr(session, 'logs') else [],
-            "auto_paper_trade": getattr(session, 'auto_paper_trade', False),
-            "virtual_balance": getattr(session, 'virtual_balance', 0.0),
-            "paper_trades": getattr(session, 'paper_trades', [])[:50]
-        }
-        
-        # 2. REPLACE LOGIC: Remove any other sessions for the same client_id 
-        # to prevent "Ghost Sessions" from reappearing during healing.
-        cid_upper = str(session.client_id).upper()
-        initial_data_len = len(data)
-        data = {
-            sid: s_data for sid, s_data in data.items() 
-            if sid == session_id or str(s_data.get('client_id', '')).upper() != cid_upper
-        }
-        
-        # Log if we cleared duplicates
-        removed_ghosts = initial_data_len - len(data)
-        if removed_ghosts > 0:
-            print(f"DEBUG: Removed {removed_ghosts} ghost sessions for client {cid_upper}")
+        """Save a single session data safely with atomic read-modify-write"""
+        with self.lock:
+            # 1. Always force fresh read before modification to prevent overwriting other sessions
+            data = self._read_all(force_refresh=True)
+            
+            session_data = {
+                "client_id": session.client_id,
+                "jwt_token": session.jwt_token,
+                "feed_token": session.feed_token,
+                "api_key": session.api_key,
+                "is_paused": getattr(session, 'is_paused', False),
+                "selected_date": getattr(session, 'selected_date', None),
+                "last_activity": datetime.now().isoformat(),
+                "watchlist": session.watchlist,
+                "alerts": session.alerts,
+                "logs": session.logs[:100] if hasattr(session, 'logs') else [],
+                "auto_paper_trade": getattr(session, 'auto_paper_trade', False),
+                "virtual_balance": getattr(session, 'virtual_balance', 0.0),
+                "paper_trades": getattr(session, 'paper_trades', [])[:100]
+            }
+            
+            # 2. IDENTIFY REPLACEMENTS: 
+            # We want to keep only the CURRENT session for this client_id 
+            # if the current session is NEWER or if we are the current session.
+            cid_upper = str(session.client_id).upper()
+            
+            # Instead of wiping everything else immediately, let's be more surgical.
+            # Only remove sessions that are NOT the current one AND have the same client_id.
+            # This is already what the logic did, but let's make it clearer.
+            initial_count = len(data)
+            data = {
+                sid: s_data for sid, s_data in data.items() 
+                if sid == session_id or str(s_data.get('client_id', '')).upper() != cid_upper
+            }
+            
+            removed_others = initial_count - len(data)
+            if removed_others > 0:
+                print(f"DEBUG: Consolidating {removed_others} older sessions for client {cid_upper}")
 
-        data[session_id] = session_data
-        self._write_all(data)
-        
-        paper_count = len(session_data['paper_trades'])
-        print(f"[OK] Persistence: Session {session_id} saved (W:{len(session.watchlist)} A:{len(session.alerts)} P:{paper_count})")
+            data[session_id] = session_data
+            
+            # 3. Synchronous local write (since we are in a lock)
+            self._write_all(data)
+            
+            paper_count = len(session_data['paper_trades'])
+            balance = session_data.get('virtual_balance', 0.0)
+            print(f"[OK] Persistence: Session {session_id} saved (W:{len(session.watchlist)} A:{len(session.alerts)} P:{paper_count} Bal: {balance})")
 
     def load_sessions(self) -> Dict:
         """Load all sessions from JSON file"""
@@ -196,6 +205,76 @@ class PersistenceService:
         """Cleanup logic (optional for JSON)"""
         # Not strictly needed for simple JSON persistence but good to have
         pass
+
+    def add_to_trade_history(self, client_id: str, trade: Dict):
+        """Append a closed trade to the permanent history file (Local + GCS)"""
+        client_id = str(client_id).upper()
+        history_file = os.path.join(DATA_DIR, f"history_{client_id}.json")
+        gcs_path = f"history_{client_id}.json"
+        
+        with self.lock:
+            history = []
+            if os.path.exists(history_file):
+                try:
+                    with open(history_file, 'r') as f:
+                        history = json.load(f)
+                except:
+                    history = []
+            
+            # Avoid duplicate trade IDs if any
+            if not any(t.get('id') == trade.get('id') for t in history):
+                history.append(trade)
+            
+            # Keep the history reasonably sized for JSON (e.g. 2000 trades)
+            if len(history) > 2000:
+                history = history[-2000:]
+                
+            try:
+                content = json.dumps(history, indent=4, default=str)
+                with open(history_file, 'w') as f:
+                    f.write(content)
+                
+                # Sync to GCS if active
+                if self.storage_client and self.bucket_name:
+                    try:
+                        bucket = self.storage_client.bucket(self.bucket_name)
+                        blob = bucket.blob(gcs_path)
+                        blob.upload_from_string(content, content_type='application/json')
+                        print(f"[OK] History synced to GCS: {gcs_path}")
+                    except Exception as ge:
+                        print(f"[WARN] GCS History Sync Failed: {ge}")
+                        
+            except Exception as e:
+                print(f"[ERROR] Failed to save trade history for {client_id}: {e}")
+
+    def get_trade_history(self, client_id: str) -> List[Dict]:
+        """Load the permanent history for a client (Local + GCS fallback)"""
+        client_id = str(client_id).upper()
+        history_file = os.path.join(DATA_DIR, f"history_{client_id}.json")
+        remote_history = None
+        
+        # 1. Try GCS if local not found or older (simplified: just try GCS if local missing)
+        if not os.path.exists(history_file) and self.storage_client and self.bucket_name:
+            try:
+                bucket = self.storage_client.bucket(self.bucket_name)
+                blob = bucket.blob(f"history_{client_id}.json")
+                if blob.exists():
+                    content = blob.download_as_string()
+                    remote_history = json.loads(content)
+                    # Cache locally
+                    with open(history_file, 'w') as f:
+                        json.dump(remote_history, f, indent=4)
+            except: pass
+
+        # 2. Return local
+        if os.path.exists(history_file):
+            try:
+                with open(history_file, 'r') as f:
+                    return json.load(f)
+            except:
+                return []
+        
+        return remote_history if remote_history else []
 
 # Global instance
 persistence_service = PersistenceService()

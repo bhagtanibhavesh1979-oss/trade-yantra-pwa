@@ -1,215 +1,215 @@
 {
-    "e10fbb9e-768f-41cd-91e8-b41c4c5ff9aa": {
+    "a479af06-8d1f-41c3-82fc-e364f61533c5": {
         "client_id": "B38590",
-        "jwt_token": "Bearer eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsInJvbGVzIjowLCJ1c2VydHlwZSI6IlVTRVIiLCJ0b2tlbiI6ImV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUoxYzJWeVgzUjVjR1VpT2lKamJHbGxiblFpTENKMGIydGxibDkwZVhCbElqb2lkSEpoWkdWZllXTmpaWE56WDNSdmEyVnVJaXdpWjIxZmFXUWlPallzSW5OdmRYSmpaU0k2SWpNaUxDSmtaWFpwWTJWZmFXUWlPaUprT0RFMU9HWTFNaTFrWlRObUxUTmtOV010T0Rsa09TMDBNV05tTkRBNE5UUmhNRGNpTENKcmFXUWlPaUowY21Ga1pWOXJaWGxmZGpJaUxDSnZiVzVsYldGdVlXZGxjbWxrSWpvMkxDSndjbTlrZFdOMGN5STZleUprWlcxaGRDSTZleUp6ZEdGMGRYTWlPaUpoWTNScGRtVWlmU3dpYldZaU9uc2ljM1JoZEhWeklqb2lZV04wYVhabEluMTlMQ0pwYzNNaU9pSjBjbUZrWlY5c2IyZHBibDl6WlhKMmFXTmxJaXdpYzNWaUlqb2lRak00TlRrd0lpd2laWGh3SWpveE56WTRPRFV5T1RNd0xDSnVZbVlpT2pFM05qZzNOall6TlRBc0ltbGhkQ0k2TVRjMk9EYzJOak0xTUN3aWFuUnBJam9pWlRkbE1ERTJOMkV0WVdaa05pMDBPR1prTFdGaFlqWXRaRFF5WWpZMFpEUXdaamM0SWl3aVZHOXJaVzRpT2lJaWZRLmh6X0VuRWNuZEpNa1ZUZWdLd0lTQ3VibmYyTnFieHI1VlhYdEg5YVBUTF9RMmZpT3piak9ZS0F2WV9iQk5LR3oxekpkTmFqSWRBT1VrMDZYTWNRRHNFcHZOeW82ZjN6Y1pLd3ROd1l3NlJPOW4xN0pDcUs3bmVvV3ZFU0xwWmx1UXJnR2pCclUtUFdTV3lDalByUmFmd3JlbGlQZ1ZkdkpNSW5SQ1JMaENZSSIsIkFQSS1LRVkiOiJCc1JpZ2JNcyIsIlgtT0xELUFQSS1LRVkiOnRydWUsImlhdCI6MTc2ODc2NjUzMCwiZXhwIjoxNzY4ODQ3NDAwfQ.39tReJy9GO0d3Pk8swd-SgbidLAPw0Lwv7znAzgA-TyCM3w2V9hs9Rci-zKkkkKjq5eGNZciFZopzcSC6ghfzQ",
-        "feed_token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsImlhdCI6MTc2ODc2NjUzMCwiZXhwIjoxNzY4ODUyOTMwfQ.5exMdnnvG7bG-R7vgHtobiqaFhJ_aS-kZxSsZkphC-pdWQivrhC-D5gH6k--PnnH0qH2Q2i-bCd_z22UPUcFPQ",
+        "jwt_token": "Bearer eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsInJvbGVzIjowLCJ1c2VydHlwZSI6IlVTRVIiLCJ0b2tlbiI6ImV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUoxYzJWeVgzUjVjR1VpT2lKamJHbGxiblFpTENKMGIydGxibDkwZVhCbElqb2lkSEpoWkdWZllXTmpaWE56WDNSdmEyVnVJaXdpWjIxZmFXUWlPallzSW5OdmRYSmpaU0k2SWpNaUxDSmtaWFpwWTJWZmFXUWlPaUprT0RFMU9HWTFNaTFrWlRObUxUTmtOV010T0Rsa09TMDBNV05tTkRBNE5UUmhNRGNpTENKcmFXUWlPaUowY21Ga1pWOXJaWGxmZGpJaUxDSnZiVzVsYldGdVlXZGxjbWxrSWpvMkxDSndjbTlrZFdOMGN5STZleUprWlcxaGRDSTZleUp6ZEdGMGRYTWlPaUpoWTNScGRtVWlmU3dpYldZaU9uc2ljM1JoZEhWeklqb2lZV04wYVhabEluMTlMQ0pwYzNNaU9pSjBjbUZrWlY5c2IyZHBibDl6WlhKMmFXTmxJaXdpYzNWaUlqb2lRak00TlRrd0lpd2laWGh3SWpveE56WTVNREkyTWpJekxDSnVZbVlpT2pFM05qZzVNemsyTkRNc0ltbGhkQ0k2TVRjMk9Ea3pPVFkwTXl3aWFuUnBJam9pTlRVd01UVmtZelF0T1RJM1lpMDBOR1prTFdJMU9HUXRNakEwTVdFeE16aG1ObVZsSWl3aVZHOXJaVzRpT2lJaWZRLndfVlNPSXNOQzZUbzhtb1RzWEhsU2NLWE5EWlQ5dUJacnBMMzBkZlk5MUNBam4ySldJazhzRjJsUzA5aWZJVk5jV1EtQW11LTNQNzZydU5TYWJwcG5weWtMS01Tc3QwcFRoNWlQRUVOcElRU1pXbURDWmZZdVBEYUNjMHVtVl9TanJGR3FQblFlc0xtQTVTYUltb3pFZ2twc3JaUUY2STN5WU1jVmhGTE9xbyIsIkFQSS1LRVkiOiJCc1JpZ2JNcyIsIlgtT0xELUFQSS1LRVkiOnRydWUsImlhdCI6MTc2ODkzOTgyMywiZXhwIjoxNzY5MDIwMjAwfQ.swgdl1vUkEAHz7gqtryeclA_h-g7MyHChS9e4KJ74NrSkepWn6HeqCOlPzf7reWRpp1iR5OCLKPYNu0GFDFD0A",
+        "feed_token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsImlhdCI6MTc2ODkzOTgyMywiZXhwIjoxNzY5MDI2MjIzfQ.YqvQ3cqlUQZ7I8EZp5hEPj10kccXHMK2jh2wb39Fif1uu3qjytShcSOkeL3PKaUv7cvkPeaD08838BmTtl4MQw",
         "api_key": "BsRigbMs",
         "is_paused": false,
-        "selected_date": "2026-01-16",
-        "last_activity": "2026-01-19T01:38:34.906141",
+        "selected_date": null,
+        "last_activity": "2026-01-21T02:06:57.376356",
         "watchlist": [
             {
                 "symbol": "HAVELLS-EQ",
                 "token": "9819",
                 "exch_seg": "NSE",
-                "ltp": 1426.1,
-                "pdc": 1426.1,
+                "ltp": 1346.3,
+                "pdc": 1346.3,
                 "wc": 1409.6,
                 "loading": false,
-                "pdh": 1447.4,
-                "pdl": 1420.0
+                "pdh": 1454.5,
+                "pdl": 1337.2
             },
             {
                 "symbol": "DLF-EQ",
                 "token": "14732",
                 "exch_seg": "NSE",
-                "ltp": 649.85,
-                "pdc": 649.85,
+                "ltp": 612.9,
+                "pdc": 612.9,
                 "wc": 699.4,
                 "loading": false,
-                "pdh": 666.2,
-                "pdl": 646.05
+                "pdh": 640.85,
+                "pdl": 608.85
             },
             {
                 "symbol": "BAJAJFINSV-EQ",
                 "token": "16675",
                 "exch_seg": "NSE",
-                "ltp": 2002.5,
-                "pdc": 2002.5,
+                "ltp": 1958.7,
+                "pdc": 1958.7,
                 "wc": 2083.1,
                 "loading": false,
-                "pdh": 2033.0,
-                "pdl": 2000.6
+                "pdh": 2018.3,
+                "pdl": 1950.2
             },
             {
                 "symbol": "TVSMOTOR-EQ",
                 "token": "8479",
                 "exch_seg": "NSE",
-                "ltp": 3667.8,
-                "pdc": 3667.8,
+                "ltp": 3615.7,
+                "pdc": 3615.7,
                 "wc": 3655.2,
                 "loading": false,
-                "pdh": 3720.4,
-                "pdl": 3640.8
+                "pdh": 3719.4,
+                "pdl": 3597.2
             },
             {
                 "symbol": "TATACHEM-EQ",
                 "token": "3405",
                 "exch_seg": "NSE",
-                "ltp": 755.05,
-                "pdc": 755.05,
-                "pdh": 773.15,
-                "pdl": 752.7,
+                "ltp": 730.95,
+                "pdc": 730.95,
+                "pdh": 746.3,
+                "pdl": 724.15,
                 "loading": false
             },
             {
                 "symbol": "ASIANPAINT-EQ",
                 "token": "236",
                 "exch_seg": "NSE",
-                "ltp": 2756.9,
-                "pdc": 2756.9,
-                "pdh": 2826.5,
-                "pdl": 2750.5,
+                "ltp": 2675.6,
+                "pdc": 2675.6,
+                "pdh": 2740.1,
+                "pdl": 2669.3,
                 "loading": false
             },
             {
                 "symbol": "TECHM-EQ",
                 "token": "13538",
                 "exch_seg": "NSE",
-                "ltp": 1670.5,
-                "pdc": 1670.5,
-                "pdh": 1680.7,
-                "pdl": 1600.0,
+                "ltp": 1678.5,
+                "pdc": 1678.5,
+                "pdh": 1716.7,
+                "pdl": 1675.0,
                 "loading": false
             },
             {
                 "symbol": "BALRAMCHIN-EQ",
                 "token": "341",
                 "exch_seg": "NSE",
-                "ltp": 421.05,
-                "pdc": 421.05,
-                "pdh": 426.55,
-                "pdl": 416.55,
+                "ltp": 410.9,
+                "pdc": 410.9,
+                "pdh": 418.95,
+                "pdl": 407.05,
                 "loading": false
             },
             {
                 "symbol": "ETERNAL-EQ",
                 "token": "5097",
                 "exch_seg": "NSE",
-                "ltp": 287.7,
-                "pdc": 287.7,
-                "pdh": 296.8,
-                "pdl": 286.8,
+                "ltp": 269.6,
+                "pdc": 269.6,
+                "pdh": 282.4,
+                "pdl": 267.85,
                 "loading": false
             },
             {
                 "symbol": "TATASTEEL-EQ",
                 "token": "3499",
                 "exch_seg": "NSE",
-                "ltp": 188.21,
-                "pdc": 188.21,
-                "pdh": 191.0,
-                "pdl": 187.31,
+                "ltp": 183.56,
+                "pdc": 183.56,
+                "pdh": 190.0,
+                "pdl": 183.03,
                 "loading": false
             },
             {
                 "symbol": "JSWSTEEL-EQ",
                 "token": "11723",
                 "exch_seg": "NSE",
-                "ltp": 1187.3,
-                "pdc": 1187.3,
-                "pdh": 1199.3,
-                "pdl": 1179.2,
+                "ltp": 1160.0,
+                "pdc": 1160.0,
+                "pdh": 1195.0,
+                "pdl": 1156.5,
                 "loading": false
             },
             {
                 "symbol": "TATAPOWER-EQ",
                 "token": "3426",
                 "exch_seg": "NSE",
-                "ltp": 366.1,
-                "pdc": 366.1,
-                "pdh": 372.35,
-                "pdl": 364.2,
+                "ltp": 352.95,
+                "pdc": 352.95,
+                "pdh": 364.15,
+                "pdl": 351.1,
                 "loading": false
             },
             {
                 "symbol": "AUROPHARMA-EQ",
                 "token": "275",
                 "exch_seg": "NSE",
-                "ltp": 1172.7,
-                "pdc": 1172.7,
-                "pdh": 1195.5,
-                "pdl": 1166.3,
+                "ltp": 1141.7,
+                "pdc": 1141.7,
+                "pdh": 1167.7,
+                "pdl": 1137.1,
                 "loading": false
             },
             {
                 "symbol": "AXISBANK-EQ",
                 "token": "5900",
                 "exch_seg": "NSE",
-                "ltp": 1294.2,
-                "pdc": 1294.2,
-                "pdh": 1309.0,
-                "pdl": 1286.5,
+                "ltp": 1293.5,
+                "pdc": 1293.5,
+                "pdh": 1310.9,
+                "pdl": 1290.0,
                 "loading": false
             },
             {
                 "symbol": "ICICIBANK-EQ",
                 "token": "4963",
                 "exch_seg": "NSE",
-                "ltp": 1410.8,
-                "pdc": 1410.8,
-                "pdh": 1429.0,
-                "pdl": 1400.2,
+                "ltp": 1375.8,
+                "pdc": 1375.8,
+                "pdh": 1387.8,
+                "pdl": 1371.5,
                 "loading": false
             },
             {
                 "symbol": "INDUSINDBK-EQ",
                 "token": "5258",
                 "exch_seg": "NSE",
-                "ltp": 953.85,
-                "pdc": 953.85,
-                "pdh": 960.2,
-                "pdl": 938.05,
+                "ltp": 905.15,
+                "pdc": 905.15,
+                "pdh": 948.0,
+                "pdl": 899.05,
                 "loading": false
             },
             {
                 "symbol": "TATACOMM-EQ",
                 "token": "3721",
                 "exch_seg": "NSE",
-                "ltp": 1754.6,
-                "pdc": 1754.6,
-                "pdh": 1773.1,
-                "pdl": 1742.2,
+                "ltp": 1712.2,
+                "pdc": 1712.2,
+                "pdh": 1762.0,
+                "pdl": 1698.7,
                 "loading": false
             },
             {
                 "symbol": "BATAINDIA-EQ",
                 "token": "371",
                 "exch_seg": "NSE",
-                "ltp": 902.8,
-                "pdc": 902.8,
-                "pdh": 909.65,
-                "pdl": 900.0,
+                "ltp": 888.25,
+                "pdc": 888.25,
+                "pdh": 914.75,
+                "pdl": 883.05,
                 "loading": false
             },
             {
                 "symbol": "VEDL-EQ",
                 "token": "3063",
                 "exch_seg": "NSE",
-                "ltp": 682.7,
-                "pdc": 682.7,
-                "pdh": 686.0,
-                "pdl": 664.35,
+                "ltp": 671.8,
+                "pdc": 671.8,
+                "pdh": 686.5,
+                "pdl": 669.15,
                 "loading": false
             },
             {
                 "symbol": "CHAMBLFERT-EQ",
                 "token": "637",
                 "exch_seg": "NSE",
-                "ltp": 440.15,
-                "pdc": 440.15,
-                "pdh": 450.0,
-                "pdl": 437.5,
+                "ltp": 431.85,
+                "pdc": 431.85,
+                "pdh": 438.0,
+                "pdl": 429.5,
                 "loading": false
             }
         ],
@@ -362,16 +362,6 @@
                 "price": 666.2,
                 "active": true,
                 "type": "AUTO_HIGH",
-                "created_at": "2026-01-18T23:31:33.560813"
-            },
-            {
-                "id": "a189d9f5-5b72-4193-92bb-11fd1345e8f3",
-                "symbol": "DLF-EQ",
-                "token": "14732",
-                "condition": "BELOW",
-                "price": 646.05,
-                "active": true,
-                "type": "AUTO_LOW",
                 "created_at": "2026-01-18T23:31:33.560813"
             },
             {
@@ -785,16 +775,6 @@
                 "created_at": "2026-01-18T23:31:35.218586"
             },
             {
-                "id": "0bf4d4db-6777-42c2-a135-864f7b65eff4",
-                "symbol": "TATACHEM-EQ",
-                "token": "3405",
-                "condition": "BELOW",
-                "price": 752.7,
-                "active": true,
-                "type": "AUTO_LOW",
-                "created_at": "2026-01-18T23:31:35.218586"
-            },
-            {
                 "id": "e4bfb2fd-8ad9-4f15-8180-686c14ed75f1",
                 "symbol": "TATACHEM-EQ",
                 "token": "3405",
@@ -1055,16 +1035,6 @@
                 "created_at": "2026-01-18T23:31:35.803523"
             },
             {
-                "id": "b2f3f6fa-b8dd-4b8f-b10a-1844ee59afea",
-                "symbol": "TECHM-EQ",
-                "token": "13538",
-                "condition": "ABOVE",
-                "price": 1680.7,
-                "active": true,
-                "type": "AUTO_HIGH",
-                "created_at": "2026-01-18T23:31:36.381135"
-            },
-            {
                 "id": "20239c4a-d789-4be7-aaf0-09981de80564",
                 "symbol": "TECHM-EQ",
                 "token": "13538",
@@ -1205,16 +1175,6 @@
                 "created_at": "2026-01-18T23:31:36.950743"
             },
             {
-                "id": "2055a187-c619-4e2f-ac46-283ccb33f3a8",
-                "symbol": "BALRAMCHIN-EQ",
-                "token": "341",
-                "condition": "BELOW",
-                "price": 416.55,
-                "active": true,
-                "type": "AUTO_LOW",
-                "created_at": "2026-01-18T23:31:36.950743"
-            },
-            {
                 "id": "aa07d450-b0f8-4485-b498-89a26a9957c9",
                 "symbol": "BALRAMCHIN-EQ",
                 "token": "341",
@@ -1345,16 +1305,6 @@
                 "created_at": "2026-01-18T23:31:37.502157"
             },
             {
-                "id": "b1b13e86-bc4c-4f1b-bba5-dd85870bb2b6",
-                "symbol": "ETERNAL-EQ",
-                "token": "5097",
-                "condition": "BELOW",
-                "price": 286.8,
-                "active": true,
-                "type": "AUTO_LOW",
-                "created_at": "2026-01-18T23:31:37.502787"
-            },
-            {
                 "id": "c5f36012-ff26-4f1c-8c5f-13c910cc7749",
                 "symbol": "ETERNAL-EQ",
                 "token": "5097",
@@ -1412,16 +1362,6 @@
                 "price": 326.8,
                 "active": true,
                 "type": "AUTO_R6",
-                "created_at": "2026-01-18T23:31:37.502787"
-            },
-            {
-                "id": "7ca5ce34-3f3c-4d6e-9529-d33c8bce27ac",
-                "symbol": "ETERNAL-EQ",
-                "token": "5097",
-                "condition": "BELOW",
-                "price": 281.8,
-                "active": true,
-                "type": "AUTO_S1",
                 "created_at": "2026-01-18T23:31:37.502787"
             },
             {
@@ -1762,16 +1702,6 @@
                 "price": 372.35,
                 "active": true,
                 "type": "AUTO_HIGH",
-                "created_at": "2026-01-18T23:31:39.117165"
-            },
-            {
-                "id": "d6f1764e-b256-43eb-a6cf-657d108d13aa",
-                "symbol": "TATAPOWER-EQ",
-                "token": "3426",
-                "condition": "BELOW",
-                "price": 364.2,
-                "active": true,
-                "type": "AUTO_LOW",
                 "created_at": "2026-01-18T23:31:39.117165"
             },
             {
@@ -2185,16 +2115,6 @@
                 "created_at": "2026-01-18T23:31:40.815918"
             },
             {
-                "id": "9b7d3789-7b25-467b-b947-2958dbcfac7b",
-                "symbol": "ICICIBANK-EQ",
-                "token": "4963",
-                "condition": "BELOW",
-                "price": 1400.2,
-                "active": true,
-                "type": "AUTO_LOW",
-                "created_at": "2026-01-18T23:31:40.815918"
-            },
-            {
                 "id": "d5e50a6a-6c46-4b9d-a6ef-1500b9cca1f3",
                 "symbol": "ICICIBANK-EQ",
                 "token": "4963",
@@ -2252,16 +2172,6 @@
                 "price": 1515.4,
                 "active": true,
                 "type": "AUTO_R6",
-                "created_at": "2026-01-18T23:31:40.815918"
-            },
-            {
-                "id": "adb87476-73d5-461d-ba23-18d90d3a7395",
-                "symbol": "ICICIBANK-EQ",
-                "token": "4963",
-                "condition": "BELOW",
-                "price": 1385.8,
-                "active": true,
-                "type": "AUTO_S1",
                 "created_at": "2026-01-18T23:31:40.815918"
             },
             {
@@ -2605,16 +2515,6 @@
                 "created_at": "2026-01-18T23:31:42.549074"
             },
             {
-                "id": "7a9b645c-2a3b-418a-9915-5cf43c5f2a04",
-                "symbol": "BATAINDIA-EQ",
-                "token": "371",
-                "condition": "BELOW",
-                "price": 900.0,
-                "active": true,
-                "type": "AUTO_LOW",
-                "created_at": "2026-01-18T23:31:42.549074"
-            },
-            {
                 "id": "c3a223f7-1e89-478b-9791-de89509328ec",
                 "symbol": "BATAINDIA-EQ",
                 "token": "371",
@@ -2672,16 +2572,6 @@
                 "price": 938.6,
                 "active": true,
                 "type": "AUTO_R6",
-                "created_at": "2026-01-18T23:31:42.550576"
-            },
-            {
-                "id": "b6db00af-eec6-4414-ba85-5fc57415b7be",
-                "symbol": "BATAINDIA-EQ",
-                "token": "371",
-                "condition": "BELOW",
-                "price": 895.17,
-                "active": true,
-                "type": "AUTO_S1",
                 "created_at": "2026-01-18T23:31:42.550576"
             },
             {
@@ -3016,6 +2906,83 @@
             }
         ],
         "logs": [
+            {
+                "time": "2026-01-19T19:18:51.195444Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 364.2 (BELOW)",
+                "price": 363.2,
+                "alert_id": "d6f1764e-b256-43eb-a6cf-657d108d13aa"
+            },
+            {
+                "time": "2026-01-19T19:18:51.151295Z",
+                "symbol": "TECHM-EQ",
+                "msg": "TECHM-EQ hit 1680.7 (ABOVE)",
+                "price": 1718.3,
+                "alert_id": "b2f3f6fa-b8dd-4b8f-b10a-1844ee59afea"
+            },
+            {
+                "time": "2026-01-19T19:18:51.015896Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 752.7 (BELOW)",
+                "price": 746.2,
+                "alert_id": "0bf4d4db-6777-42c2-a135-864f7b65eff4"
+            },
+            {
+                "time": "2026-01-19T19:18:50.890629Z",
+                "symbol": "BALRAMCHIN-EQ",
+                "msg": "BALRAMCHIN-EQ hit 416.55 (BELOW)",
+                "price": 415.3,
+                "alert_id": "2055a187-c619-4e2f-ac46-283ccb33f3a8"
+            },
+            {
+                "time": "2026-01-19T19:18:50.641594Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 281.8 (BELOW)",
+                "price": 281.35,
+                "alert_id": "7ca5ce34-3f3c-4d6e-9529-d33c8bce27ac"
+            },
+            {
+                "time": "2026-01-19T19:18:50.641594Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 286.8 (BELOW)",
+                "price": 281.35,
+                "alert_id": "b1b13e86-bc4c-4f1b-bba5-dd85870bb2b6"
+            },
+            {
+                "time": "2026-01-19T19:18:50.510438Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1385.8 (BELOW)",
+                "price": 1380.6,
+                "alert_id": "adb87476-73d5-461d-ba23-18d90d3a7395"
+            },
+            {
+                "time": "2026-01-19T19:18:50.508430Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1400.2 (BELOW)",
+                "price": 1380.6,
+                "alert_id": "9b7d3789-7b25-467b-b947-2958dbcfac7b"
+            },
+            {
+                "time": "2026-01-19T19:18:50.400160Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 646.05 (BELOW)",
+                "price": 641.85,
+                "alert_id": "a189d9f5-5b72-4193-92bb-11fd1345e8f3"
+            },
+            {
+                "time": "2026-01-19T19:18:50.342401Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 895.17 (BELOW)",
+                "price": 894.7,
+                "alert_id": "b6db00af-eec6-4414-ba85-5fc57415b7be"
+            },
+            {
+                "time": "2026-01-19T19:18:50.342401Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 900.0 (BELOW)",
+                "price": 894.7,
+                "alert_id": "7a9b645c-2a3b-418a-9915-5cf43c5f2a04"
+            },
             {
                 "time": "2026-01-18T18:17:58.210439Z",
                 "symbol": "NIFTY BANK",
@@ -3566,22 +3533,6 @@
         ],
         "auto_paper_trade": false,
         "virtual_balance": 500000.0,
-        "paper_trades": [
-            {
-                "id": "v1768739044_9819",
-                "symbol": "HAVELLS-EQ",
-                "token": "9819",
-                "side": "BUY",
-                "entry_price": 1426.1,
-                "exit_price": 1426.1,
-                "quantity": 100,
-                "stop_loss": null,
-                "status": "CLOSED",
-                "pnl": 0.0,
-                "created_at": "2026-01-18T17:54:04.912207",
-                "closed_at": "2026-01-18T17:57:13.055933",
-                "trigger_level": "MANUAL"
-            }
-        ]
+        "paper_trades": []
     }
 }

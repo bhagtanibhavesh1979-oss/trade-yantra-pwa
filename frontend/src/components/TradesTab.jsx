@@ -146,9 +146,23 @@ const TradesTab = ({ sessionId, watchlist, trades: propTrades, setTrades: propSe
     const losses = closedTrades.filter(t => t.pnl <= 0).length;
     const winRate = totalClosed > 0 ? ((wins / totalClosed) * 100).toFixed(0) : 0;
 
-    const handleDownloadReport = () => {
-        const url = `/api/paper/export/${sessionId}`;
-        window.open(url, '_blank');
+    const handleDownloadReport = async () => {
+        try {
+            const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8002' : 'https://trade-yantra-api-ibynqazflq-uc.a.run.app');
+            const url = `${API_URL}/api/paper/export/${sessionId}`;
+
+            // Open in new window/tab
+            const newWindow = window.open(url, '_blank');
+
+            if (!newWindow) {
+                toast.error('Please allow popups to download the report');
+            } else {
+                toast.success('Download started!');
+            }
+        } catch (err) {
+            console.error('Download error:', err);
+            toast.error('Failed to download report');
+        }
     };
 
     return (
@@ -274,7 +288,10 @@ const TradesTab = ({ sessionId, watchlist, trades: propTrades, setTrades: propSe
                             <div className="flex justify-between items-start mb-3">
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
-                                        <span className="font-bold text-[var(--text-primary)]">{trade.symbol}</span>
+                                        <span className="font-bold text-[var(--text-primary)]">
+                                            {trade.mode === 'AVERAGED' ? '🟢 ' : '🚀 '}
+                                            {trade.symbol}
+                                        </span>
                                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${trade.side === 'BUY' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
                                             {trade.side}
                                         </span>
@@ -285,6 +302,11 @@ const TradesTab = ({ sessionId, watchlist, trades: propTrades, setTrades: propSe
                                     {trade.stop_loss && (
                                         <div className="text-[10px] text-red-400/80 font-medium mt-0.5">
                                             🛑 SL: ₹{parseFloat(trade.stop_loss).toFixed(2)}
+                                        </div>
+                                    )}
+                                    {trade.target && (
+                                        <div className="text-[10px] text-green-400/80 font-medium mt-0.5">
+                                            🎯 TGT: ₹{parseFloat(trade.target).toFixed(2)}
                                         </div>
                                     )}
                                 </div>

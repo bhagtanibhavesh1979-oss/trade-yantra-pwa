@@ -45,9 +45,16 @@ function App() {
   const [referenceDate, setReferenceDate] = useState(() => {
     try {
       const saved = localStorage.getItem('trade_yantra_alert_settings');
+      const today = new Date().toISOString().split('T')[0];
       if (saved) {
         const settings = JSON.parse(saved);
-        return settings.date || new Date().toISOString().split('T')[0];
+        const savedDate = settings.date || today;
+        // If saved date is in the past, reset to today
+        if (savedDate < today) {
+          console.log('🔄 Resetting old reference date to today:', today);
+          return today;
+        }
+        return savedDate;
       }
     } catch (e) {
       console.error('Failed to parse settings:', e);
@@ -171,8 +178,13 @@ function App() {
         console.error('Invalid alert_triggered data:', data);
         return;
       }
+      const { alert, log, paper_trades } = data;
 
-      const { alert, log } = data;
+      // Update paper trades if provided
+      if (Array.isArray(paper_trades)) {
+        console.log('💰 Syncing paper trades from alert broadcast:', paper_trades.length);
+        setPaperTrades(paper_trades);
+      }
 
       // Remove triggered alert
       setAlerts((prevAlerts) =>

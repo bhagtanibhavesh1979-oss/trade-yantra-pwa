@@ -28,19 +28,38 @@ INDICES = [
 # PDC Cache to avoid redundant history calls
 pdc_cache = {}
 
+# Global cache for indices to prevent mobile timeouts
+indices_cache = {
+    "data": None,
+    "last_updated": 0
+}
+CACHE_DURATION = 300 # 5 minutes
+
 @router.get("/{session_id}")
 async def get_indices(session_id: str):
     try:
+        # 1. Return cached data if available and fresh
+        now = time.time()
+        if indices_cache["data"] and (now - indices_cache["last_updated"]) < CACHE_DURATION:
+            return {"indices": indices_cache["data"]}
+
         session = session_manager.get_session(session_id)
         if not session:
+            # If no sessions, we can still show cached data as it's generic index data
+            if indices_cache["data"]:
+                return {"indices": indices_cache["data"]}
             return {"indices": []}
         
         smart_api = session.smart_api
         if not smart_api:
+            # Fallback to cache
+            if indices_cache["data"]:
+                return {"indices": indices_cache["data"]}
             return {"indices": []}
         
         indices_data = []
         
+        # 2. Fetch data ( Angel One rates limit applies, so caching is critical )
         for index in INDICES:
             try:
                 # Fetch LTP
@@ -79,9 +98,15 @@ async def get_indices(session_id: str):
                     "pdc": 0,
                 })
         
+        # 3. Update global cache
+        if indices_data:
+            indices_cache["data"] = indices_data
+            indices_cache["last_updated"] = now
+
         return {
             "indices": indices_data
         }
     except Exception as e:
+        print(f"[ERROR] Indices route failed: {e}")
         # Return empty safe response instead of 500
         return {"indices": []}

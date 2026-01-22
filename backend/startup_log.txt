@@ -1,0 +1,16 @@
+--- STARTING TRADE YANTRA BACKEND ---
+DEBUG: PATH = C:\Users\bhave\Downloads\trade-yantra\backend
+DEBUG: PORT ENV = Not Set
+INFO:     Started server process [21336]
+INFO:     Waiting for application startup.
+[OK] Local Persistence initialized: C:\Users\bhave\Downloads\trade-yantra\backend\data\sessions.json
+Session manager initialized
+[INFO] Trade Yantra Backend Starting on GCP...
+[INFO] Starting Scrip Master background loader...
+[OK] Backend Startup Sequence Complete!
+INFO:     Application startup complete.
+[INFO] Loading Scrips from local cache...
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8002): only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+==> Trade Yantra Backend Shutting Down...
+INFO:     Application shutdown complete.

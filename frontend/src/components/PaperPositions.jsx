@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss } from '../services/api';
+import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, setTarget } from '../services/api';
 import toast from 'react-hot-toast';
 
 const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: propSetTrades }) => {
@@ -14,6 +14,7 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     const [isAddingMoney, setIsAddingMoney] = useState(false);
     const [addAmount, setAddAmount] = useState('');
     const [slInputs, setSlInputs] = useState({}); // {tradeId: slValue}
+    const [targetInputs, setTargetInputs] = useState({}); // {tradeId: targetValue}
 
     // Use props if available, otherwise local state (for standalone testing)
     const [localTrades, setLocalTrades] = useState([]);
@@ -99,6 +100,23 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
             fetchSummary();
         } catch (err) {
             toast.error('Failed to set stop loss');
+        }
+    };
+
+    const handleSetTarget = async (trade) => {
+        const targetValue = targetInputs[trade.id];
+        if (!targetValue || isNaN(parseFloat(targetValue))) {
+            toast.error('Enter a valid target price');
+            return;
+        }
+
+        try {
+            await setTarget(sessionId, trade.id, parseFloat(targetValue));
+            toast.success(`Target set at ₹${parseFloat(targetValue).toFixed(2)}`);
+            setTargetInputs(prev => ({ ...prev, [trade.id]: '' }));
+            fetchSummary();
+        } catch (err) {
+            toast.error('Failed to set target');
         }
     };
 
@@ -252,11 +270,18 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                                     <div className="text-xs text-[var(--text-muted)] mt-1">
                                         Entry: ₹{trade.entry_price.toFixed(2)} • {trade.trigger_level}
                                     </div>
-                                    {trade.stop_loss && (
-                                        <div className="text-[10px] text-red-400/80 font-medium mt-0.5">
-                                            🛑 SL: ₹{parseFloat(trade.stop_loss).toFixed(2)}
-                                        </div>
-                                    )}
+                                    <div className="flex gap-3 mt-0.5">
+                                        {trade.stop_loss && (
+                                            <div className="text-[10px] text-red-400/80 font-medium">
+                                                🛑 SL: ₹{parseFloat(trade.stop_loss).toFixed(2)}
+                                            </div>
+                                        )}
+                                        {trade.target && (
+                                            <div className="text-[10px] text-green-400/80 font-medium">
+                                                🎯 TGT: ₹{parseFloat(trade.target).toFixed(2)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="text-right">
@@ -275,22 +300,42 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                                 </div>
                             </div>
 
-                            {/* Stop Loss Input */}
-                            <div className="flex gap-2 pt-3 border-t border-[var(--border-color)]/30">
-                                <input
-                                    type="number"
-                                    placeholder="Set Stop Loss Price (e.g., 495.50)"
-                                    value={slInputs[trade.id] || ''}
-                                    onChange={(e) => setSlInputs(prev => ({ ...prev, [trade.id]: e.target.value }))}
-                                    className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-red-400 transition-all"
-                                />
-                                <button
-                                    onClick={() => handleSetStopLoss(trade)}
-                                    disabled={!slInputs[trade.id]}
-                                    className="bg-red-500/20 text-red-400 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                    Set SL
-                                </button>
+                            {/* Control Inputs (SL & Target) */}
+                            <div className="space-y-2 pt-3 border-t border-[var(--border-color)]/30">
+                                {/* Stop Loss */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        placeholder="Set SL (e.g., 495.50)"
+                                        value={slInputs[trade.id] || ''}
+                                        onChange={(e) => setSlInputs(prev => ({ ...prev, [trade.id]: e.target.value }))}
+                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-xs outline-none focus:border-red-400 transition-all"
+                                    />
+                                    <button
+                                        onClick={() => handleSetStopLoss(trade)}
+                                        disabled={!slInputs[trade.id]}
+                                        className="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
+                                    >
+                                        Set SL
+                                    </button>
+                                </div>
+                                {/* Target */}
+                                <div className="flex gap-2">
+                                    <input
+                                        type="number"
+                                        placeholder="Set Target (e.g., 515.00)"
+                                        value={targetInputs[trade.id] || ''}
+                                        onChange={(e) => setTargetInputs(prev => ({ ...prev, [trade.id]: e.target.value }))}
+                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg px-3 py-1.5 text-xs outline-none focus:border-green-400 transition-all"
+                                    />
+                                    <button
+                                        onClick={() => handleSetTarget(trade)}
+                                        disabled={!targetInputs[trade.id]}
+                                        className="bg-green-500/20 text-green-400 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-500 hover:text-white transition-all disabled:opacity-50"
+                                    >
+                                        Set TGT
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     ))
