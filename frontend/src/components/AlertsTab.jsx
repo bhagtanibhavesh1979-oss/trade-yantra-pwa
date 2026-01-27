@@ -147,63 +147,29 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
 
         try {
             setBulkGenerating(true);
-            setBulkProgress({ current: 0, total: safeWatchlist.length });
+            const mainToast = toast.loading(`Bulk generating for ${safeWatchlist.length} stocks...`);
 
-            const mainToast = toast.loading(`Starting bulk generation for ${safeWatchlist.length} stocks...`);
-            let totalNewAlerts = 0;
-            let successCount = 0;
-            let failCount = 0;
+            const response = await generateBulkAlerts(sessionId, {
+                date: referenceDate,
+                start_time: startTime,
+                end_time: endTime,
+                is_custom_range: isCustomRange,
+                levels: selectedLevels,
+                client_id: clientId
+            });
 
-            // SEQUENTIAL PROCESSING: Loop through each stock to avoid timeouts
-            // and keep the connection alive.
-            for (let i = 0; i < safeWatchlist.length; i++) {
-                const stock = safeWatchlist[i];
-                setBulkProgress({ current: i + 1, total: safeWatchlist.length });
-
-                try {
-                    // Update main toast with progress
-                    toast.loading(`Processing ${stock.symbol} (${i + 1}/${safeWatchlist.length})...`, { id: mainToast });
-
-                    const response = await generateAlerts(sessionId, {
-                        symbol: stock.symbol,
-                        token: stock.token,
-                        exchange: stock.exch_seg || 'NSE',
-                        date: referenceDate,
-                        start_time: startTime,
-                        end_time: endTime,
-                        is_custom_range: isCustomRange,
-                        levels: selectedLevels,
-                        client_id: clientId
-                    });
-
-                    if (response.alerts) {
-                        // The backend now returns the full list for that stock context
-                        setAlerts(response.alerts);
-                        totalNewAlerts += (response.count || 0);
-                    }
-                    successCount++;
-                } catch (stockErr) {
-                    console.error(`Failed for ${stock.symbol}:`, stockErr);
-                    failCount++;
-                }
+            if (response.alerts) {
+                setAlerts(response.alerts);
             }
 
             toast.dismiss(mainToast);
-
-            if (successCount > 0) {
-                toast.success(`Success! Generated alerts for ${successCount} stocks.`);
-            }
-
-            if (failCount > 0) {
-                toast.error(`Failed to process ${failCount} stocks.`, { duration: 5000 });
-            }
+            toast.success(response.message || `Generated alerts for ${safeWatchlist.length} stocks`);
 
         } catch (err) {
             console.error('Bulk generate logic error:', err);
-            toast.error('Critical failure in bulk generation');
+            toast.error(err.response?.data?.detail || 'Critical failure in bulk generation');
         } finally {
             setBulkGenerating(false);
-            setBulkProgress({ current: 0, total: 0 });
         }
     };
 

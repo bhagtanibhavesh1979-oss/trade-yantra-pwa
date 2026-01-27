@@ -11,7 +11,11 @@ import os
 import json
 from typing import Optional, Dict, List, Tuple
 
-SCRIPMASTER_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripmaster.json")
+# Constants
+if os.environ.get("K_SERVICE"):
+    SCRIPMASTER_FILE = "/tmp/scripmaster.json"
+else:
+    SCRIPMASTER_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripmaster.json")
 
 class AngelService:
     def __init__(self):

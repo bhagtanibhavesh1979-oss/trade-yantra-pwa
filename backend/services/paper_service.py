@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import threading
+from services.persistence_service import persistence_service
 
 class PaperService:
     def __init__(self):
@@ -41,8 +42,8 @@ class PaperService:
                     if alert_name not in open_trade.get('trigger_level', ''):
                         open_trade['trigger_level'] = f"{open_trade.get('trigger_level', '')} + {alert_name}"
                     
-                    # Deduct margin
-                    session.virtual_balance = current_balance - required_margin
+                    # Deduct margin (DISABLED as per user request for rigid 500k)
+                    # session.virtual_balance = current_balance - required_margin
                     
                     # Log the averaging move
                     log_msg = f"🟢 Averaged {side}: Added {new_qty} {stock['symbol']} @ ₹{new_price:.2f}. New Avg: ₹{avg_price:.2f}, Total: {total_qty}"
@@ -57,6 +58,12 @@ class PaperService:
                     # Update trade mode to show it was averaged
                     open_trade['mode'] = 'AVERAGED'
                     
+                    # --- CRITICAL: Save to permanent history immediately ---
+                    try:
+                        from services.persistence_service import persistence_service
+                        persistence_service.add_to_trade_history(session.client_id, open_trade)
+                    except: pass
+
                     session_manager.save_session(session_id)
                     print(f"[TRADE] POSITION AVERAGED: {stock['symbol']} {total_qty} @ {avg_price}. Bal: {session.virtual_balance}")
                     return
@@ -67,20 +74,15 @@ class PaperService:
                     # DO NOT RETURN - Fall through to open the new position on the other side
                     pass
 
-            # 2. Open New Position (or Reverse Position)
-            # Check balance
-            if getattr(session, 'virtual_balance', 0.0) <= 0:
-                print(f"[WARN] SKIPPING TRADE: Virtual balance is 0 or negative for {session_id}")
-                return
+            # Check balance (Ensured at 500k)
+            if getattr(session, 'virtual_balance', 0.0) < 500000.0:
+                 session.virtual_balance = 500000.0
 
             entry_price = float(stock['ltp'])
             required_margin = entry_price * quantity
             
-            # Check for insufficient funds
-            current_balance = getattr(session, 'virtual_balance', 0.0)
-            if current_balance < required_margin:
-                print(f"[WARN] INSUFFICIENT FUNDS: Need {required_margin}, have {current_balance}")
-                return
+            # Check for insufficient funds (Rigid 500k has plenty)
+            current_balance = getattr(session, 'virtual_balance', 500000.0)
 
             trade_id = f"v{int(datetime.now().timestamp())}_{stock['token']}"
 
@@ -102,11 +104,17 @@ class PaperService:
                 "mode": "NEW"
             }
             
-            # DEDUCT MARGIN FROM BALANCE IMMEDIATELY
-            session.virtual_balance = current_balance - required_margin
+            # DEDUCT MARGIN FROM BALANCE (DISABLED for rigidity)
+            # session.virtual_balance = current_balance - required_margin
             
             session.paper_trades.insert(0, trade)
             
+            # --- CRITICAL: Save to permanent history immediately ---
+            try:
+                from services.persistence_service import persistence_service
+                persistence_service.add_to_trade_history(session.client_id, trade)
+            except: pass
+
             # Add a log entry
             target_msg = f" | TGT: {target_price:.2f}" if target_price else ""
             log_msg = f"🚀 Virtual {side} Order for {quantity} Qty of {stock['symbol']} executed at ₹{stock['ltp']} ({alert_name}){target_msg}"
@@ -133,6 +141,7 @@ class PaperService:
                     trade['status'] = 'CLOSED'
                     trade['exit_price'] = exit_price
                     trade['closed_at'] = datetime.now().isoformat()
+                    trade['exit_reason'] = reason
                     
                     qty = int(trade.get('quantity', 100))
                     entry_price = float(trade['entry_price'])
@@ -144,9 +153,8 @@ class PaperService:
                     else:
                         trade['pnl'] = (entry_price - exit_price) * qty
                         
-                    # CREDIT ENTIRE EXIT VALUE BACK TO BALANCE
-                    margin_used = entry_price * qty
-                    session.virtual_balance = getattr(session, 'virtual_balance', 0.0) + margin_used + trade['pnl']
+                    # CREDIT PNL BACK TO BALANCE (Margin was never deducted)
+                    session.virtual_balance = getattr(session, 'virtual_balance', 500000.0) + trade['pnl']
 
                     log_msg = f"Virtual position for {trade['symbol']} CLOSED ({reason}) at ₹{exit_price}. PNL: ₹{trade['pnl']:.2f}"
                     session.logs.insert(0, {
@@ -218,18 +226,22 @@ class PaperService:
         for t_id, price, reason in trades_to_close:
             self.close_virtual_trade(session_id, t_id, price, reason)
 
-    def set_virtual_balance(self, session_id: str, amount: float):
+    def set_virtual_balance(self, session_id: str, amount: float, client_id: Optional[str] = None):
         from services.session_manager import session_manager
-        session = session_manager.get_session(session_id)
+        session = session_manager.get_session(session_id, client_id=client_id)
         if not session:
             return
         
         with self.lock:
             old_balance = getattr(session, 'virtual_balance', 0.0)
-            session.virtual_balance = amount
+            print(f"[BALANCE] Setting balance for {session_id[:8]}...")
+            print(f"[BALANCE]   Old: ₹{old_balance}")
+            print(f"[BALANCE]   New: ₹{amount}")
+            session.virtual_balance = max(500000.0, amount)
+            print(f"[BALANCE]   Confirmed session.virtual_balance = {session.virtual_balance}")
             # Force a synchronous save for critical balance updates
             persistence_service.save_session(session_id, session)
-            print(f"[BALANCE] Virtual Balance updated for {session_id}: {old_balance} -> {amount}")
+            print(f"[BALANCE] Save complete. Virtual Balance updated for {session_id[:8]}: {old_balance} -> {amount}")
 
     def set_stop_loss(self, session_id: str, trade_id: str, sl_price: float):
         from services.session_manager import session_manager

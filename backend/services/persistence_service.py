@@ -9,8 +9,14 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 # Constants
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.path.join(BASE_DIR, "data")
+# On Cloud Run, the filesystem is read-only except for /tmp
+# We detect Cloud Run by the presence of K_SERVICE environment variable
+if os.environ.get("K_SERVICE"):
+    DATA_DIR = "/tmp/data"
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 
 class PersistenceService:
@@ -18,117 +24,117 @@ class PersistenceService:
         self.lock = threading.RLock()
         self._cache = {}
         self._last_loaded = None
-        self.bucket_name = os.getenv("GCS_BUCKET_NAME")
+        
+        # PRIMARY: Google Cloud Storage (ASIA-SOUTH1 - Mumbai)
+        self.bucket_name = "trade-yantra-storage-asia"  # HARDCODED - DO NOT CHANGE
         self.storage_client = None
+        self.use_db = False 
         
-        # 1. Initialize GCS Client if bucket name is provided
-        if self.bucket_name and "your-gcs-bucket-name" not in self.bucket_name:
-            try:
-                from google.cloud import storage
-                self.storage_client = storage.Client()
-                # Verify bucket exists/accessible with a short timeout
-                bucket = self.storage_client.bucket(self.bucket_name)
-                # Use a specific timeout for bucket existence check to prevent hangs
-                if not bucket.exists(timeout=5.0):
-                    print(f"[WARN] GCS Bucket '{self.bucket_name}' not found or unreachable. Persistence will be local-only.")
-                    self.storage_client = None
-                else:
-                    print(f"[INFO] GCS Persistence ACTIVE: gs://{self.bucket_name}/sessions.json")
-            except Exception as e:
-                print(f"[WARN] Failed to initialize GCS: {e}. Falling back to local DATA partition.")
-                self.storage_client = None
-        else:
-            if self.bucket_name == "your-gcs-bucket-name":
-                print("ℹ️ GCS placeholder detected. Using local persistence only.")
-            self.storage_client = None
+        try:
+            from google.cloud import storage
+            self.storage_client = storage.Client()
+            print(f"✅ [CLOUD] Persistence active: gs://{self.bucket_name}")
+        except Exception as e:
+            print(f"⚠️ [CLOUD] Storage init failed: {e}. Using local memory.")
 
-        # 2. Setup Local Cache Directory
-        if not os.path.exists(DATA_DIR):
-            os.makedirs(DATA_DIR)
-        
-        # 3. Create local sessions.json if it doesn't exist
-        if not os.path.exists(SESSIONS_FILE):
-            print(f"[INFO] Creating local state cache: {SESSIONS_FILE}")
-            with open(SESSIONS_FILE, 'w') as f:
-                json.dump({}, f)
-        
-        print(f"[OK] Local Persistence initialized: {SESSIONS_FILE}")
+        # Local Cache Directory (used as backup ONLY)
+        if not os.environ.get("K_SERVICE"):
+            if not os.path.exists(DATA_DIR):
+                os.makedirs(DATA_DIR)
+
 
     def _read_all(self, force_refresh: bool = False) -> Dict:
-        """Read all sessions from cache, GCS or JSON file"""
-        # 1. Return cache if recent (simple debounce)
-        if not force_refresh and self._cache and self._last_loaded:
-            # If loaded in last 5 seconds, trust cache
-            if (datetime.now() - self._last_loaded).total_seconds() < 5:
-                return self._cache
+        """Fetch all sessions from GCS (Primary Store)"""
+        # CRITICAL FIX: Only use cache if NOT force_refresh
+        if not force_refresh:
+            if self._cache and self._last_loaded:
+                if (datetime.now() - self._last_loaded).total_seconds() < 2:
+                    return self._cache
 
-        # 2. Try GCS if enabled (NO LOCK during network IO)
+        # 1. Fetch from GCS (ALWAYS when force_refresh=True)
         remote_data = None
-        if self.storage_client and self.bucket_name:
+        if self.storage_client:
             try:
                 bucket = self.storage_client.bucket(self.bucket_name)
                 blob = bucket.blob("sessions.json")
-                # Use a specific timeout for GCS read
-                if blob.exists(timeout=3.0):
-                    content = blob.download_as_string(timeout=5.0)
+                if blob.exists(timeout=2.0):
+                    content = blob.download_as_string(timeout=3.0)
                     remote_data = json.loads(content)
+                    print(f"📊 [CLOUD] Loaded {len(remote_data)} sessions. Local Cache: {len(self._cache)}")
+                else:
+                    # File doesn't exist yet, but it's not an error
+                    remote_data = {}
             except Exception as e:
-                print(f"[WARN] GCS Read Error: {e}")
+                print(f"❌ [CLOUD] Read Error: {e}")
+                # CRITICAL: If cloud read fails, return the CACHE, not an empty local map
+                if self._cache: return self._cache
 
-        # 3. Local Fallback & Merge (With LOCK for local IO)
-        with self.lock:
-            local_data = {}
-            try:
-                if os.path.exists(SESSIONS_FILE):
-                    with open(SESSIONS_FILE, 'r') as f:
-                        local_data = json.load(f)
-            except Exception as e:
-                print(f"[ERROR] Error reading sessions file: {e}")
+        # 2. Local Fallback (Only works on your local laptop)
+        local_data = {}
+        if not os.environ.get("K_SERVICE") and os.path.exists(SESSIONS_FILE):
+             try:
+                 with open(SESSIONS_FILE, 'r') as f:
+                     local_data = json.load(f)
+             except: pass
 
-            # Merge or prioritize remote
-            data = remote_data if remote_data is not None else local_data
+        # 3. Final Merge (Robust merging to prevent data loss)
+        data = {}
+        if local_data:
+            data.update(local_data)
+        if remote_data:
+            data.update(remote_data)
+        
+        # If both failed and we have cache, don't return {}
+        if not data and self._cache:
+            return self._cache
             
-            # Update cache
-            self._cache = data
-            self._last_loaded = datetime.now()
-            return data
+        self._cache = data
+        self._last_loaded = datetime.now()
+        return data
 
     def _write_all(self, data: Dict):
-        """Write all sessions to JSON file and sync to GCS"""
-        # 1. Update local cache and local file FIRST (Fast)
+        """Save all sessions to GCS (Synchronous for Reliability)"""
+        # Always update memory cache first
         with self.lock:
             self._cache = data
+
+        # On Cloud Run, background threads are unreliable. Perform synchronous upload.
+        if self.storage_client:
+            try:
+                bucket = self.storage_client.bucket(self.bucket_name)
+                blob = bucket.blob("sessions.json")
+                blob.upload_from_string(
+                    json.dumps(data, indent=4, default=str),
+                    content_type='application/json'
+                )
+            except Exception as e:
+                print(f"❌ [CLOUD] Upload Error: {e}")
+        
+        # Local mirror if not in cloud
+        if not os.environ.get("K_SERVICE"):
             try:
                 with open(SESSIONS_FILE, 'w') as f:
                     json.dump(data, f, indent=4, default=str)
-            except Exception as e:
-                print(f"[ERROR] Error writing sessions file: {e}")
-
-        # 2. Sync to GCS in background/outside lock (NO LOCK)
-        if self.storage_client and self.bucket_name:
-            def _sync_gcs():
-                try:
-                    bucket = self.storage_client.bucket(self.bucket_name)
-                    blob = bucket.blob("sessions.json")
-                    blob.upload_from_string(
-                        json.dumps(data, indent=4, default=str),
-                        content_type='application/json',
-                        timeout=10.0
-                    )
-                except Exception as e:
-                    print(f"[ERROR] GCS Sync Async Error: {e}")
-            
-            # Since SessionManager already runs saves in threads, 
-            # we can just run this synchronously here as it's already in a worker thread usually.
-            # But just to be 100% sure we don't block the caller (like login):
-            _sync_gcs()
+            except: pass
 
     def save_session(self, session_id: str, session):
-        """Save a single session data safely with atomic read-modify-write"""
+        """Save a single session data safely"""
         with self.lock:
-            # 1. Always force fresh read before modification to prevent overwriting other sessions
+            # 1. Force fresh read to get latest data from other instances/GCS
             data = self._read_all(force_refresh=True)
             
+            # 2. Build session data
+            # Anti-Zero Protection: Prevent fresh memory (0) from wiping stored money.
+            memory_balance = getattr(session, 'virtual_balance', 0.0)
+            stored_balance = data.get(session_id, {}).get('virtual_balance', 0.0)
+            
+            final_balance = memory_balance
+            if memory_balance == 0.0 and stored_balance > 0.0:
+                final_balance = stored_balance
+                # Sync back to memory to prevent future overwrites
+                session.virtual_balance = final_balance
+                print(f"🛡️ [PROTECTION] Prevented 0 overwriting ₹{stored_balance} for {session_id[:8]}")
+
             session_data = {
                 "client_id": session.client_id,
                 "jwt_token": session.jwt_token,
@@ -137,40 +143,64 @@ class PersistenceService:
                 "is_paused": getattr(session, 'is_paused', False),
                 "selected_date": getattr(session, 'selected_date', None),
                 "last_activity": datetime.now().isoformat(),
-                "watchlist": session.watchlist,
-                "alerts": session.alerts,
-                "logs": session.logs[:100] if hasattr(session, 'logs') else [],
+                "watchlist": session.watchlist if session.watchlist else data.get(session_id, {}).get('watchlist', []),
+                "alerts": session.alerts if session.alerts else data.get(session_id, {}).get('alerts', []),
+                "logs": session.logs[:500] if hasattr(session, 'logs') else [],
                 "auto_paper_trade": getattr(session, 'auto_paper_trade', False),
-                "virtual_balance": getattr(session, 'virtual_balance', 0.0),
-                "paper_trades": getattr(session, 'paper_trades', [])[:100]
+                "strategy_mode": getattr(session, 'strategy_mode', 'BOUNCE'),
+                "trigger_mode": getattr(session, 'trigger_mode', 'CANDLE_CLOSE'),
+                "buffer_pct": getattr(session, 'buffer_pct', 0.25),
+                "virtual_balance": max(500000.0, float(getattr(session, 'virtual_balance', 500000.0))),
+                "paper_trades": getattr(session, 'paper_trades', [])[:1000]
             }
-            
-            # 2. IDENTIFY REPLACEMENTS: 
-            # We want to keep only the CURRENT session for this client_id 
-            # if the current session is NEWER or if we are the current session.
-            cid_upper = str(session.client_id).upper()
-            
-            # Instead of wiping everything else immediately, let's be more surgical.
-            # Only remove sessions that are NOT the current one AND have the same client_id.
-            # This is already what the logic did, but let's make it clearer.
-            initial_count = len(data)
-            data = {
-                sid: s_data for sid, s_data in data.items() 
-                if sid == session_id or str(s_data.get('client_id', '')).upper() != cid_upper
-            }
-            
-            removed_others = initial_count - len(data)
-            if removed_others > 0:
-                print(f"DEBUG: Consolidating {removed_others} older sessions for client {cid_upper}")
 
+            # 3. Write Atomic Balance Backup
+            balance = getattr(session, 'virtual_balance', 0.0)
+            if balance > 0:
+                self._write_atomic_balance(session.client_id, balance)
+
+            # 4. Update the main map and write (Synchronous)
             data[session_id] = session_data
             
-            # 3. Synchronous local write (since we are in a lock)
+            # DEBUG: Log what we're about to save
+            print(f"[DEBUG] About to save session {session_id[:8]}...")
+            print(f"[DEBUG]   session.virtual_balance = {getattr(session, 'virtual_balance', 'NOT SET')}")
+            print(f"[DEBUG]   session_data['virtual_balance'] = {session_data.get('virtual_balance', 'NOT SET')}")
+            
             self._write_all(data)
             
-            paper_count = len(session_data['paper_trades'])
-            balance = session_data.get('virtual_balance', 0.0)
-            print(f"[OK] Persistence: Session {session_id} saved (W:{len(session.watchlist)} A:{len(session.alerts)} P:{paper_count} Bal: {balance})")
+            # CRITICAL: Clear cache after write so next read is FRESH
+            with self.lock:
+                self._cache = {}
+                self._last_loaded = None
+            
+            print(f"[OK] Persistence: Session {session_id} saved")
+            print(f"    Balance: ₹{balance} | Watchlist: {len(session_data['watchlist'])} | Alerts: {len(session_data['alerts'])} | Trades: {len(session_data['paper_trades'])}")
+
+    def _write_atomic_balance(self, client_id: str, balance: float):
+        """Save balance to a per-client file for ultimate recovery"""
+        if self.storage_client:
+            try:
+                bucket = self.storage_client.bucket(self.bucket_name)
+                blob = bucket.blob(f"balances/{client_id}.json")
+                blob.upload_from_string(
+                    json.dumps({"client_id": client_id, "balance": balance, "updated_at": datetime.now().isoformat()}),
+                    content_type='application/json'
+                )
+            except: pass
+
+    def get_atomic_balance(self, client_id: str) -> float:
+        """Fetch the atomic balance if session balance is missing"""
+        if self.storage_client:
+            try:
+                bucket = self.storage_client.bucket(self.bucket_name)
+                blob = bucket.blob(f"balances/{client_id}.json")
+                if blob.exists():
+                    data = json.loads(blob.download_as_string())
+                    val = float(data.get('balance', 500000.0))
+                    return val if val > 0 else 500000.0
+            except: pass
+        return 500000.0  # Rigid Default as requested
 
     def load_sessions(self) -> Dict:
         """Load all sessions from JSON file"""
@@ -178,12 +208,12 @@ class PersistenceService:
 
     def get_session_by_session_id(self, session_id: str) -> Dict:
         """Get session data for a specific session_id"""
-        data = self._read_all()
+        data = self._read_all(force_refresh=True)
         return data.get(session_id, {})
 
     def get_session_by_client(self, client_id: str) -> Dict:
         """Get the most recent session data for a specific client_id"""
-        data = self._read_all()
+        data = self._read_all(force_refresh=True)
         # Find the session with the latest last_activity for this client
         client_sessions = [
             (sid, s_data) for sid, s_data in data.items() 
@@ -221,8 +251,15 @@ class PersistenceService:
                 except:
                     history = []
             
-            # Avoid duplicate trade IDs if any
-            if not any(t.get('id') == trade.get('id') for t in history):
+            # Add or update trade in history
+            found = False
+            for i, t in enumerate(history):
+                if t.get('id') == trade.get('id'):
+                    history[i] = trade
+                    found = True
+                    break
+            
+            if not found:
                 history.append(trade)
             
             # Keep the history reasonably sized for JSON (e.g. 2000 trades)
@@ -274,7 +311,59 @@ class PersistenceService:
             except:
                 return []
         
-        return remote_history if remote_history else []
+    def get_performance_stats(self, client_id: str, current_balance: float = 100000.0) -> Dict:
+        """Calculate deep performance analytics for a client"""
+        history = self.get_trade_history(client_id)
+        if not history:
+            return {
+                "stats": {"win_rate": 0, "total_trades": 0, "net_pnl": 0, "profit_factor": 0},
+                "equity_curve": []
+            }
+
+        # Sort by closed_at to build equity curve
+        closed_trades = [t for t in history if t.get('status') == 'CLOSED']
+        closed_trades.sort(key=lambda x: x.get('closed_at', ''))
+
+        stats = {
+            "total_trades": len(closed_trades),
+            "wins": len([t for t in closed_trades if t.get('pnl', 0) > 0]),
+            "losses": len([t for t in closed_trades if t.get('pnl', 0) <= 0]),
+            "net_pnl": sum(t.get('pnl', 0) for t in closed_trades),
+            "total_profit": sum(t.get('pnl', 0) for t in closed_trades if t.get('pnl', 0) > 0),
+            "total_loss": abs(sum(t.get('pnl', 0) for t in closed_trades if t.get('pnl', 0) < 0)),
+        }
+
+        stats["win_rate"] = round((stats["wins"] / stats["total_trades"] * 100), 1) if stats["total_trades"] > 0 else 0
+        stats["profit_factor"] = round((stats["total_profit"] / stats["total_loss"]), 2) if stats["total_loss"] > 0 else (stats["total_profit"] if stats["total_profit"] > 0 else 0)
+
+        # Build Equity Curve
+        curve = []
+        # We estimate the starting balance by subtracting total P&L from current
+        running_balance = current_balance - sum(t.get('pnl', 0) for t in closed_trades if t.get('status') == 'CLOSED')
+        
+        # Point 0: Start
+        curve.append({"time": "Start", "balance": round(running_balance, 2)})
+
+        for i, t in enumerate(closed_trades):
+            running_balance += t.get('pnl', 0)
+            # Use short time format for mobile charts
+            try:
+                dt = datetime.fromisoformat(t.get('closed_at', ''))
+                time_label = dt.strftime('%H:%M') if dt.date() == datetime.now().date() else dt.strftime('%d/%m')
+            except:
+                time_label = f"T{i+1}"
+                
+            curve.append({
+                "time": time_label,
+                "balance": round(running_balance, 2),
+                "pnl": round(t.get('pnl', 0), 2),
+                "symbol": t.get('symbol')
+            })
+
+        return {
+            "stats": stats,
+            "equity_curve": curve[-30:] # Last 30 points for mobile view
+        }
 
 # Global instance
 persistence_service = PersistenceService()

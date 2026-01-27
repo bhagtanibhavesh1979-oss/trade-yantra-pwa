@@ -33,6 +33,10 @@ function App() {
     } catch { return []; }
   });
   const [paperTrades, setPaperTrades] = useState([]);
+  const [paperBalance, setPaperBalance] = useState(500000);
+  const [autoExec, setAutoExec] = useState(false);
+  const [strategyMode, setStrategyMode] = useState('BOUNCE');
+  const [bufferPct, setBufferPct] = useState(0.25);
   const [isPaused, setIsPaused] = useState(false);
   const [wsStatus, setWsStatus] = useState('disconnected');
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -103,36 +107,60 @@ function App() {
 
     try {
       const [alertsData, logsData, wlData, paperData] = await Promise.all([
-        getAlerts(sessionId, clientId).catch(() => ({ alerts: [] })),
-        getLogs(sessionId, clientId).catch(() => ({ logs: [] })),
-        getWatchlist(sessionId, clientId).catch(() => ({ watchlist: [] })),
-        getPaperSummary(sessionId).catch(() => ({ trades: [] }))
+        getAlerts(sessionId, clientId).catch(err => {
+          console.error('Failed to fetch alerts:', err);
+          return null;
+        }),
+        getLogs(sessionId, clientId).catch(err => {
+          console.error('Failed to fetch logs:', err);
+          return null;
+        }),
+        getWatchlist(sessionId, clientId).catch(err => {
+          console.error('Failed to fetch watchlist:', err);
+          return null;
+        }),
+        getPaperSummary(sessionId, clientId).catch(err => {
+          console.error('Failed to fetch paper trades:', err);
+          return null;
+        })
       ]);
 
-      console.log('📊 Loaded data from server:', {
-        alerts: alertsData.alerts?.length || 0,
-        logs: logsData.logs?.length || 0,
-        watchlist: wlData.watchlist?.length || 0,
-        healing: !!clientId
+      console.log('📊 Sync attempt result:', {
+        alerts: alertsData?.alerts?.length ?? 'FAILED',
+        logs: logsData?.logs?.length ?? 'FAILED',
+        watchlist: wlData?.watchlist?.length ?? 'FAILED',
+        paper: paperData?.trades?.length ?? 'FAILED'
       });
 
       // --- DATA SYNC ---
-      // If server returns data, it's the source of truth.
-      if (Array.isArray(alertsData.alerts)) {
-        setAlerts(alertsData.alerts);
+      // ONLY update if server returned actual data (not null from catch)
+      if (alertsData && Array.isArray(alertsData.alerts)) {
+        // SAFETY: Only update if server has alerts, OR if we had none locally.
+        // This prevents wiping local state if server has a "hiccup".
+        if (alertsData.alerts.length > 0 || alerts.length === 0) {
+          setAlerts(alertsData.alerts);
+        }
         setIsPaused(alertsData.is_paused || false);
       }
 
-      if (Array.isArray(logsData.logs)) {
-        setLogs(logsData.logs);
+      if (logsData && Array.isArray(logsData.logs)) {
+        if (logsData.logs.length > 0 || logs.length === 0) {
+          setLogs(logsData.logs);
+        }
       }
 
-      if (Array.isArray(wlData.watchlist)) {
-        setWatchlist(wlData.watchlist);
+      if (wlData && Array.isArray(wlData.watchlist)) {
+        if (wlData.watchlist.length > 0 || watchlist.length === 0) {
+          setWatchlist(wlData.watchlist);
+        }
       }
 
-      if (Array.isArray(paperData.trades)) {
-        setPaperTrades(paperData.trades);
+      if (paperData) {
+        if (Array.isArray(paperData.trades)) setPaperTrades(paperData.trades);
+        if (paperData.virtual_balance !== undefined) setPaperBalance(paperData.virtual_balance);
+        if (paperData.auto_paper_trade !== undefined) setAutoExec(paperData.auto_paper_trade);
+        if (paperData.strategy_mode) setStrategyMode(paperData.strategy_mode);
+        if (paperData.buffer_pct !== undefined) setBufferPct(paperData.buffer_pct);
       }
 
       if (isManualSync) toast.success('Data synced from server!', { id: 'sync-data' });

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skeleton } from './Skeleton';
 import wsClient from '../services/websocket';
+import TradingViewChart from './TradingViewChart';
 
 const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
     const [indices, setIndices] = useState([]);
@@ -219,17 +220,11 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
 
                             <div className="p-4">
                                 {/* TradingView Widget */}
-                                <div className="w-full h-64 bg-[var(--bg-primary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
-                                    <iframe
-                                        key={selectedChartIndex.token}
-                                        src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76230&symbol=${encodeURIComponent(getTradingViewSymbol(selectedChartIndex.symbol, selectedChartIndex.exch))}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FKolkata&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=in&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=${encodeURIComponent(getTradingViewSymbol(selectedChartIndex.symbol, selectedChartIndex.exch))}`}
-                                        width="100%"
+                                <div className="w-full h-72 bg-[var(--bg-primary)] rounded-xl overflow-hidden border border-[var(--border-color)]">
+                                    <TradingViewChart
+                                        symbol={getTradingViewSymbol(selectedChartIndex.symbol, selectedChartIndex.exch)}
                                         height="100%"
-                                        frameBorder="0"
-                                        allowTransparency="true"
-                                        scrolling="no"
-                                        allowFullScreen
-                                    ></iframe>
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4 mt-6">

@@ -8,8 +8,8 @@ const getWebSocketUrl = () => {
     // Otherwise detect if we are on localhost or production
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
-    // Use matching endpoint: ibynqazflq-as (Asia-South1)
-    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-as.a.run.app';
+    // Use matching endpoint: ibynqazflq-el (Asia-South1 - Mumbai)
+    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-el.a.run.app';
 };
 
 const WS_BASE_URL = getWebSocketUrl();

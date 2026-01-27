@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist, manualTrade } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import TradingViewChart from './TradingViewChart';
 
 function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisible = true }) {
     const sessionId = session?.sessionId || session?.session_id;
@@ -147,7 +148,7 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
     return (
         <div className="w-full space-y-4">
             {/* Search */}
-            <div className="bg-[#222844] md:rounded-lg p-2 md:p-3 border-b md:border border-[#2D3748]">
+            <div className="bg-[var(--bg-secondary)] md:rounded-2xl p-3 border border-[var(--border-color)] shadow-sm">
                 <div className="relative">
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -172,12 +173,12 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
 
                     {/* Search Results Dropdown */}
                     {showSearchResults && searchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-[#222844] border border-[#2D3748] rounded-lg shadow-xl max-h-60 overflow-y-auto z-10">
+                        <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 backdrop-blur-xl">
                             {searchResults.map((stock) => (
                                 <div
                                     key={stock.token}
                                     onClick={() => handleAddStock(stock)}
-                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#2D3748] transition-colors border-b border-[#2D3748]/50 last:border-0 cursor-pointer group"
+                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--accent-blue)]/10 transition-colors border-b border-[var(--border-color)] last:border-0 cursor-pointer group"
                                 >
                                     <div className="flex-1">
                                         <div className="text-[var(--text-primary)] font-medium group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</div>
@@ -229,8 +230,10 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
             {/* Watchlist */}
             <div className="w-full">
                 {filteredWatchlist.length === 0 ? (
-                    <div className="p-8 text-center bg-[#222844] rounded-xl border border-[#2D3748] m-2">
-                        <p className="text-gray-400">No stocks in watchlist. Search and add symbols above.</p>
+                    <div className="p-12 text-center bg-[var(--bg-secondary)] rounded-2xl border-2 border-dashed border-[var(--border-color)] m-2 transform transition-all duration-300 hover:border-[var(--accent-blue)]/30">
+                        <div className="text-4xl mb-4 opacity-20">📊</div>
+                        <p className="text-[var(--text-muted)] font-medium">Your watchlist is empty.</p>
+                        <p className="text-[10px] text-[var(--text-muted)] mt-1 uppercase tracking-widest">Search and add symbols to start monitoring</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-2">
@@ -248,61 +251,46 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0.95 }}
                                         onClick={() => setSelectedStock(stock)}
-                                        className="glass-card p-4 rounded-xl shadow-lg hover:border-[#667EEA]/50 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98]"
+                                        className="glass-card p-5 rounded-2xl shadow-xl hover:border-[var(--accent-blue)]/50 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98] border border-[var(--border-color)]"
                                     >
-                                        {/* Background Glow Effect on Hover */}
-                                        <div className="absolute inset-0 bg-gradient-to-br from-[#667EEA]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-
                                         <div className="flex justify-between items-start relative z-10">
-                                            <div className="space-y-1">
+                                            <div className="space-y-1.5">
                                                 <div className="flex items-center gap-2">
-                                                    <h3 className="text-[var(--text-primary)] font-bold text-lg leading-tight">{stock.symbol}</h3>
-                                                    <a
-                                                        href={`https://www.tradingview.com/chart/?symbol=NSE:${stock.symbol.replace('-EQ', '')}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="text-gray-400 hover:text-[#667EEA] transition-colors p-1"
-                                                        title="Open TradingView"
-                                                    >
-                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                            <path d="M14 3h7v7h-2V6.41l-9 9L8.59 14l9-9H14V3zM5 5h5V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-5h-2v5H5V5z" />
-                                                        </svg>
-                                                    </a>
+                                                    <h3 className="text-[var(--text-primary)] font-black text-lg tracking-tight group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</h3>
+                                                    <span className="text-[8px] font-bold bg-[var(--bg-primary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border-color)] uppercase tracking-widest">{stock.exch_seg || 'NSE'}</span>
                                                 </div>
-                                                <div className="text-[10px] text-gray-400 font-mono">TOKEN: {stock.token}</div>
+                                                <div className="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-1.5">
+                                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--border-color)]"></span>
+                                                    ID: {stock.token}
+                                                </div>
                                             </div>
 
                                             <div className="text-right">
                                                 <motion.div
                                                     key={stock.ltp}
-                                                    initial={{ color: isPositive ? '#00FF94' : '#FF4D4D' }}
-                                                    animate={{
-                                                        scale: [1, 1.05, 1],
-                                                        transition: { duration: 0.3 }
-                                                    }}
-                                                    className={`text-xl font-black ${isPositive ? 'price-up' : 'price-down'}`}
+                                                    className={`text-2xl font-black tabular-nums tracking-tighter ${isPositive ? 'price-up' : 'price-down'}`}
                                                 >
-                                                    ₹{stock.ltp?.toFixed(2) || '0.00'}
+                                                    ₹{stock.ltp?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                                                 </motion.div>
-                                                <div className={`text-xs font-semibold ${isPositive ? 'text-[#00FF94]/80' : 'text-[#FF4D4D]/80'}`}>
-                                                    {isPositive ? '▲' : '▼'} {Math.abs(changeValue).toFixed(2)} ({Math.abs(changePercent).toFixed(2)}%)
+                                                <div className={`text-[10px] font-black flex items-center justify-end gap-1 ${isPositive ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${isPositive ? 'bg-[var(--success-neon)] shadow-[0_0_8px_var(--success-neon)]' : 'bg-[var(--danger-neon)] shadow-[0_0_8px_var(--danger-neon)]'}`} />
+                                                    {isPositive ? '+' : ''}{Math.abs(changeValue).toFixed(2)} ({Math.abs(changePercent).toFixed(2)}%)
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-[#2D3748]/50 relative z-10">
+                                        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-[var(--border-color)] relative z-10">
                                             <div className="text-center">
-                                                <div className="text-[9px] text-gray-500 uppercase tracking-wider">P.Close</div>
-                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdc?.toFixed(2) || '0.00'}</div>
+                                                <div className="text-[8px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1">P. Close</div>
+                                                <div className="text-xs text-[var(--text-primary)] font-bold opacity-70">₹{stock.pdc?.toFixed(1) || '0.0'}</div>
                                             </div>
-                                            <div className="text-center">
-                                                <div className="text-[9px] text-[#667EEA] uppercase tracking-wider">High</div>
-                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdh?.toFixed(2) || '0.00'}</div>
+                                            <div className="text-center group/high">
+                                                <div className="text-[8px] text-[var(--accent-blue)] uppercase font-black tracking-widest mb-1">Buy High</div>
+                                                <div className="text-xs text-[var(--text-primary)] font-black">₹{stock.pdh?.toFixed(1) || '0.0'}</div>
                                             </div>
-                                            <div className="text-center">
-                                                <div className="text-[9px] text-[#667EEA] uppercase tracking-wider">Low</div>
-                                                <div className="text-xs text-[var(--text-secondary)] font-medium">{stock.pdl?.toFixed(2) || '0.00'}</div>
+                                            <div className="text-center group/low">
+                                                <div className="text-[8px] text-orange-400 uppercase font-black tracking-widest mb-1">Sell Low</div>
+                                                <div className="text-xs text-[var(--text-primary)] font-black">₹{stock.pdl?.toFixed(1) || '0.0'}</div>
                                             </div>
                                         </div>
                                     </motion.div>
@@ -328,29 +316,42 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                             </button>
                         </div>
 
-                        {/* TradingView Mini Chart Widget */}
-                        <div className="w-full h-48 bg-[#1A1F3A] rounded-xl overflow-hidden border border-[#2D3748] relative">
-                            <iframe
-                                key={selectedStock.token}
-                                src={`https://s.tradingview.com/widgetembed/?frameElementId=tradingview_76230&symbol=NSE%3A${encodeURIComponent(selectedStock.symbol.replace(/-EQ$/, ''))}&interval=D&hidesidetoolbar=1&symboledit=0&saveimage=0&toolbarbg=f1f3f6&studies=%5B%5D&theme=dark&style=1&timezone=Asia%2FKolkata&studies_overrides=%7B%7D&overrides=%7B%7D&enabled_features=%5B%5D&disabled_features=%5B%5D&locale=in&utm_source=localhost&utm_medium=widget&utm_campaign=chart&utm_term=NSE%3A${encodeURIComponent(selectedStock.symbol.replace(/-EQ$/, ''))}`}
-                                width="100%"
+                        {/* Clickable TradingView Chart Area */}
+                        <a
+                            href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace(/-EQ$/, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full h-56 bg-[var(--bg-primary)] rounded-xl overflow-hidden border border-[var(--border-color)] relative group/chart cursor-pointer"
+                            title="Click for FULL Pro Chart"
+                        >
+                            <TradingViewChart
+                                symbol={`NSE:${selectedStock.symbol.replace(/-EQ$/, '')}`}
                                 height="100%"
-                                frameBorder="0"
-                                allowTransparency="true"
-                                scrolling="no"
-                                allowFullScreen
-                            ></iframe>
-                        </div>
+                            />
+                            {/* Hover Overlay */}
+                            <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover/chart:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                <span className="bg-[#2D3748]/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 shadow-2xl flex items-center gap-2">
+                                    <span>🔍</span> OPEN FULL PRO CHART
+                                </span>
+                            </div>
+
+                            {/* Localhost Indicator */}
+                            <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
+                                <span className="bg-black/40 backdrop-blur-md text-[8px] text-gray-400 px-2 py-0.5 rounded-full border border-white/5 uppercase tracking-widest font-black">
+                                    Full Data on Live Domain
+                                </span>
+                            </div>
+                        </a>
 
                         <div className="grid grid-cols-2 gap-4 py-2">
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
-                                <div className="text-gray-400 text-xs text-center">LTP</div>
+                            <div className="bg-[var(--bg-secondary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <div className="text-[var(--text-muted)] text-xs text-center">LTP</div>
                                 <div className={`text-xl font-bold text-center ${selectedStock.ltp - selectedStock.pdc >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                     ₹{selectedStock.ltp?.toFixed(2)}
                                 </div>
                             </div>
-                            <div className="bg-[#1A1F3A] p-3 rounded-lg border border-[#2D3748]">
-                                <div className="text-gray-400 text-xs text-center">Change</div>
+                            <div className="bg-[var(--bg-secondary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <div className="text-[var(--text-muted)] text-xs text-center">Change</div>
                                 <div className={`text-xl font-bold text-center ${(selectedStock.ltp - selectedStock.pdc) >= 0 ? 'text-[#48BB78]' : 'text-[#F56565]'}`}>
                                     {selectedStock.ltp - selectedStock.pdc >= 0 ? '+' : ''}{(selectedStock.ltp - selectedStock.pdc).toFixed(2)}
                                 </div>

@@ -362,6 +362,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     # so that WebSocket PING/PONG continues to work on mobile devices.
     def _run_bulk_logic():
         total_alerts = 0
+        total_duplicates = 0
         results = []
         
         for stock in session.watchlist:
@@ -393,7 +394,7 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     if alert_data.get('label') not in req.levels:
                         continue
                     
-                    # Duplicate check (redundant but safe)
+                    # Duplicate check (Robust string and price comparison)
                     is_duplicate = any(
                         str(a['token']) == token and
                         round(a['price'], 2) == round(alert_data['price'], 2) and
@@ -411,6 +412,8 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                         )
                         session.alerts.append(alert)
                         stock_alerts_count += 1
+                    else:
+                        total_duplicates += 1
                 
                 total_alerts += stock_alerts_count
                 results.append({"symbol": symbol, "success": True, "count": stock_alerts_count})
@@ -419,13 +422,13 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                 print(f"[ERROR] Bulk gen failed for {stock.get('symbol')}: {e}")
                 results.append({"symbol": stock.get('symbol'), "success": False, "error": str(e)})
 
-        return total_alerts, results
+        return total_alerts, total_duplicates, results
 
     # Execute in default thread pool executor
     import concurrent.futures
     loop = asyncio.get_running_loop()
     with concurrent.futures.ThreadPoolExecutor() as pool:
-        total_alerts, results = await loop.run_in_executor(pool, _run_bulk_logic)
+        total_alerts, total_duplicates, results = await loop.run_in_executor(pool, _run_bulk_logic)
     
     # Create log entry
     if total_alerts > 0:

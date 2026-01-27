@@ -24,6 +24,9 @@ class Session:
         self.virtual_balance = 0.0 # Virtual wallet balance
         self.is_paused = False
         self.auto_paper_trade = False
+        self.strategy_mode = 'BOUNCE' # 'BOUNCE' or 'SAR'
+        self.trigger_mode = 'CANDLE_CLOSE' # 'CANDLE_CLOSE' or 'INSTANT'
+        self.buffer_pct = 0.25 # Default 0.25%
         self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
@@ -89,8 +92,18 @@ class SessionManager:
             session.logs = existing_data.get('logs', [])
             session.paper_trades = existing_data.get('paper_trades', [])
             session.virtual_balance = existing_data.get('virtual_balance', 0.0)
+            
+            # Atomic Recovery Fallback
+            if not session.virtual_balance or session.virtual_balance == 0:
+                atomic_bal = persistence_service.get_atomic_balance(client_id)
+                session.virtual_balance = atomic_bal
+                print(f"💰 [LOGIN] Rigid balance ₹{session.virtual_balance} enforced for {client_id}")
+
             session.is_paused = existing_data.get('is_paused', False)
             session.auto_paper_trade = existing_data.get('auto_paper_trade', False)
+            session.strategy_mode = existing_data.get('strategy_mode', 'BOUNCE')
+            session.trigger_mode = existing_data.get('trigger_mode', 'CANDLE_CLOSE')
+            session.buffer_pct = existing_data.get('buffer_pct', 0.25)
             print(f"[OK] Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts, {len(session.paper_trades)} paper trades, Balance: {session.virtual_balance}")
         
         with self.lock:
@@ -102,37 +115,26 @@ class SessionManager:
     def get_session(self, session_id: str, client_id: Optional[str] = None) -> Optional[Session]:
         """Get session by ID, restore from JSON if not in memory"""
         with self.lock:
+            # 1. Check Memory FIRST
             session = self.sessions.get(session_id)
             if session:
                 session.last_activity = datetime.now()
                 return session
         
-        # 1. Try JSON lookup by session_id
+        # 2. HEALING: If not in memory, we MUST try to restore from JSON/GCS
+        print(f"[RECOVERY] Session {session_id} not in memory. Searching disk... (CID: {client_id})")
+        session_data = {}
+        
+        # A. Try by Session ID
         session_data = persistence_service.get_session_by_session_id(session_id)
         
-        # 2. SELF-HEALING: Try client_id if session_id not found
+        # B. If session_id failed but we have client_id, try by Client ID
         if not session_data and client_id:
-            print(f"[WARN] Session {session_id} not found. Healing via client_id {client_id}...")
+            print(f"[RECOVERY] Session ID lookup failed. Trying Client ID heal for {client_id}...")
             session_data = persistence_service.get_latest_session_by_client_id(client_id)
             
-        # 3. LAST RESORT: Search for ANY latest record
-        if not session_data:
-            data = persistence_service.load_sessions()
-            if data:
-                latest_sid = None
-                latest_time = ""
-                for sid, s_data in data.items():
-                    act = s_data.get('last_activity', '')
-                    if act > latest_time:
-                        latest_time = act
-                        latest_sid = sid
-                
-                if latest_sid:
-                    print(f"[INFO] Found dormant record {latest_sid}. Healing...")
-                    session_data = data[latest_sid]
-
         if session_data:
-            print(f"[OK] Recovered session data for client {session_data['client_id']}")
+            print(f"[OK] Recovered session for client {session_data.get('client_id')}")
             session = Session(
                 session_id,
                 session_data['client_id'],
@@ -145,8 +147,17 @@ class SessionManager:
             session.logs = session_data.get('logs', [])
             session.paper_trades = session_data.get('paper_trades', [])
             session.virtual_balance = session_data.get('virtual_balance', 0.0)
+            if not session.virtual_balance or session.virtual_balance == 0:
+                # Ultimate fallback to atomic per-client balance file
+                atomic_bal = persistence_service.get_atomic_balance(session.client_id)
+                session.virtual_balance = atomic_bal
+                print(f"💰 [RESTORED] Rigid balance ₹{session.virtual_balance} enforced for {session.client_id}")
+
             session.is_paused = session_data.get('is_paused', False)
             session.auto_paper_trade = session_data.get('auto_paper_trade', False)
+            session.strategy_mode = session_data.get('strategy_mode', 'BOUNCE')
+            session.trigger_mode = session_data.get('trigger_mode', 'CANDLE_CLOSE')
+            session.buffer_pct = session_data.get('buffer_pct', 0.25)
             session.last_activity = datetime.now()
             
             with self.lock:

@@ -9,8 +9,8 @@ const getBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // Default Fallback (Asia-South1 - Mumbai Region - NOW PRIMARY)
-    return 'https://trade-yantra-api-ibynnqazflq-as.a.run.app';
+    // Default Fallback (Asia-South1 - Mumbai Region - NOW PRIMARY - UPDATED)
+    return 'https://trade-yantra-api-ibynqazflq-el.a.run.app';
 };
 
 const API_BASE_URL = getBaseUrl();
@@ -185,13 +185,29 @@ export const getLogs = async (sessionId, clientId = null) => {
 };
 
 // Paper Trading APIs
-export const getPaperSummary = async (sessionId) => {
-    const response = await api.get(`/api/paper/summary/${sessionId}`);
+export const getPaperSummary = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/paper/summary/${sessionId}?client_id=${clientId}` : `/api/paper/summary/${sessionId}`;
+    const response = await api.get(url);
     return response.data;
 };
 
-export const togglePaperTrading = async (sessionId, enabled) => {
-    const response = await api.post(`/api/paper/toggle/${sessionId}`, { enabled });
+export const togglePaperTrading = async (sessionId, enabled, clientId = null) => {
+    const response = await api.post(`/api/paper/toggle/${sessionId}`, { enabled, client_id: clientId });
+    return response.data;
+};
+
+export const setStrategyMode = async (sessionId, mode, clientId = null) => {
+    const response = await api.post(`/api/paper/strategy/${sessionId}`, { mode, client_id: clientId });
+    return response.data;
+};
+
+export const setTriggerMode = async (sessionId, mode, clientId = null) => {
+    const response = await api.post(`/api/paper/trigger-mode/${sessionId}`, { mode, client_id: clientId });
+    return response.data;
+};
+
+export const setBufferPct = async (sessionId, buffer, clientId = null) => {
+    const response = await api.post(`/api/paper/buffer/${sessionId}`, { buffer, client_id: clientId });
     return response.data;
 };
 
@@ -206,8 +222,8 @@ export const clearPaperTrades = async (sessionId) => {
     return response.data;
 };
 
-export const setVirtualBalance = async (sessionId, amount) => {
-    const response = await api.post(`/api/paper/balance/${sessionId}`, { amount });
+export const setVirtualBalance = async (sessionId, amount, clientId = null) => {
+    const response = await api.post(`/api/paper/balance/${sessionId}`, { amount, client_id: clientId });
     return response.data;
 };
 
@@ -231,6 +247,14 @@ export const manualTrade = async (sessionId, symbol, token, ltp, side, quantity)
     });
     return response.data;
 };
-// ... existing code ...
+export const getPaperAnalytics = async (sessionId) => {
+    const response = await api.get(`/api/paper/analytics/${sessionId}`);
+    return response.data;
+};
+
+export const runBacktest = async (sessionId, params, clientId = null) => {
+    const response = await api.post(`/api/paper/backtest/${sessionId}`, { ...params, client_id: clientId });
+    return response.data;
+};
 
 export default api;

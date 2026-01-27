@@ -69,10 +69,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Configuration - PERMISSIVE DEBUG MODE
+# CORS Configuration
+cors_origins_str = os.getenv("CORS_ORIGINS", "*")
+cors_origins = [origin.strip() for origin in cors_origins_str.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

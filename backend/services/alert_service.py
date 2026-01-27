@@ -73,46 +73,37 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
         
         if high <= 0 or low >= 99999999: return []
         
-        # Calculate half-difference for multi-level support/resistance
-        diff = (high - low) / 2
+        # Calculate quadrant steps (Matching Lab Logic)
+        diff = high - low
+        step = diff / 2.0
+        half_step = step / 2.0
         
-        # Generate 6 resistance levels: R1 to R6
-        r1 = round(high + diff, 2)
-        r2 = round(high + (2 * diff), 2)
-        r3 = round(high + (3 * diff), 2)
-        r4 = round(high + (4 * diff), 2)
-        r5 = round(high + (5 * diff), 2)
-        r6 = round(high + (6 * diff), 2)
+        levels = []
+        # Generate range from S6 to R6 (Total 25 levels including mids)
+        for j in range(-12, 13):
+            price = round(low + (j * half_step), 2)
+            label = ""
+            condition = "ABOVE" # Default
+            
+            if j % 2 == 0: # Major Level
+                idx = j // 2
+                if idx == 0: 
+                    label, condition = "Low", "BELOW"
+                elif idx == 1: 
+                    label, condition = "Mid-Pivot", "ABOVE"
+                elif idx == 2: 
+                    label, condition = "High", "ABOVE"
+                elif idx > 2: 
+                    label, condition = f"R{idx-2}", "ABOVE"
+                else: 
+                    label, condition = f"S{abs(idx)}", "BELOW"
+            else: # Purple Mid-Level
+                label = f"Mid_{j}"
+                condition = "ABOVE" if price > high else "BELOW"
+                
+            levels.append({"price": price, "type": condition, "label": label})
         
-        # Generate 6 support levels: S1 to S6
-        s1 = round(low - diff, 2)
-        s2 = round(low - (2 * diff), 2)
-        s3 = round(low - (3 * diff), 2)
-        s4 = round(low - (4 * diff), 2)
-        s5 = round(low - (5 * diff), 2)
-        s6 = round(low - (6 * diff), 2)
-        
-        # Return levels: High, Low, R1-R6, S1-S6
-        levels = [
-            {"price": high, "type": "ABOVE", "label": "High"},
-            {"price": low, "type": "BELOW", "label": "Low"},
-            {"price": r1, "type": "ABOVE", "label": "R1"},
-            {"price": r2, "type": "ABOVE", "label": "R2"},
-            {"price": r3, "type": "ABOVE", "label": "R3"},
-            {"price": r4, "type": "ABOVE", "label": "R4"},
-            {"price": r5, "type": "ABOVE", "label": "R5"},
-            {"price": r6, "type": "ABOVE", "label": "R6"},
-            {"price": s1, "type": "BELOW", "label": "S1"},
-            {"price": s2, "type": "BELOW", "label": "S2"},
-            {"price": s3, "type": "BELOW", "label": "S3"},
-            {"price": s4, "type": "BELOW", "label": "S4"},
-            {"price": s5, "type": "BELOW", "label": "S5"},
-            {"price": s6, "type": "BELOW", "label": "S6"}
-        ]
-        
-        print(f"Generated Levels for {symbol}: H={high}, L={low}, Diff={diff}")
-        print(f"  Resistance: R1={r1}, R2={r2}, R3={r3}, R4={r4}")
-        print(f"  Support: S1={s1}, S2={s2}, S3={s3}, S4={s4}")
+        print(f"Generated {len(levels)} levels for {symbol}: H={high}, L={low}, Diff={diff}")
         return levels
         
     except Exception as e:

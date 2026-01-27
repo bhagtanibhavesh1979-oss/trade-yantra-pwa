@@ -25,6 +25,7 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
         if (showLoading) setLoading(true);
         try {
             const data = await getPaperSummary(sessionId);
+            console.log('💰 [DEBUG] Paper Summary Received:', data);
             setSummary(data);
             if (!propTrades && data.trades) setTrades(data.trades);
         } catch (err) {
