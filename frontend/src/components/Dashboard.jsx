@@ -197,7 +197,7 @@ function Dashboard({
                 <div className="flex justify-around items-center h-20 max-w-lg mx-auto">
                     {[
                         { id: 'watchlist', label: 'Market', icon: '📋' },
-                        { id: 'paper', label: 'Trades', icon: '💰' },
+                        { id: 'trades', label: 'Trades', icon: '💰' },
                         { id: 'lab', label: 'Lab', icon: '🧪' },
                         { id: 'alerts', label: 'Alerts', icon: '🔔' },
                         { id: 'logs', label: 'Logs', icon: '📝' },

@@ -5,8 +5,2821 @@
         "feed_token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsImlhdCI6MTc2OTU1MDQzNCwiZXhwIjoxNzY5NjM2ODM0fQ.x_jzmtm7G322eONU2Y9DGqhfHm_Z9l5asidEbiCuqe4LPz8Sb0HaMFVtyRZLft3sGKdkBrf7zvcyeZsVPaVacQ",
         "api_key": "BsRigbMs",
         "is_paused": false,
+        "selected_date": null,
+        "last_activity": "2026-01-28T04:06:06.777380",
+        "watchlist": [
+            {
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "exch_seg": "NSE",
+                "ltp": 1288.9,
+                "pdc": 1288.9,
+                "wc": 1409.6,
+                "loading": false,
+                "pdh": 1294.8,
+                "pdl": 1263.4
+            },
+            {
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "exch_seg": "NSE",
+                "ltp": 609.55,
+                "pdc": 609.55,
+                "wc": 699.4,
+                "loading": false,
+                "pdh": 611.3,
+                "pdl": 589.25
+            },
+            {
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "exch_seg": "NSE",
+                "ltp": 1917.7,
+                "pdc": 1917.7,
+                "wc": 2083.1,
+                "loading": false,
+                "pdh": 1971.5,
+                "pdl": 1903.4
+            },
+            {
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "exch_seg": "NSE",
+                "ltp": 3568.0,
+                "pdc": 3568.0,
+                "wc": 3655.2,
+                "loading": false,
+                "pdh": 3600.0,
+                "pdl": 3507.5
+            },
+            {
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "exch_seg": "NSE",
+                "ltp": 710.65,
+                "pdc": 710.65,
+                "pdh": 718.1,
+                "pdl": 703.1,
+                "loading": false
+            },
+            {
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "exch_seg": "NSE",
+                "ltp": 2622.8,
+                "pdc": 2622.8,
+                "pdh": 2734.7,
+                "pdl": 2546.0,
+                "loading": false
+            },
+            {
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "exch_seg": "NSE",
+                "ltp": 1745.1,
+                "pdc": 1745.1,
+                "pdh": 1749.0,
+                "pdl": 1700.0,
+                "loading": false
+            },
+            {
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "exch_seg": "NSE",
+                "ltp": 404.95,
+                "pdc": 404.95,
+                "pdh": 421.9,
+                "pdl": 400.2,
+                "loading": false
+            },
+            {
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "exch_seg": "NSE",
+                "ltp": 253.85,
+                "pdc": 253.85,
+                "pdh": 261.15,
+                "pdl": 250.5,
+                "loading": false
+            },
+            {
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "exch_seg": "NSE",
+                "ltp": 192.28,
+                "pdc": 192.28,
+                "pdh": 193.14,
+                "pdl": 187.72,
+                "loading": false
+            },
+            {
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "exch_seg": "NSE",
+                "ltp": 1222.0,
+                "pdc": 1222.0,
+                "pdh": 1230.4,
+                "pdl": 1182.7,
+                "loading": false
+            },
+            {
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "exch_seg": "NSE",
+                "ltp": 347.75,
+                "pdc": 347.75,
+                "pdh": 349.95,
+                "pdl": 342.5,
+                "loading": false
+            },
+            {
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "exch_seg": "NSE",
+                "ltp": 1129.7,
+                "pdc": 1129.7,
+                "pdh": 1139.8,
+                "pdl": 1116.2,
+                "loading": false
+            },
+            {
+                "symbol": "AXISBANK-EQ",
+                "token": "5900",
+                "exch_seg": "NSE",
+                "ltp": 1315.8,
+                "pdc": 1315.8,
+                "pdh": 1333.2,
+                "pdl": 1278.4,
+                "loading": false
+            },
+            {
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "exch_seg": "NSE",
+                "ltp": 1361.4,
+                "pdc": 1361.4,
+                "pdh": 1369.1,
+                "pdl": 1328.6,
+                "loading": false
+            },
+            {
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "exch_seg": "NSE",
+                "ltp": 894.75,
+                "pdc": 894.75,
+                "pdh": 897.0,
+                "pdl": 851.15,
+                "loading": false
+            },
+            {
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "exch_seg": "NSE",
+                "ltp": 1556.2,
+                "pdc": 1556.2,
+                "pdh": 1571.6,
+                "pdl": 1538.1,
+                "loading": false
+            },
+            {
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "exch_seg": "NSE",
+                "ltp": 847.8,
+                "pdc": 847.8,
+                "pdh": 854.05,
+                "pdl": 838.95,
+                "loading": false
+            },
+            {
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "exch_seg": "NSE",
+                "ltp": 705.45,
+                "pdc": 705.45,
+                "pdh": 707.35,
+                "pdl": 694.55,
+                "loading": false
+            },
+            {
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "exch_seg": "NSE",
+                "ltp": 439.6,
+                "pdc": 439.6,
+                "pdh": 440.0,
+                "pdl": 430.55,
+                "loading": false
+            },
+            {
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "exch_seg": "NSE",
+                "ltp": 363.95,
+                "pdc": 363.95,
+                "pdh": 366.0,
+                "pdl": 359.85,
+                "loading": false
+            },
+            {
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "exch_seg": "NSE",
+                "ltp": 193.0,
+                "pdc": 193.0,
+                "pdh": 194.15,
+                "pdl": 188.0,
+                "loading": false
+            },
+            {
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "exch_seg": "NSE",
+                "ltp": 440.05,
+                "pdc": 440.05,
+                "pdh": 475.0,
+                "pdl": 427.75,
+                "loading": false
+            },
+            {
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "exch_seg": "NSE",
+                "ltp": 607.5,
+                "pdc": 607.5,
+                "pdh": 622.35,
+                "pdl": 601.3,
+                "loading": false
+            },
+            {
+                "symbol": "NIFTY BANK",
+                "token": "99926009",
+                "exch_seg": "NSE",
+                "ltp": 59205.45,
+                "pdc": 59205.45,
+                "pdh": 59436.8,
+                "pdl": 58121.6,
+                "loading": false
+            },
+            {
+                "symbol": "NIFTY 50",
+                "token": "99926000",
+                "exch_seg": "NSE",
+                "ltp": 25175.4,
+                "pdc": 25175.4,
+                "pdh": 25246.65,
+                "pdl": 24932.55,
+                "loading": false
+            },
+            {
+                "symbol": "SENSEX",
+                "token": "99919000",
+                "exch_seg": "BSE",
+                "ltp": 81857.48,
+                "pdc": 81857.48,
+                "pdh": 82084.92,
+                "pdl": 81088.59,
+                "loading": false
+            },
+            {
+                "symbol": "CROMPTON-EQ",
+                "token": "17094",
+                "exch_seg": "NSE",
+                "ltp": 222.15,
+                "pdc": 222.15,
+                "pdh": 226.0,
+                "pdl": 219.5,
+                "loading": false
+            },
+            {
+                "symbol": "DOLLAR-EQ",
+                "token": "20560",
+                "exch_seg": "NSE",
+                "ltp": 308.65,
+                "pdc": 308.65,
+                "pdh": 315.25,
+                "pdl": 306.0,
+                "loading": false
+            }
+        ],
+        "alerts": [
+            {
+                "id": "2945c5a8-b03e-4b03-9cc5-7c8cd4a862e2",
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "condition": "ABOVE",
+                "price": 1447.4,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:25.833677"
+            },
+            {
+                "id": "54e99e52-a1de-4350-b46f-a97e0295020b",
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "condition": "ABOVE",
+                "price": 1461.1,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:25.833677"
+            },
+            {
+                "id": "97013919-9ea1-4254-81d6-28bf6b381e51",
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "condition": "ABOVE",
+                "price": 1474.8,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:25.833677"
+            },
+            {
+                "id": "e40eb86e-6c2e-4e8c-9cb0-bee73b834271",
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "condition": "ABOVE",
+                "price": 1488.5,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:25.833677"
+            },
+            {
+                "id": "2b887c81-51a9-456f-9680-c953bf4b6277",
+                "symbol": "HAVELLS-EQ",
+                "token": "9819",
+                "condition": "ABOVE",
+                "price": 1502.2,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:25.833677"
+            },
+            {
+                "id": "988759c1-075c-4982-ae0d-9d64f56272c1",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "BELOW",
+                "price": 585.6,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "198f9b06-2fa1-424b-8667-2359e9ec30a3",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "ABOVE",
+                "price": 666.2,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "cbe230e6-ede4-450c-90f2-e5b1ee92c667",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "ABOVE",
+                "price": 676.28,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "ede72f2c-b057-4867-99d0-40f25bcfd680",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "ABOVE",
+                "price": 686.35,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "9b2196ec-c9a9-4998-81f5-c025c51aea5e",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "ABOVE",
+                "price": 696.43,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "573fa06e-645e-4209-9c94-e8df99b394d7",
+                "symbol": "DLF-EQ",
+                "token": "14732",
+                "condition": "ABOVE",
+                "price": 706.5,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:26.350795"
+            },
+            {
+                "id": "96fd29dc-c908-417b-8ce9-8d206a9f3797",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "BELOW",
+                "price": 1903.4,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "f4cd8c43-fb67-42f4-92a7-4ef3ca705125",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "BELOW",
+                "price": 1919.6,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "b889eecf-91ab-445b-a944-77e762ae91bc",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "BELOW",
+                "price": 1935.8,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "ef2d8125-a18a-4437-b1b9-42e231f963e9",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "ABOVE",
+                "price": 2033.0,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "ac35bb2e-a151-440c-80c2-7ebd116c6f53",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "ABOVE",
+                "price": 2049.2,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "1153eef0-f180-4cc3-9c00-4adad6e8e52c",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "ABOVE",
+                "price": 2065.4,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "534d38e0-5c47-4cc4-ad76-6500a032d47b",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "ABOVE",
+                "price": 2081.6,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "272fdd35-9b77-4179-9ef3-f87619811103",
+                "symbol": "BAJAJFINSV-EQ",
+                "token": "16675",
+                "condition": "ABOVE",
+                "price": 2097.8,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:26.864419"
+            },
+            {
+                "id": "f30cccef-87a5-4fff-9129-26436245ac0d",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "BELOW",
+                "price": 3402.0,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "e4a444ce-5e95-440d-a57a-f89a5132079e",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "BELOW",
+                "price": 3441.8,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "325d55be-502e-4dd5-b944-a7fde5b12d26",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "BELOW",
+                "price": 3481.6,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "33e36616-2fdb-482b-a830-a8984addd11e",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "BELOW",
+                "price": 3521.4,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "5665f13f-bf90-4087-8072-a1d7f04230cd",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "ABOVE",
+                "price": 3720.4,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "77e430fb-431f-4258-b5fa-5a6d7d9a1716",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "ABOVE",
+                "price": 3760.2,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "02442a48-10ad-46f6-8370-94381a1696e9",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "ABOVE",
+                "price": 3800.0,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "b34b8695-60d4-4d76-a897-6efa17c50f53",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "ABOVE",
+                "price": 3839.8,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "30a443cd-50c4-46ae-b9dc-ba3f6ec54bde",
+                "symbol": "TVSMOTOR-EQ",
+                "token": "8479",
+                "condition": "ABOVE",
+                "price": 3879.6,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:27.390513"
+            },
+            {
+                "id": "59fb7351-72da-41dd-8102-ac257771b2c6",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "BELOW",
+                "price": 691.35,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:29.998685"
+            },
+            {
+                "id": "00072de0-cf52-49d1-8a4f-cb8d8db5758d",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "BELOW",
+                "price": 701.58,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:29.999391"
+            },
+            {
+                "id": "7e45b03e-582e-4c77-839a-f4e2d94930e2",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "ABOVE",
+                "price": 773.15,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:29.999391"
+            },
+            {
+                "id": "54c95bc8-6c74-4fd9-95ff-1da992364f72",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "ABOVE",
+                "price": 783.38,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:29.999980"
+            },
+            {
+                "id": "03e8807d-0a42-4bb5-9be1-3b2b4926b6f4",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "ABOVE",
+                "price": 793.6,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:29.999980"
+            },
+            {
+                "id": "9aaa74ee-ceb7-4b67-ac04-5f8e7b361d25",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "ABOVE",
+                "price": 803.82,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:29.999980"
+            },
+            {
+                "id": "c33d54d2-3bcf-45b5-98a9-4dc76ec94bac",
+                "symbol": "TATACHEM-EQ",
+                "token": "3405",
+                "condition": "ABOVE",
+                "price": 814.05,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:30.000529"
+            },
+            {
+                "id": "d9594937-17d1-4b1d-b01c-052c5f3319a2",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "BELOW",
+                "price": 2522.5,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "a0172a12-e9ae-4968-ae76-6bab574fad42",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "BELOW",
+                "price": 2560.5,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "40923d33-db85-4ce2-8d76-bc32a0bf4f54",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "BELOW",
+                "price": 2598.5,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "269bba68-7cd1-4bf2-8ff4-fd604bc1aa71",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "BELOW",
+                "price": 2636.5,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "4e8a4b3d-5df2-4a88-9e92-fe747c180ee5",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "BELOW",
+                "price": 2674.5,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "327fe7a6-8c9a-4e99-bad5-ce43bda2a5ed",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "ABOVE",
+                "price": 2826.5,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "1e0ade9d-4dd5-4ac0-9788-43d7c19fdfd6",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "ABOVE",
+                "price": 2864.5,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "3e1c2153-c05f-4081-8739-924bac714c45",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "ABOVE",
+                "price": 2902.5,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "dd687db8-e4f8-4227-abbf-a257ceb0fff0",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "ABOVE",
+                "price": 2940.5,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:30.520811"
+            },
+            {
+                "id": "3f61dd5c-8e5b-4ce8-ac97-df01064b0099",
+                "symbol": "ASIANPAINT-EQ",
+                "token": "236",
+                "condition": "ABOVE",
+                "price": 2978.5,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:30.521958"
+            },
+            {
+                "id": "a1fe438e-1380-4edd-b253-320286af7ce9",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1357.9,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:33.099947"
+            },
+            {
+                "id": "597230b1-c514-405a-9405-eab0072acb42",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1398.25,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "62ae7523-5db9-4f5d-8a30-c23c129de753",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1438.6,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "7900990b-cc9a-4854-a149-9f09c27b7bdb",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1478.95,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "ed68824f-81c7-40d6-9d39-6d9ad5b81fc7",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1519.3,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "83d1f0a9-bd81-4f8e-8fd0-1ad435ec55e4",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1559.65,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "aecddeb1-9c54-4839-af2c-6bbf6ddf35c7",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "BELOW",
+                "price": 1600.0,
+                "active": true,
+                "type": "AUTO_LOW",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "41e53125-fbd5-422f-a89f-ad289a047deb",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "ABOVE",
+                "price": 1761.4,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "97e44ef4-3c70-4da0-893c-3df659ca563a",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "ABOVE",
+                "price": 1801.75,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "88b0d2fc-70d2-42ac-a43e-e57668392b27",
+                "symbol": "TECHM-EQ",
+                "token": "13538",
+                "condition": "ABOVE",
+                "price": 1842.1,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:33.100546"
+            },
+            {
+                "id": "4486217a-8855-410d-a95e-0ef4882d13a8",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 386.55,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "f3d92437-9ddd-4aee-89e0-ebfacae2145a",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 391.55,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "92a107ad-b515-491c-ba1c-f3e578ee253a",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 396.55,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "cf21c7c5-c63a-494a-a93d-93a222bc2d33",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 401.55,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "4ca9f879-103e-4760-90e7-5dd17fce261a",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 406.55,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "56c88ff6-1f1d-49bf-8634-f1ae4e0839d9",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "BELOW",
+                "price": 411.55,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "aefbe2d9-ca59-485a-933d-c754d0ae2036",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "ABOVE",
+                "price": 426.55,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "9fe3c8a8-6afc-4abd-a234-c816aad0304f",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "ABOVE",
+                "price": 431.55,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "e2556560-694a-4d83-bd9e-aa9377660725",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "ABOVE",
+                "price": 436.55,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:35.703911"
+            },
+            {
+                "id": "b4cf7ed6-779e-486d-9ff9-59a611c6bb72",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "ABOVE",
+                "price": 441.55,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:35.704921"
+            },
+            {
+                "id": "4f8b2636-6c76-41cf-82e5-6e9742af4013",
+                "symbol": "BALRAMCHIN-EQ",
+                "token": "341",
+                "condition": "ABOVE",
+                "price": 446.55,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:35.704921"
+            },
+            {
+                "id": "a6cdcba7-d743-4a22-ba2a-9ec64078006e",
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "condition": "ABOVE",
+                "price": 296.8,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:36.217986"
+            },
+            {
+                "id": "e3c21d45-1426-4cb7-b1e2-6f18739fd842",
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "condition": "ABOVE",
+                "price": 301.8,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:36.217986"
+            },
+            {
+                "id": "200b3900-1edc-44db-97bd-5a3b8540218f",
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "condition": "ABOVE",
+                "price": 306.8,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:36.217986"
+            },
+            {
+                "id": "0d87e0e1-8bce-476b-a9c7-efe39aba2d69",
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "condition": "ABOVE",
+                "price": 311.8,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:36.217986"
+            },
+            {
+                "id": "2033712e-a760-4690-ae08-f044cde7c2c8",
+                "symbol": "ETERNAL-EQ",
+                "token": "5097",
+                "condition": "ABOVE",
+                "price": 316.8,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:36.217986"
+            },
+            {
+                "id": "b8ef4726-9be1-4d13-9196-f4cf81f17f6b",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 176.24,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "3defa010-97a1-475e-8264-914400fb2ad3",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 178.09,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "4061e42d-346f-4bc8-bb34-024238478b09",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 179.93,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "27716945-098d-4a96-9bb4-b379a1669207",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 181.78,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "01663d43-eb65-415c-9d81-b73a06a8913c",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 183.62,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "07e82173-59b5-4164-9d42-0f894277e6a6",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 185.47,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "9fe8980f-3e88-497f-9900-a7c322dd5345",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "BELOW",
+                "price": 187.31,
+                "active": true,
+                "type": "AUTO_LOW",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "a9368901-3327-41ce-8b7a-138008ff0dc5",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "ABOVE",
+                "price": 192.84,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "bd6c8c00-5436-4628-aa0e-56ca254ad216",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "ABOVE",
+                "price": 194.69,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "482e88b8-ab66-4439-8cb9-1e60b6876b18",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "ABOVE",
+                "price": 196.53,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "85449a61-e239-45d4-9c03-c64a98121536",
+                "symbol": "TATASTEEL-EQ",
+                "token": "3499",
+                "condition": "ABOVE",
+                "price": 198.38,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:38.798374"
+            },
+            {
+                "id": "08533a21-8c76-455e-8d16-d649c1a51493",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1118.9,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "41e78ed0-b047-4507-b301-464b4da2ab92",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1128.95,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "13fab605-f9fb-4c29-a3eb-b4a790b20842",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1139.0,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "c8a65fc0-ad7e-4a91-8089-721fdedc25f4",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1149.05,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "00a5d623-43ff-4a7d-9404-6dea08fef96d",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1159.1,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "60545a92-28d0-4151-a9e6-90678f08f7c8",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "BELOW",
+                "price": 1169.15,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:39.320692"
+            },
+            {
+                "id": "ff8c3999-3359-44f2-a691-1b774f412688",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "ABOVE",
+                "price": 1219.4,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:39.321774"
+            },
+            {
+                "id": "e72ac85e-591e-4b55-b57d-a3b866a9e6a0",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "ABOVE",
+                "price": 1229.45,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:39.321774"
+            },
+            {
+                "id": "523eed72-9365-46fb-9fc9-bceef0428983",
+                "symbol": "JSWSTEEL-EQ",
+                "token": "11723",
+                "condition": "ABOVE",
+                "price": 1239.5,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:39.321774"
+            },
+            {
+                "id": "1979c4ed-2414-4e3f-8bfd-bb987e8b183c",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "BELOW",
+                "price": 339.75,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:39.846381"
+            },
+            {
+                "id": "06bc513f-9aeb-4e13-9f9c-8b101ab842a1",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "BELOW",
+                "price": 343.82,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:39.846381"
+            },
+            {
+                "id": "d8818503-219b-4a15-a76d-5f5539416ec5",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "ABOVE",
+                "price": 372.35,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:39.846381"
+            },
+            {
+                "id": "2c31d70e-857a-4478-8d71-917be5de1510",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "ABOVE",
+                "price": 376.43,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:39.846381"
+            },
+            {
+                "id": "4fc049e1-e9df-4974-a49d-23961c3ca245",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "ABOVE",
+                "price": 380.5,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:39.848737"
+            },
+            {
+                "id": "2f7bbfca-9dd3-4f70-a727-939c8c89b9b5",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "ABOVE",
+                "price": 384.58,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:39.848737"
+            },
+            {
+                "id": "344377f5-ecc5-476b-9ecd-d4af9e2f467d",
+                "symbol": "TATAPOWER-EQ",
+                "token": "3426",
+                "condition": "ABOVE",
+                "price": 388.65,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:39.848737"
+            },
+            {
+                "id": "be3b16c7-42ac-4981-bc7e-00b6ee10a84d",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "BELOW",
+                "price": 1078.7,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:40.390367"
+            },
+            {
+                "id": "46fbbbcd-58ad-4b1b-ab64-042114461fde",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "BELOW",
+                "price": 1093.3,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:40.390367"
+            },
+            {
+                "id": "dee071d2-d31a-4884-9bc6-32eb2dcc506d",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "BELOW",
+                "price": 1107.9,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:40.390367"
+            },
+            {
+                "id": "62f8de3a-4ba4-49be-9a52-ef26c5dac9f0",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "BELOW",
+                "price": 1122.5,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:40.390367"
+            },
+            {
+                "id": "bf15c300-6a55-40b3-a922-fdcc42294348",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "ABOVE",
+                "price": 1195.5,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:40.391022"
+            },
+            {
+                "id": "ca204aea-7bec-4a76-bd82-a5052c1a7f83",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "ABOVE",
+                "price": 1210.1,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:40.391022"
+            },
+            {
+                "id": "63136b6b-b7ec-4d06-a759-04e746642a62",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "ABOVE",
+                "price": 1224.7,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:40.391022"
+            },
+            {
+                "id": "ba01a1c7-8237-4bd5-b24e-851d1401cb84",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "ABOVE",
+                "price": 1239.3,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:40.391022"
+            },
+            {
+                "id": "583043f0-b064-4fd8-bf4e-e691b6673aad",
+                "symbol": "AUROPHARMA-EQ",
+                "token": "275",
+                "condition": "ABOVE",
+                "price": 1253.9,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:40.391022"
+            },
+            {
+                "id": "43223ab1-eb7b-417b-a860-fecf0b27f741",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "BELOW",
+                "price": 1313.8,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "f4e284a4-d402-4f5b-ba5c-3f980cb5c7c0",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "BELOW",
+                "price": 1328.2,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "75803ea1-9348-4697-bd74-cc4bf4060feb",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "ABOVE",
+                "price": 1429.0,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "f4397742-a81c-4d8d-a254-8c063918fbe0",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "ABOVE",
+                "price": 1443.4,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "b914ea91-dbf5-4186-9c12-12aa8926bc4e",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "ABOVE",
+                "price": 1457.8,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "dd7c2c86-80e5-440c-9c81-a446581c1ce6",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "ABOVE",
+                "price": 1472.2,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "33a3910a-f951-42c1-9295-a94348f9b2e5",
+                "symbol": "ICICIBANK-EQ",
+                "token": "4963",
+                "condition": "ABOVE",
+                "price": 1486.6,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:47.622318"
+            },
+            {
+                "id": "3890295e-4d58-49fe-b5b4-d9bbd271faa3",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "BELOW",
+                "price": 871.6,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:48.149105"
+            },
+            {
+                "id": "7f20a7d0-6f04-408f-8562-27e82a0d2af2",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "BELOW",
+                "price": 882.67,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:48.149105"
+            },
+            {
+                "id": "5d0b5a16-83b3-4e08-a77b-90b9abff26f2",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "ABOVE",
+                "price": 960.2,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:48.149674"
+            },
+            {
+                "id": "19e8ab2e-2339-4ea7-a656-69588710e58e",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "ABOVE",
+                "price": 971.28,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:48.149674"
+            },
+            {
+                "id": "8726e2fe-fb67-47e4-8257-ebd672d6e86d",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "ABOVE",
+                "price": 982.35,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:48.149674"
+            },
+            {
+                "id": "960dcb0f-34dd-4aa7-ba4e-28cb7f6e3c52",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "ABOVE",
+                "price": 993.43,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:48.149674"
+            },
+            {
+                "id": "69685474-e28c-41cf-a958-eac0d81a3bb0",
+                "symbol": "INDUSINDBK-EQ",
+                "token": "5258",
+                "condition": "ABOVE",
+                "price": 1004.5,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:48.149674"
+            },
+            {
+                "id": "452ea8a9-d6dd-41ae-acab-36ffeac2054e",
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "condition": "ABOVE",
+                "price": 1773.1,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:50.737612"
+            },
+            {
+                "id": "c8e4b2cb-98d4-4826-9bbf-d4701725f2d4",
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "condition": "ABOVE",
+                "price": 1788.55,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:50.737612"
+            },
+            {
+                "id": "7593743c-f574-407a-a346-bca02b237bd4",
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "condition": "ABOVE",
+                "price": 1804.0,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:50.737612"
+            },
+            {
+                "id": "8f2dc270-960c-442c-a096-83a100561a04",
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "condition": "ABOVE",
+                "price": 1819.45,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:50.737612"
+            },
+            {
+                "id": "86406871-b66c-4bfe-b2b2-b2c7054fa97c",
+                "symbol": "TATACOMM-EQ",
+                "token": "3721",
+                "condition": "ABOVE",
+                "price": 1834.9,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:50.737612"
+            },
+            {
+                "id": "6e5c6858-a244-4ef1-b770-a06c082d57bd",
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "condition": "ABOVE",
+                "price": 909.65,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:51.251878"
+            },
+            {
+                "id": "4250cdd9-0182-4bde-9a50-51cc2948dab2",
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "condition": "ABOVE",
+                "price": 914.47,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:51.251878"
+            },
+            {
+                "id": "a5627689-f5e9-488d-a3ea-ba1259f0dab3",
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "condition": "ABOVE",
+                "price": 919.3,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:51.251878"
+            },
+            {
+                "id": "d5124855-aaad-4a97-b504-6670737dbe9b",
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "condition": "ABOVE",
+                "price": 924.12,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:51.251878"
+            },
+            {
+                "id": "a8d6d532-063e-410a-ad59-bae4602037db",
+                "symbol": "BATAINDIA-EQ",
+                "token": "371",
+                "condition": "ABOVE",
+                "price": 928.95,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:51.251878"
+            },
+            {
+                "id": "4a38ebfc-2697-4cd6-a773-1b12df103932",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 599.4,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:51.778306"
+            },
+            {
+                "id": "6e30a7e8-f733-4b82-9b60-118435f14273",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 610.23,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:51.778306"
+            },
+            {
+                "id": "5adcb02e-145e-42b0-8da4-a8b2a564167e",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 621.05,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:51.778306"
+            },
+            {
+                "id": "6da303f3-e136-43bf-a21f-3bba31084a58",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 631.88,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:51.778908"
+            },
+            {
+                "id": "16911246-ef9d-4172-8033-2185f0ad6cab",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 642.7,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:51.778908"
+            },
+            {
+                "id": "06912f69-52c8-4764-904a-5a10be50b340",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 653.53,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:51.778908"
+            },
+            {
+                "id": "425b0701-f2b9-42d4-92df-dc36e3c0d895",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "BELOW",
+                "price": 664.35,
+                "active": true,
+                "type": "AUTO_LOW",
+                "created_at": "2026-01-26T20:48:51.778908"
+            },
+            {
+                "id": "8e8552c1-69c4-4361-8895-596f33de3483",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "ABOVE",
+                "price": 707.65,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:51.779474"
+            },
+            {
+                "id": "7e40973c-b443-4097-b070-304b98b8c038",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "ABOVE",
+                "price": 718.47,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:51.779474"
+            },
+            {
+                "id": "55f42503-7aa5-4866-baf1-9c7e98b52858",
+                "symbol": "VEDL-EQ",
+                "token": "3063",
+                "condition": "ABOVE",
+                "price": 729.3,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:51.779474"
+            },
+            {
+                "id": "a5266cf6-827f-481c-803f-26f9e5ac4fbb",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 400.0,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "54e91bf3-e38c-4bef-9b21-f2c2d7b38367",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 406.25,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "eafac1a3-2d5b-4710-813d-336717ce12e4",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 412.5,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "d2274a1d-7b76-4fe0-8d24-051513c0514b",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 418.75,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "e7ed17eb-f930-4e18-84ae-6261bc71f2f9",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 425.0,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "b51bdf45-19b4-4514-900b-3d72683ba313",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "BELOW",
+                "price": 431.25,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "2ab5b88a-902d-4055-8a4e-47898ef23d62",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "ABOVE",
+                "price": 450.0,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "6570dd2d-f0ce-4e6e-8980-d67e16e7a855",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "ABOVE",
+                "price": 456.25,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "408e59e6-3ad8-4927-9f51-69b36fb45a0b",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "ABOVE",
+                "price": 462.5,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "a757659c-dd26-4cd9-8a35-afdada7a49d7",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "ABOVE",
+                "price": 468.75,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "1373eb88-b0eb-4385-a368-3d880c3a4565",
+                "symbol": "CHAMBLFERT-EQ",
+                "token": "637",
+                "condition": "ABOVE",
+                "price": 475.0,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:52.317690"
+            },
+            {
+                "id": "40c5c20f-42af-4363-b2ed-c7d3b751f32a",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "BELOW",
+                "price": 346.7,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:52.862698"
+            },
+            {
+                "id": "5bb331b3-d38b-48d8-9da7-9feef2b903d0",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "BELOW",
+                "price": 350.55,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:52.862698"
+            },
+            {
+                "id": "13bf22f1-3f69-45cb-ae8e-f5943e639506",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "BELOW",
+                "price": 354.4,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:52.862698"
+            },
+            {
+                "id": "5bb61645-432d-4e9a-966f-fcb387f9b6f0",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "BELOW",
+                "price": 358.25,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:52.864295"
+            },
+            {
+                "id": "ca0b6975-5eb4-41e8-91af-33d581f20790",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "ABOVE",
+                "price": 377.5,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:52.864295"
+            },
+            {
+                "id": "9a446143-d439-4027-bcca-774b3780f2e3",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "ABOVE",
+                "price": 381.35,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:52.864295"
+            },
+            {
+                "id": "6345e358-8ca6-485e-a96b-087cf93a57bd",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "ABOVE",
+                "price": 385.2,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:52.864295"
+            },
+            {
+                "id": "d77335db-64f9-4330-b003-bd4f010ee690",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "ABOVE",
+                "price": 389.05,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:52.864295"
+            },
+            {
+                "id": "5c7f366b-e453-498f-8b7a-bf6099fca181",
+                "symbol": "RECLTD-EQ",
+                "token": "15355",
+                "condition": "ABOVE",
+                "price": 392.9,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:52.866314"
+            },
+            {
+                "id": "59008819-ad8f-4bd6-9e85-9259acc37095",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 175.02,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "b078f357-32fe-4326-a40e-2e53a839efc7",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 176.48,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "9076d516-8e89-49bf-9299-c13a5fba769c",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 177.93,
+                "active": true,
+                "type": "AUTO_S4",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "2169f7ac-33ba-4e5e-907a-b2f1fe33d2e9",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 179.38,
+                "active": true,
+                "type": "AUTO_S3",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "a9cffe38-eff8-4bf9-9558-1aa4cf472bb5",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 180.84,
+                "active": true,
+                "type": "AUTO_S2",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "b906bd8d-78c4-478b-ae42-83f65841f817",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 182.3,
+                "active": true,
+                "type": "AUTO_S1",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "f59362b1-99f1-43ff-87c5-4e40f2339280",
+                "symbol": "ASHOKLEY-EQ",
+                "token": "212",
+                "condition": "BELOW",
+                "price": 183.75,
+                "active": true,
+                "type": "AUTO_LOW",
+                "created_at": "2026-01-26T20:48:53.393118"
+            },
+            {
+                "id": "6d0b08ca-6a1f-4905-bc9e-b236f77d6220",
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "condition": "ABOVE",
+                "price": 503.65,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:53.909855"
+            },
+            {
+                "id": "9adb17f7-e01f-4d9e-b348-2b1fe81594c9",
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "condition": "ABOVE",
+                "price": 510.17,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:53.909855"
+            },
+            {
+                "id": "f7943f62-a21f-4f76-8b13-01f6d68cbf6d",
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "condition": "ABOVE",
+                "price": 516.7,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:53.909855"
+            },
+            {
+                "id": "c2b738c0-456d-497c-b1ef-54424e4d796e",
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "condition": "ABOVE",
+                "price": 523.22,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:53.909855"
+            },
+            {
+                "id": "1791068b-9036-458d-9f83-ba58072cc601",
+                "symbol": "JSWENERGY-EQ",
+                "token": "17869",
+                "condition": "ABOVE",
+                "price": 529.75,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:53.909855"
+            },
+            {
+                "id": "2705cf69-7943-4dcc-b2f8-4ed8c9028b62",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "BELOW",
+                "price": 601.9,
+                "active": true,
+                "type": "AUTO_S6",
+                "created_at": "2026-01-26T20:48:54.437851"
+            },
+            {
+                "id": "2e45da98-33db-4ac8-be66-a7659c3068ad",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "BELOW",
+                "price": 605.92,
+                "active": true,
+                "type": "AUTO_S5",
+                "created_at": "2026-01-26T20:48:54.438356"
+            },
+            {
+                "id": "cee6f377-4003-41ed-9565-ce43c3908c8a",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "ABOVE",
+                "price": 634.1,
+                "active": true,
+                "type": "AUTO_HIGH",
+                "created_at": "2026-01-26T20:48:54.438356"
+            },
+            {
+                "id": "d2687751-113d-43ec-8c3a-422cd105cd28",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "ABOVE",
+                "price": 638.12,
+                "active": true,
+                "type": "AUTO_R1",
+                "created_at": "2026-01-26T20:48:54.438356"
+            },
+            {
+                "id": "dffa81cb-85c6-4309-9ef7-9f74cc5f3ab6",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "ABOVE",
+                "price": 642.15,
+                "active": true,
+                "type": "AUTO_R2",
+                "created_at": "2026-01-26T20:48:54.438356"
+            },
+            {
+                "id": "05e994e5-0a6e-485c-98af-48f61d657cfe",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "ABOVE",
+                "price": 646.18,
+                "active": true,
+                "type": "AUTO_R3",
+                "created_at": "2026-01-26T20:48:54.438356"
+            },
+            {
+                "id": "dfca3326-41a2-4a7a-901a-aa46743e0c46",
+                "symbol": "IRCTC-EQ",
+                "token": "13611",
+                "condition": "ABOVE",
+                "price": 650.2,
+                "active": true,
+                "type": "AUTO_R4",
+                "created_at": "2026-01-26T20:48:54.438356"
+            }
+        ],
+        "logs": [
+            {
+                "time": "2026-01-27T05:13:27.562133Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 711.8 (BELOW)",
+                "price": 711.65,
+                "alert_id": "3c10b303-1771-4d8c-92d7-c7779bb197cd"
+            },
+            {
+                "time": "2026-01-27T05:13:26.571309Z",
+                "symbol": "IRCTC-EQ",
+                "msg": "IRCTC-EQ hit 609.95 (BELOW)",
+                "price": 609.85,
+                "alert_id": "8e9d24c7-969a-496d-a74e-2644a90c631d"
+            },
+            {
+                "time": "2026-01-27T05:06:45.129510Z",
+                "symbol": "TATASTEEL-EQ",
+                "msg": "TATASTEEL-EQ hit 191.0 (ABOVE)",
+                "price": 191.0,
+                "alert_id": "53e963a8-efac-474c-bb45-edd5eaef8a62"
+            },
+            {
+                "time": "2026-01-27T04:57:44.877794Z",
+                "symbol": "IRCTC-EQ",
+                "msg": "IRCTC-EQ hit 613.97 (BELOW)",
+                "price": 611.9,
+                "alert_id": "5e3a85ab-ec7c-49e2-8696-1425cbaef4ba"
+            },
+            {
+                "time": "2026-01-27T04:57:44.854788Z",
+                "symbol": "TECHM-EQ",
+                "msg": "TECHM-EQ hit 1721.05 (ABOVE)",
+                "price": 1728.9,
+                "alert_id": "ad34fc27-9ced-4289-af7d-d673c3376533"
+            },
+            {
+                "time": "2026-01-27T04:57:44.828444Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 256.8 (BELOW)",
+                "price": 255.7,
+                "alert_id": "dfa5eaa6-40c1-4739-89d3-b357ddcd8b41"
+            },
+            {
+                "time": "2026-01-27T04:57:44.804401Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1342.6 (BELOW)",
+                "price": 1338.5,
+                "alert_id": "e26aa8c3-0a55-46c3-bbf8-09e43c140e44"
+            },
+            {
+                "time": "2026-01-27T04:57:44.787628Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 477.55 (BELOW)",
+                "price": 440.5,
+                "alert_id": "fa48416c-592d-44b1-b880-f0b242b76f7a"
+            },
+            {
+                "time": "2026-01-27T04:57:44.787628Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 471.03 (BELOW)",
+                "price": 440.5,
+                "alert_id": "c04b52cf-b173-4a90-9173-270643a3b80c"
+            },
+            {
+                "time": "2026-01-27T04:57:44.785545Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 464.5 (BELOW)",
+                "price": 440.5,
+                "alert_id": "edddca4c-fadd-48c7-b367-dcc1ea62e1bf"
+            },
+            {
+                "time": "2026-01-27T04:57:44.785545Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 457.98 (BELOW)",
+                "price": 440.5,
+                "alert_id": "66983624-f1b1-4bce-b1df-ab1e17ab7ba7"
+            },
+            {
+                "time": "2026-01-27T04:57:44.785545Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 451.45 (BELOW)",
+                "price": 440.5,
+                "alert_id": "0b20c972-120b-430f-a79c-db6c8b7263cd"
+            },
+            {
+                "time": "2026-01-27T04:57:44.751333Z",
+                "symbol": "JSWSTEEL-EQ",
+                "msg": "JSWSTEEL-EQ hit 1209.35 (ABOVE)",
+                "price": 1214.8,
+                "alert_id": "6a41b44b-3df7-4d30-8f74-aa7cb6bd5b8d"
+            },
+            {
+                "time": "2026-01-27T04:57:44.751333Z",
+                "symbol": "JSWSTEEL-EQ",
+                "msg": "JSWSTEEL-EQ hit 1199.3 (ABOVE)",
+                "price": 1214.8,
+                "alert_id": "39965fec-2e19-4562-8514-697748493758"
+            },
+            {
+                "time": "2026-01-27T04:57:44.744181Z",
+                "symbol": "VEDL-EQ",
+                "msg": "VEDL-EQ hit 696.83 (ABOVE)",
+                "price": 703.0,
+                "alert_id": "7f13f05e-6e58-49ba-abc4-66acea16d2bd"
+            },
+            {
+                "time": "2026-01-27T04:57:44.744181Z",
+                "symbol": "VEDL-EQ",
+                "msg": "VEDL-EQ hit 686.0 (ABOVE)",
+                "price": 703.0,
+                "alert_id": "58a215b0-db94-45fd-b592-ca9f6686358f"
+            },
+            {
+                "time": "2026-01-26T15:58:07.281454Z",
+                "symbol": "IRCTC-EQ",
+                "msg": "IRCTC-EQ hit 626.05 (BELOW)",
+                "price": 617.8,
+                "alert_id": "0f729ecc-a277-480b-b4a7-d49186c298f9"
+            },
+            {
+                "time": "2026-01-26T15:58:07.281454Z",
+                "symbol": "IRCTC-EQ",
+                "msg": "IRCTC-EQ hit 622.02 (BELOW)",
+                "price": 617.8,
+                "alert_id": "84b6e43c-436b-4666-a971-6ee3d325caeb"
+            },
+            {
+                "time": "2026-01-26T15:58:07.281454Z",
+                "symbol": "IRCTC-EQ",
+                "msg": "IRCTC-EQ hit 618.0 (BELOW)",
+                "price": 617.8,
+                "alert_id": "c598b7d7-5d2a-4c44-934a-07a2a801c415"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1742.2 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "e1a1acaf-8451-4fc9-bfea-059579af2bd6"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1726.75 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "4807d28a-72c2-4ea5-9bf0-d9b1182c3995"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1711.3 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "75e66049-8b9f-4d46-88b7-726134f6e0e8"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1695.85 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "1795a196-743c-4c58-80ea-0ba40fefe82e"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1680.4 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "de7f1e6a-57ff-49f7-83f8-5bc2fab90797"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1664.95 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "289df4d9-dea5-491e-9b9f-3201af89adcc"
+            },
+            {
+                "time": "2026-01-26T15:58:06.962453Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1649.5 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "1042ac9d-99af-4224-bd9a-2e33daff8205"
+            },
+            {
+                "time": "2026-01-26T15:58:06.849277Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 364.2 (BELOW)",
+                "price": 345.25,
+                "alert_id": "761bf82f-0649-4938-bf2d-a68df2114220"
+            },
+            {
+                "time": "2026-01-26T15:58:06.849277Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 360.12 (BELOW)",
+                "price": 345.25,
+                "alert_id": "7ec29919-b28d-465d-96dc-d72eb4f4930c"
+            },
+            {
+                "time": "2026-01-26T15:58:06.849277Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 356.05 (BELOW)",
+                "price": 345.25,
+                "alert_id": "113c7176-740e-4bd6-b118-b8c06f1dc80f"
+            },
+            {
+                "time": "2026-01-26T15:58:06.847273Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 351.97 (BELOW)",
+                "price": 345.25,
+                "alert_id": "b1654a00-b45c-4dab-b817-6955a779a98a"
+            },
+            {
+                "time": "2026-01-26T15:58:06.847273Z",
+                "symbol": "TATAPOWER-EQ",
+                "msg": "TATAPOWER-EQ hit 347.9 (BELOW)",
+                "price": 345.25,
+                "alert_id": "6d34bb76-df68-449e-a226-0a89d46981ab"
+            },
+            {
+                "time": "2026-01-26T15:58:06.727411Z",
+                "symbol": "TECHM-EQ",
+                "msg": "TECHM-EQ hit 1680.7 (ABOVE)",
+                "price": 1701.1,
+                "alert_id": "a0908f67-46f2-430c-903d-ff333cedfaff"
+            },
+            {
+                "time": "2026-01-26T15:58:06.636950Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 752.7 (BELOW)",
+                "price": 713.5,
+                "alert_id": "c6160fc9-1db7-4e99-8263-16d47ba1f0fb"
+            },
+            {
+                "time": "2026-01-26T15:58:06.636950Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 742.48 (BELOW)",
+                "price": 713.5,
+                "alert_id": "a03fdaa0-d493-4dfe-84d7-4ce20b63a9d9"
+            },
+            {
+                "time": "2026-01-26T15:58:06.636950Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 732.25 (BELOW)",
+                "price": 713.5,
+                "alert_id": "80b19549-7b50-47cc-b225-1cb9581257dd"
+            },
+            {
+                "time": "2026-01-26T15:58:06.636950Z",
+                "symbol": "TATACHEM-EQ",
+                "msg": "TATACHEM-EQ hit 722.03 (BELOW)",
+                "price": 713.5,
+                "alert_id": "b834baae-d138-4c76-a293-cee8b3637574"
+            },
+            {
+                "time": "2026-01-26T15:58:06.531906Z",
+                "symbol": "BALRAMCHIN-EQ",
+                "msg": "BALRAMCHIN-EQ hit 416.55 (BELOW)",
+                "price": 413.0,
+                "alert_id": "e60077a2-c32d-4a55-a703-b7f9055fd1d0"
+            },
+            {
+                "time": "2026-01-26T15:58:06.183107Z",
+                "symbol": "RECLTD-EQ",
+                "msg": "RECLTD-EQ hit 369.8 (BELOW)",
+                "price": 361.35,
+                "alert_id": "a8e977ed-87c7-4721-96ff-765eb7d04a04"
+            },
+            {
+                "time": "2026-01-26T15:58:06.183107Z",
+                "symbol": "RECLTD-EQ",
+                "msg": "RECLTD-EQ hit 365.95 (BELOW)",
+                "price": 361.35,
+                "alert_id": "de8e980c-5955-4427-8215-9f8adfb7a0e4"
+            },
+            {
+                "time": "2026-01-26T15:58:06.183107Z",
+                "symbol": "RECLTD-EQ",
+                "msg": "RECLTD-EQ hit 362.1 (BELOW)",
+                "price": 361.35,
+                "alert_id": "350c8476-0113-4668-b862-23f5d0300421"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 286.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "455f05b2-6c6f-43cc-8fa0-40a745ad4dd4"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 281.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "f9376995-4624-4815-b282-728e097f1720"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 276.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "b9ca9249-f99e-4f66-a904-f49858fa8bc8"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 271.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "29cf5965-3b15-45e6-afb1-8c74155b61fa"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 266.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "d20af939-0b74-4b95-b1f4-233c85bd8b49"
+            },
+            {
+                "time": "2026-01-26T15:58:06.058833Z",
+                "symbol": "ETERNAL-EQ",
+                "msg": "ETERNAL-EQ hit 261.8 (BELOW)",
+                "price": 258.7,
+                "alert_id": "6ec5fa23-a5d5-40eb-8e8f-cb22f054eab1"
+            },
+            {
+                "time": "2026-01-26T15:58:05.966906Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1420.0 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "61abfdc5-4d94-42e4-9dbd-bda95e5ed4cc"
+            },
+            {
+                "time": "2026-01-26T15:58:05.966906Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1406.3 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "86607750-d305-4662-bf47-ed6101b90047"
+            },
+            {
+                "time": "2026-01-26T15:58:05.966906Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1392.6 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "06f2cf78-89b7-4dac-9341-b3b5e5967d9f"
+            },
+            {
+                "time": "2026-01-26T15:58:05.966906Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1378.9 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "a0bc5592-1f18-424a-ba2e-2e6d85ddf251"
+            },
+            {
+                "time": "2026-01-26T15:58:05.966906Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1365.2 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "fd74f5a2-9df6-44ca-801a-14ecc976acd9"
+            },
+            {
+                "time": "2026-01-26T15:58:05.964900Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1351.5 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "8f1fa52b-91cc-4734-909d-a7e6d7199f9c"
+            },
+            {
+                "time": "2026-01-26T15:58:05.964900Z",
+                "symbol": "HAVELLS-EQ",
+                "msg": "HAVELLS-EQ hit 1337.8 (BELOW)",
+                "price": 1287.0,
+                "alert_id": "16175af2-c5a2-4651-85e8-a69657ad76b9"
+            },
+            {
+                "time": "2026-01-26T15:58:05.455628Z",
+                "symbol": "CHAMBLFERT-EQ",
+                "msg": "CHAMBLFERT-EQ hit 437.5 (BELOW)",
+                "price": 435.55,
+                "alert_id": "e19bfd80-219c-4f36-815d-29da707a8d8f"
+            },
+            {
+                "time": "2026-01-26T15:58:05.018920Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1400.2 (BELOW)",
+                "price": 1343.4,
+                "alert_id": "d584e3af-6e1e-471a-bda9-49477c3246f6"
+            },
+            {
+                "time": "2026-01-26T15:58:05.018920Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1385.8 (BELOW)",
+                "price": 1343.4,
+                "alert_id": "1d8e119d-74db-477b-a8ef-22c7a7f2e210"
+            },
+            {
+                "time": "2026-01-26T15:58:05.018920Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1371.4 (BELOW)",
+                "price": 1343.4,
+                "alert_id": "01496880-86e6-46e3-87d4-0e9d102f7295"
+            },
+            {
+                "time": "2026-01-26T15:58:05.018920Z",
+                "symbol": "ICICIBANK-EQ",
+                "msg": "ICICIBANK-EQ hit 1357.0 (BELOW)",
+                "price": 1343.4,
+                "alert_id": "c1464b63-0fbd-4ad9-8f89-21e0039b3fa1"
+            },
+            {
+                "time": "2026-01-26T15:58:04.762320Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 490.6 (BELOW)",
+                "price": 477.65,
+                "alert_id": "81498f24-c27c-49fe-8e30-e813f4cf8596"
+            },
+            {
+                "time": "2026-01-26T15:58:04.762320Z",
+                "symbol": "JSWENERGY-EQ",
+                "msg": "JSWENERGY-EQ hit 484.08 (BELOW)",
+                "price": 477.65,
+                "alert_id": "a7e8f9a1-088f-4938-8e38-636a2f45e326"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 646.05 (BELOW)",
+                "price": 588.45,
+                "alert_id": "49e49f5f-6bdb-41a0-b88e-416ec22fa28d"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 635.97 (BELOW)",
+                "price": 588.45,
+                "alert_id": "135790d3-4919-425a-887a-4d96d0178598"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 625.9 (BELOW)",
+                "price": 588.45,
+                "alert_id": "a24c86ed-83a6-4a12-8dc4-0a4fd040b6d5"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 615.82 (BELOW)",
+                "price": 588.45,
+                "alert_id": "c0dd6f63-04fc-49cf-aef7-e23543658c5e"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 605.75 (BELOW)",
+                "price": 588.45,
+                "alert_id": "e71d7849-cb3a-4950-bf39-f90130272d68"
+            },
+            {
+                "time": "2026-01-26T15:58:04.457658Z",
+                "symbol": "DLF-EQ",
+                "msg": "DLF-EQ hit 595.67 (BELOW)",
+                "price": 588.45,
+                "alert_id": "16a2cb8d-bf45-478d-b19e-2cb21e845f7c"
+            },
+            {
+                "time": "2026-01-26T15:58:03.166992Z",
+                "symbol": "INDUSINDBK-EQ",
+                "msg": "INDUSINDBK-EQ hit 938.05 (BELOW)",
+                "price": 892.45,
+                "alert_id": "b23baaf3-2dcd-43ed-bf31-149dac16a826"
+            },
+            {
+                "time": "2026-01-26T15:58:03.166992Z",
+                "symbol": "INDUSINDBK-EQ",
+                "msg": "INDUSINDBK-EQ hit 926.97 (BELOW)",
+                "price": 892.45,
+                "alert_id": "68348b83-f7fa-44e9-85c6-8540daa98d78"
+            },
+            {
+                "time": "2026-01-26T15:58:03.166992Z",
+                "symbol": "INDUSINDBK-EQ",
+                "msg": "INDUSINDBK-EQ hit 915.9 (BELOW)",
+                "price": 892.45,
+                "alert_id": "94c1eef2-fa4a-4bad-bff8-07f00efd3f5a"
+            },
+            {
+                "time": "2026-01-26T15:58:03.166992Z",
+                "symbol": "INDUSINDBK-EQ",
+                "msg": "INDUSINDBK-EQ hit 904.82 (BELOW)",
+                "price": 892.45,
+                "alert_id": "47b7d7c6-1f7c-4901-b76a-818555afa4ee"
+            },
+            {
+                "time": "2026-01-26T15:58:03.166992Z",
+                "symbol": "INDUSINDBK-EQ",
+                "msg": "INDUSINDBK-EQ hit 893.75 (BELOW)",
+                "price": 892.45,
+                "alert_id": "695562ae-4ac1-476d-8848-c8a4e3e43872"
+            },
+            {
+                "time": "2026-01-26T15:58:00.518783Z",
+                "symbol": "ASIANPAINT-EQ",
+                "msg": "ASIANPAINT-EQ hit 2750.5 (BELOW)",
+                "price": 2703.7,
+                "alert_id": "c9a76848-6271-4909-84cb-acea2e636897"
+            },
+            {
+                "time": "2026-01-26T15:58:00.518783Z",
+                "symbol": "ASIANPAINT-EQ",
+                "msg": "ASIANPAINT-EQ hit 2712.5 (BELOW)",
+                "price": 2703.7,
+                "alert_id": "913e2e77-3e6e-45f9-8220-95979f309b0f"
+            },
+            {
+                "time": "2026-01-26T15:57:59.426574Z",
+                "symbol": "ASHOKLEY-EQ",
+                "msg": "ASHOKLEY-EQ hit 192.48 (ABOVE)",
+                "price": 192.98,
+                "alert_id": "56413be7-dfae-45aa-a8c9-7fe1335fc80f"
+            },
+            {
+                "time": "2026-01-26T15:57:59.426574Z",
+                "symbol": "ASHOKLEY-EQ",
+                "msg": "ASHOKLEY-EQ hit 191.02 (ABOVE)",
+                "price": 192.98,
+                "alert_id": "142a47a3-68b5-44f4-b12d-034bcea2afa7"
+            },
+            {
+                "time": "2026-01-26T15:57:59.426574Z",
+                "symbol": "ASHOKLEY-EQ",
+                "msg": "ASHOKLEY-EQ hit 189.57 (ABOVE)",
+                "price": 192.98,
+                "alert_id": "916b599c-d32a-4336-81e7-15fc84687603"
+            },
+            {
+                "time": "2026-01-26T15:57:59.424563Z",
+                "symbol": "ASHOKLEY-EQ",
+                "msg": "ASHOKLEY-EQ hit 188.12 (ABOVE)",
+                "price": 192.98,
+                "alert_id": "17612c18-ab74-4dcf-b243-25103363c938"
+            },
+            {
+                "time": "2026-01-26T15:57:59.424563Z",
+                "symbol": "ASHOKLEY-EQ",
+                "msg": "ASHOKLEY-EQ hit 186.66 (ABOVE)",
+                "price": 192.98,
+                "alert_id": "ae0d99a9-bf2a-4188-b56a-31e6433dced4"
+            },
+            {
+                "time": "2026-01-26T15:57:58.874636Z",
+                "symbol": "JSWSTEEL-EQ",
+                "msg": "JSWSTEEL-EQ hit 1179.2 (BELOW)",
+                "price": 1170.0,
+                "alert_id": "8f01713b-7562-48e6-90f3-8056f7a97ed5"
+            },
+            {
+                "time": "2026-01-26T15:57:57.468608Z",
+                "symbol": "AUROPHARMA-EQ",
+                "msg": "AUROPHARMA-EQ hit 1166.3 (BELOW)",
+                "price": 1132.5,
+                "alert_id": "ce82ab2d-2182-45a5-b63b-3645c8306fd5"
+            },
+            {
+                "time": "2026-01-26T15:57:57.468608Z",
+                "symbol": "AUROPHARMA-EQ",
+                "msg": "AUROPHARMA-EQ hit 1151.7 (BELOW)",
+                "price": 1132.5,
+                "alert_id": "67e64669-b83c-4812-984d-78d6ff82edb0"
+            },
+            {
+                "time": "2026-01-26T15:57:57.468608Z",
+                "symbol": "AUROPHARMA-EQ",
+                "msg": "AUROPHARMA-EQ hit 1137.1 (BELOW)",
+                "price": 1132.5,
+                "alert_id": "93f85876-c666-43e8-8510-d6662ed67363"
+            },
+            {
+                "time": "2026-01-26T15:57:56.704622Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 900.0 (BELOW)",
+                "price": 851.7,
+                "alert_id": "bed0a7d7-c3b2-4d9f-b04c-c041b147d173"
+            },
+            {
+                "time": "2026-01-26T15:57:56.704622Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 895.17 (BELOW)",
+                "price": 851.7,
+                "alert_id": "d8946122-1895-4f3b-a519-ce6a6de46df5"
+            },
+            {
+                "time": "2026-01-26T15:57:56.704622Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 890.35 (BELOW)",
+                "price": 851.7,
+                "alert_id": "3938c6cf-0f58-492e-848d-6d45ad33776b"
+            },
+            {
+                "time": "2026-01-26T15:57:56.702616Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 885.53 (BELOW)",
+                "price": 851.7,
+                "alert_id": "9c0f075c-c10c-41b7-9b9f-e0d1910aff06"
+            },
+            {
+                "time": "2026-01-26T15:57:56.702616Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 880.7 (BELOW)",
+                "price": 851.7,
+                "alert_id": "33a28407-7750-4eb0-8e46-1a3b3d57a3c7"
+            },
+            {
+                "time": "2026-01-26T15:57:56.702616Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 875.88 (BELOW)",
+                "price": 851.7,
+                "alert_id": "b04da61e-906c-41e8-b48c-b15b304fab8b"
+            },
+            {
+                "time": "2026-01-26T15:57:56.702616Z",
+                "symbol": "BATAINDIA-EQ",
+                "msg": "BATAINDIA-EQ hit 871.05 (BELOW)",
+                "price": 851.7,
+                "alert_id": "583c3f1e-d5ea-4a50-91bf-b9bc169e24d5"
+            },
+            {
+                "time": "2026-01-26T15:57:55.675114Z",
+                "symbol": "TVSMOTOR-EQ",
+                "msg": "TVSMOTOR-EQ hit 3640.8 (BELOW)",
+                "price": 3549.8,
+                "alert_id": "08c49112-4bcb-4564-a572-7ceeb20aeb57"
+            },
+            {
+                "time": "2026-01-26T15:57:55.675114Z",
+                "symbol": "TVSMOTOR-EQ",
+                "msg": "TVSMOTOR-EQ hit 3601.0 (BELOW)",
+                "price": 3549.8,
+                "alert_id": "89516526-abb1-4bb7-b289-f3c2a8876214"
+            },
+            {
+                "time": "2026-01-26T15:57:55.585890Z",
+                "symbol": "TVSMOTOR-EQ",
+                "msg": "TVSMOTOR-EQ hit 3561.2 (BELOW)",
+                "price": 3549.8,
+                "alert_id": "66d55236-9761-4a12-9a2d-a0ec4b6ef67a"
+            },
+            {
+                "time": "2026-01-26T15:57:55.418362Z",
+                "symbol": "BAJAJFINSV-EQ",
+                "msg": "BAJAJFINSV-EQ hit 2000.6 (BELOW)",
+                "price": 1949.0,
+                "alert_id": "92b5e312-211d-4c76-987b-4a3264fd113d"
+            },
+            {
+                "time": "2026-01-26T15:57:55.418362Z",
+                "symbol": "BAJAJFINSV-EQ",
+                "msg": "BAJAJFINSV-EQ hit 1984.4 (BELOW)",
+                "price": 1949.0,
+                "alert_id": "3cd51d62-4567-4db4-b322-aa4319d6f5cd"
+            },
+            {
+                "time": "2026-01-26T15:57:55.418362Z",
+                "symbol": "BAJAJFINSV-EQ",
+                "msg": "BAJAJFINSV-EQ hit 1968.2 (BELOW)",
+                "price": 1949.0,
+                "alert_id": "f9d698b1-4fe2-4338-bbe4-5eae93f59041"
+            },
+            {
+                "time": "2026-01-26T15:57:55.418362Z",
+                "symbol": "BAJAJFINSV-EQ",
+                "msg": "BAJAJFINSV-EQ hit 1952.0 (BELOW)",
+                "price": 1949.0,
+                "alert_id": "490ad089-b59d-46ab-ac9c-81a4eb5c5157"
+            },
+            {
+                "time": "2026-01-26T15:18:54.439866Z",
+                "symbol": "BULK",
+                "msg": "Generated 276 alerts for 24 stocks"
+            },
+            {
+                "time": "2026-01-24T21:00:48.109205Z",
+                "symbol": "AXISBANK-EQ",
+                "msg": "AXISBANK-EQ hit 1264.0 (BELOW)",
+                "price": 1258.0,
+                "alert_id": "d2a3689a-2ba5-491f-b37f-5be2aa591f83"
+            },
+            {
+                "time": "2026-01-24T21:00:48.108198Z",
+                "symbol": "AXISBANK-EQ",
+                "msg": "AXISBANK-EQ hit 1286.5 (BELOW)",
+                "price": 1258.0,
+                "alert_id": "883e4fca-7b1d-4043-9b31-0b6ba7ad1c4e"
+            },
+            {
+                "time": "2026-01-24T21:00:48.092217Z",
+                "symbol": "TATACOMM-EQ",
+                "msg": "TATACOMM-EQ hit 1587.7 (BELOW)",
+                "price": 1560.2,
+                "alert_id": "c456aa5b-5478-4697-a2e5-17d9b4b100af"
+            }
+        ],
+        "auto_paper_trade": true,
+        "strategy_mode": "BOUNCE",
+        "trigger_mode": "CANDLE_CLOSE",
+        "buffer_pct": 0.6,
+        "virtual_balance": 500000.0,
+        "paper_trades": []
+    },
+    "0f25eb62-326f-4501-a23c-bfde1c6a38f0": {
+        "client_id": "B38590",
+        "jwt_token": "Bearer eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsInJvbGVzIjowLCJ1c2VydHlwZSI6IlVTRVIiLCJ0b2tlbiI6ImV5SmhiR2NpT2lKU1V6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUoxYzJWeVgzUjVjR1VpT2lKamJHbGxiblFpTENKMGIydGxibDkwZVhCbElqb2lkSEpoWkdWZllXTmpaWE56WDNSdmEyVnVJaXdpWjIxZmFXUWlPallzSW5OdmRYSmpaU0k2SWpNaUxDSmtaWFpwWTJWZmFXUWlPaUprT0RFMU9HWTFNaTFrWlRObUxUTmtOV010T0Rsa09TMDBNV05tTkRBNE5UUmhNRGNpTENKcmFXUWlPaUowY21Ga1pWOXJaWGxmZGpJaUxDSnZiVzVsYldGdVlXZGxjbWxrSWpvMkxDSndjbTlrZFdOMGN5STZleUprWlcxaGRDSTZleUp6ZEdGMGRYTWlPaUpoWTNScGRtVWlmU3dpYldZaU9uc2ljM1JoZEhWeklqb2lZV04wYVhabEluMTlMQ0pwYzNNaU9pSjBjbUZrWlY5c2IyZHBibDl6WlhKMmFXTmxJaXdpYzNWaUlqb2lRak00TlRrd0lpd2laWGh3SWpveE56WTVOak01TnpVMExDSnVZbVlpT2pFM05qazFOVE14TnpRc0ltbGhkQ0k2TVRjMk9UVTFNekUzTkN3aWFuUnBJam9pTVdJMFkySXpObUV0T1Roa1pTMDBZVGt5TFdKaU5EVXROV1F4TlRVNE5XRXpNalU1SWl3aVZHOXJaVzRpT2lJaWZRLldNQlBLM0Fwc01pZWs3N004bTA0bFVmNkZ0QXo0ZmRnWGFSYk1wcUdxTW1HeUcwMS1qWGJycGxjaTlRX3pmSUl5ZEM4UnFGdXg3WUhQcnQ3YnhVakJFczlFQVRtdko0NTZmQ1VVM3NiQ2JTdnhZS0NscU5BUW5zeU5VbWxhM204cER1cjQzbU81OTF4d2ZkanItdk9JUXF4Wl9JcjVNdXVqUzhmVXRWOXRjRSIsIkFQSS1LRVkiOiJCc1JpZ2JNcyIsIlgtT0xELUFQSS1LRVkiOnRydWUsImlhdCI6MTc2OTU1MzM1NCwiZXhwIjoxNzY5NjI1MDAwfQ.AxuUSRISIdmTI1IqP8K1b5P_36xh_Mo4RFZTxZVyEIaOdfLJMerW_sWRo7EfnAn59K-TkyzyK5XGfvG36Y--og",
+        "feed_token": "eyJhbGciOiJIUzUxMiJ9.eyJ1c2VybmFtZSI6IkIzODU5MCIsImlhdCI6MTc2OTU1MzM1NCwiZXhwIjoxNzY5NjM5NzU0fQ.1q589AB0xy2q2ntOdwhEbrRIabxiLUrRyTcayYoO7LV2xwZ3jc9LL0S5vfyYi9iL7BwkgYehV84lm648Hf4X6A",
+        "api_key": "BsRigbMs",
+        "is_paused": false,
         "selected_date": "2026-01-27",
-        "last_activity": "2026-01-28T04:03:55.474856",
+        "last_activity": "2026-01-28T04:07:31.006562",
         "watchlist": [
             {
                 "symbol": "HAVELLS-EQ",
