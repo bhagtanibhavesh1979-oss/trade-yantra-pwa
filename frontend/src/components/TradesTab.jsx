@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, getPaperAnalytics } from '../services/api';
+import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, getPaperAnalytics, getSession } from '../services/api';
 import toast from 'react-hot-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
