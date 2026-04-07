@@ -257,4 +257,56 @@ export const runBacktest = async (sessionId, params, clientId = null) => {
     return response.data;
 };
 
+// Live Trading APIs
+export const getLiveStatus = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/status/${sessionId}?client_id=${clientId}` : `/api/live/status/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const toggleLiveTrading = async (sessionId, enabled, clientId = null) => {
+    const response = await api.post('/api/live/toggle', {
+        session_id: sessionId,
+        client_id: clientId,
+        enabled: enabled,
+    });
+    return response.data;
+};
+
+export const updateLiveSettings = async (sessionId, settings, clientId = null) => {
+    const response = await api.post('/api/live/config', {
+        session_id: sessionId,
+        client_id: clientId,
+        ...settings,
+    });
+    return response.data;
+};
+
+export const placeLiveOrder = async (sessionId, orderData, clientId = null) => {
+    const response = await api.post('/api/live/order', {
+        session_id: sessionId,
+        client_id: clientId,
+        ...orderData,
+    });
+    return response.data;
+};
+
+export const getLiveFunds = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/funds/${sessionId}?client_id=${clientId}` : `/api/live/funds/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const getLivePositions = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/positions/${sessionId}?client_id=${clientId}` : `/api/live/positions/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const getLiveOrders = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/orders/${sessionId}?client_id=${clientId}` : `/api/live/orders/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
 export default api;
