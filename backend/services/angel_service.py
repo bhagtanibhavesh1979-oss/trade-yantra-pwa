@@ -507,7 +507,12 @@ class AngelService:
                 order_params['quantity'] = str(int(float(order_params['quantity'])))
                 
             print(f"[EXEC] [LIVE] Placing Order with params: {order_params}")
-            response = smart_api.placeOrder(order_params)
+            
+            # CRITICAL FIX: The variety (NORMAL/STOPLOSS) must be passed as the first argument
+            # to the smart_api.placeOrder method to form the correct request URL.
+            variety = order_params.pop("variety", "NORMAL")
+            response = smart_api.placeOrder(variety, order_params)
+            
             print(f"DEBUG: [ANGEL] Raw placeOrder Response: {response} (Type: {type(response)})")
             
             # Handle standard "orderid" string return
@@ -561,8 +566,9 @@ class AngelService:
         Modify a pending order
         """
         try:
-            print(f" [LIVE] Modifying Order: {order_params}")
-            response = smart_api.modifyOrder(order_params)
+            variety = order_params.pop("variety", "NORMAL")
+            print(f" [LIVE] Modifying {variety} Order: {order_params}")
+            response = smart_api.modifyOrder(variety, order_params)
             return response
         except Exception as e:
             print(f"[ERR] [LIVE] Modify Order Error: {e}")
