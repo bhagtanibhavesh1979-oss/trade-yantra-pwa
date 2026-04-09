@@ -1,251 +1,143 @@
-"""
-Live Trading Routes
-API endpoints for live order execution and monitoring
-"""
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from services.session_manager import session_manager
 from services.live_service import live_service
-from typing import Optional, List
+from services.risk_service import risk_service
+from services.angel_service import angel_service
 
 router = APIRouter(prefix="/api/live", tags=["Live Trading"])
 
-
-class LiveTradeToggleRequest(BaseModel):
-    session_id: str
-    client_id: Optional[str] = None
+class ToggleLiveRequest(BaseModel):
     enabled: bool
 
+@router.post("/toggle/{session_id}")
+async def toggle_live_trading(session_id: str, req: ToggleLiveRequest):
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Update Session State
+    session.auto_live_trade = req.enabled
+    
+    # Update Service Master Switch
+    live_service.toggle_live_trading(req.enabled)
+    
+    session_manager.save_session(session_id)
+    return {"status": "success", "auto_live_trade": session.auto_live_trade}
 
-class SetCapitalRequest(BaseModel):
-    session_id: str
-    client_id: Optional[str] = None
-    capital: float = 0.0
-    lot_size: int = 1
+class TradeSettingsRequest(BaseModel):
+    trade_quantity: Optional[int] = 100
+    trade_capital: Optional[float] = 0.0
 
+@router.post("/settings/{session_id}")
+async def update_live_settings(session_id: str, req: TradeSettingsRequest):
+    """
+    Update Trade Settings (Quantity OR Capital per trade)
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+         raise HTTPException(status_code=404, detail="Session not found")
+    
+    # Update Session State
+    if req.trade_quantity is not None:
+        session.trade_quantity = req.trade_quantity
+    
+    if req.trade_capital is not None:
+        session.trade_capital = req.trade_capital
+        
+    session_manager.save_session(session_id)
+    return {
+        "status": "success", 
+        "trade_quantity": session.trade_quantity,
+        "trade_capital": getattr(session, 'trade_capital', 0)
+    }
 
 class ManualOrderRequest(BaseModel):
-    session_id: str
-    client_id: Optional[str] = None
     symbol: str
     token: str
-    side: str                       # BUY or SELL
-    quantity: int = 1
-    price: float = 0.0
-    order_type: str = "MARKET"      # MARKET or LIMIT
+    exch_seg: str = "NSE"
+    side: str # "BUY" or "SELL"
+    quantity: int
     product_type: str = "INTRADAY"
-    exchange: str = "NSE"
+    order_type: str = "MARKET"
+    price: float = 0.0
 
+@router.post("/order/{session_id}")
+async def place_manual_order(session_id: str, req: ManualOrderRequest):
+    """
+    Manually place a REAL order via LiveService.
+    Includes Risk Checks.
+    """
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
 
-class SquareOffRequest(BaseModel):
-    session_id: str
-    client_id: Optional[str] = None
-    order_id: Optional[str] = None  # If None, square off all
+    # 1. Risk Check (Master Switch)
+    # We allow manual API orders even if auto-trade is off? 
+    # Usually safer to require Master Switch ON, but for manual maybe optional?
+    # Let's enforce it for safety consistency
+    if not session.auto_live_trade:
+         raise HTTPException(status_code=400, detail="Live Execution is DISABLED. Toggle 'GO LIVE' first.")
 
+    # 2. Margin Check
+    price = req.price
+    if price <= 0:
+        # Fetch LTP for Margin Check
+        try:
+            ltp_res = angel_service.get_ltp_data(session.smart_api, req.exch_seg, req.symbol, req.token)
+            if ltp_res and 'ltp' in ltp_res:
+                price = float(ltp_res['ltp'])
+        except Exception as e:
+            print(f"⚠️ [LIVE] LTP fetch failed for manual order: {e}")
+
+    # Only check margin if we have a valid price
+    if price > 0:
+        if not risk_service.check_margin(session_id, req.symbol, req.quantity, price, req.product_type):
+             raise HTTPException(status_code=400, detail="Insufficient Funds / Margin")
+
+    # 3. Place Order
+    result = live_service.place_live_order(
+        session_id, 
+        {"symbol": req.symbol, "token": req.token, "exch_seg": req.exch_seg}, 
+        req.side, 
+        req.quantity, 
+        req.product_type,
+        req.price,
+        req.order_type,
+        tag="MANUAL_API"
+    )
+    
+    if result and result.get("status") == "success":
+        return result
+    else:
+        raise HTTPException(status_code=400, detail=result.get("message", "Order Placement Failed"))
 
 @router.get("/status/{session_id}")
-async def get_live_status(session_id: str, client_id: Optional[str] = None):
-    session = session_manager.get_session(session_id, client_id=client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    return {
-        "enabled": session.auto_live_trade,
-        "capital": session.live_capital,
-        "lot_size": session.live_lot_size,
-        "trade_quantity": getattr(session, 'trade_quantity', session.live_lot_size),
-        "orders": session.live_orders,
-        "pnl": session.live_pnl
-    }
-
-
-@router.post("/toggle")
-async def toggle_live_trading(req: LiveTradeToggleRequest):
-    session = session_manager.get_session(req.session_id, client_id=req.client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    if not session.smart_api and req.enabled:
-        raise HTTPException(status_code=400, detail="Angel One not connected. Please login first.")
-
-    session.auto_live_trade = req.enabled
-    session_manager.save_session(req.session_id)
-
-    return {
-        "success": True,
-        "enabled": session.auto_live_trade,
-        "message": f"Live trading {'enabled ✅' if req.enabled else 'disabled ⛔'}"
-    }
-
-
-@router.post("/config")
-async def set_live_config(req: SetCapitalRequest):
-    session = session_manager.get_session(req.session_id, client_id=req.client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-
-    session.live_capital = req.capital
-    session.live_lot_size = req.lot_size
-    # IMPORTANT: Also sync trade_quantity so websocket_manager uses the correct qty
-    session.trade_quantity = req.lot_size
-    session.trade_capital = req.capital
-    session_manager.save_session(req.session_id)
-
-    return {
-        "success": True,
-        "capital": session.live_capital,
-        "lot_size": session.live_lot_size,
-        "trade_quantity": session.trade_quantity,
-        "message": "Live trading configuration updated"
-    }
-
-
-@router.post("/order")
-async def place_manual_order(req: ManualOrderRequest):
-    """Place a manual live order"""
-    session = session_manager.get_session(req.session_id, client_id=req.client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
-
-    stock = {
-        "symbol": req.symbol,
-        "token": req.token,
-        "exch_seg": req.exchange,
-        "ltp": req.price
-    }
-
-    order_id = live_service.place_live_order(
-        session_id=req.session_id,
-        stock=stock,
-        side=req.side,
-        quantity=req.quantity,
-        product_type=req.product_type,
-        price=req.price,
-        order_type=req.order_type,
-        tag="MANUAL"
-    )
-
-    if order_id:
-        return {"success": True, "order_id": order_id, "message": f"Order placed: {req.side} {req.quantity} {req.symbol}"}
-    else:
-        raise HTTPException(status_code=500, detail="Order placement failed. Check logs.")
-
-
-@router.post("/square-off")
-async def square_off_live(req: SquareOffRequest):
-    """Square off live positions"""
-    session = session_manager.get_session(req.session_id, client_id=req.client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
-
-    # Fetch current open positions from Angel One
-    try:
-        positions = session.smart_api.position()
-        if not positions or not positions.get('status'):
-            return {"success": False, "message": "No open positions found"}
-
-        pos_data = positions.get('data', [])
-        squared = []
-
-        for pos in pos_data:
-            net_qty = int(pos.get('netqty', 0))
-            if net_qty == 0:
-                continue
-
-            # Close the position by placing opposite order
-            side = "SELL" if net_qty > 0 else "BUY"
-            qty = abs(net_qty)
-            stock = {
-                "symbol": pos.get('tradingsymbol', ''),
-                "token": pos.get('symboltoken', ''),
-                "exch_seg": pos.get('exchange', 'NSE'),
-                "ltp": 0
-            }
-
-            order_id = live_service.place_live_order(
-                req.session_id, stock, side, qty,
-                product_type=pos.get('producttype', 'INTRADAY'),
-                order_type="MARKET", tag="SQUARE_OFF", is_square_off=True
-            )
-            if order_id:
-                squared.append({"symbol": stock['symbol'], "qty": qty, "side": side, "order_id": order_id})
-
-        return {"success": True, "squared_off": squared, "count": len(squared)}
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/balance/{session_id}")
-async def get_live_balance(session_id: str):
+async def get_live_status(session_id: str):
+    """
+    Get current Live Trading Status and Settings for a session.
+    Used by frontend to sync UI state on load.
+    """
     session = session_manager.get_session(session_id)
-    if not session or not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
-
-    try:
-        balance_data = session.smart_api.rmsLimit()
-        if balance_data and balance_data.get('status'):
-            return {"balance": balance_data['data']}
-        return {"balance": None, "message": "Failed to fetch balance"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/orders/{session_id}")
-async def get_live_orders(session_id: str, client_id: Optional[str] = None):
-    """Fetch live orders from Angel One"""
-    session = session_manager.get_session(session_id, client_id=client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    if not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
-
-    try:
-        response = session.smart_api.orderBook()
-        if response and response.get('status'):
-            return {"orders": response.get('data', [])}
-        return {"orders": session.live_orders, "source": "cache"}
-    except Exception as e:
-        return {"orders": session.live_orders, "source": "cache", "error": str(e)}
-
-
-@router.get("/funds/{session_id}")
-async def get_live_funds(session_id: str, client_id: Optional[str] = None):
-    """Fetch live funds from Angel One"""
-    session = session_manager.get_session(session_id, client_id=client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
-
-    try:
-        from services.angel_service import angel_service
-        funds = angel_service.get_rms_limit(session.smart_api)
-        if funds:
-            return {"net": funds.get('net', 0), "availablecash": funds.get('availablecash', 0), "data": funds}
-        return {"net": 0, "availablecash": 0, "error": "Failed to fetch funds"}
-    except Exception as e:
-        return {"net": 0, "availablecash": 0, "error": str(e)}
-
+        
+    return {
+        "status": "success",
+        "auto_live_trade": getattr(session, 'auto_live_trade', False),
+        "trade_quantity": getattr(session, 'trade_quantity', 100),
+        "trade_capital": getattr(session, 'trade_capital', 0.0)
+    }
 
 @router.get("/positions/{session_id}")
-async def get_live_positions(session_id: str, client_id: Optional[str] = None):
-    """Fetch live positions from Angel One"""
-    session = session_manager.get_session(session_id, client_id=client_id)
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if not session.smart_api:
-        raise HTTPException(status_code=400, detail="Angel One not connected")
+async def get_positions(session_id: str):
+    return live_service.get_live_positions(session_id)
 
-    try:
-        from services.angel_service import angel_service
-        positions = angel_service.get_position(session.smart_api)
-        if positions:
-            return {"positions": positions}
-        return {"positions": [], "error": "Failed to fetch positions"}
-    except Exception as e:
-        return {"positions": [], "error": str(e)}
+@router.get("/orders/{session_id}")
+async def get_orders(session_id: str):
+    return live_service.get_live_orders(session_id)
+
+@router.get("/funds/{session_id}")
+async def get_funds(session_id: str):
+    return live_service.get_funds(session_id)

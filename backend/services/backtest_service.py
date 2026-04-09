@@ -2,6 +2,13 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import time
 
+def tick_round(price, tick=0.05):
+    if price is None: return 0.0
+    try:
+        return round(float(price) * 20) / 20.0
+    except:
+        return float(price)
+
 class BacktestService:
     def __init__(self):
         pass
@@ -19,11 +26,22 @@ class BacktestService:
                 req_bp = {"exchange": exch, "symboltoken": str(token), "interval": "ONE_MINUTE", "fromdate": f"{blueprint_date} 09:15", "todate": f"{blueprint_date} 15:30"}
                 bp_data = angel_service.fetch_candle_data(smart_api, req_bp)
                 if bp_data and bp_data.get('data'):
-                    high_val = max(float(c[2]) for c in bp_data['data'])
-                    low_val = min(float(c[3]) for c in bp_data['data'])
-                    print(f"[OK] Blueprint loaded from {blueprint_date}: H={high_val} L={low_val}")
-            except: 
-                print(f"[WARN] Failed to fetch Blueprint for {blueprint_date}. Using Watchlist H/L.")
+                    valid_candles = []
+                    for c in bp_data['data']:
+                        ts = c[0]
+                        # Match Date (Ignore Leakage from previous day)
+                        if blueprint_date not in ts: continue
+                        # Match Time (Ignore Opening Noise)
+                        time_val = ts.split(' ')[1] if ' ' in ts else (ts.split('T')[1] if 'T' in ts else "")
+                        if time_val < "09:15": continue
+                        valid_candles.append(c)
+                        
+                    if valid_candles:
+                        high_val = max(float(c[2]) for c in valid_candles)
+                        low_val = min(float(c[3]) for c in valid_candles)
+                        print(f"[OK] Blueprint loaded from {blueprint_date}: H={high_val} L={low_val}")
+            except Exception as e: 
+                print(f"[WARN] Failed to fetch Blueprint for {blueprint_date}: {e}. Using Watchlist H/L.")
         
         # Fallback if 0
         if high_val <= 0 or low_val <= 0:
@@ -35,12 +53,12 @@ class BacktestService:
         
         levels = []
         for j in range(-12, 25): 
-            price = round(low_val + (j * half_step), 2)
+            price = tick_round(low_val + (j * half_step))
             name = ""
             if j % 2 == 0:
                 idx = j // 2
                 if idx == 0: name = "Low"
-                elif idx == 1: name = "Mid-Pivot"
+                elif idx == 1: name = "M"
                 elif idx == 2: name = "High"
                 elif idx > 2: name = f"R{idx-2}"
                 else: name = f"S{abs(idx)}"
@@ -89,10 +107,30 @@ class BacktestService:
             for idx_c, candle in enumerate(data_list):
                 try:
                     ts, open_p, high_p, low_p, close_p = candle[0], float(candle[1]), float(candle[2]), float(candle[3]), float(candle[4])
+                    
+                    # STRICT TIME FILTER: Ignore 9:00 - 9:14:59 candles (Opening noise / Pre-market)
+                    time_val = ts.split(' ')[1] if ' ' in ts else (ts.split('T')[1] if 'T' in ts else "")
+                    if time_val and time_val < "09:15":
+                        continue
+                        
                     final_price, last_timestamp = close_p, ts
                     
                     # Track previous close to detect gaps
                     prev_c_ref = last_close_p if last_close_p is not None else open_p
+
+                    # --- OUTER BOUNDARY CHECK: No trades outside S6/R6 range ---
+                    min_lv_p = levels[0]['p']
+                    max_lv_p = levels[-1]['p']
+                    if close_p < min_lv_p or close_p > max_lv_p:
+                        if current_position:
+                            exit_price = tick_round(close_p)
+                            pnl = (exit_price - current_position['entry_price']) * quantity if current_position['side'] == "BUY" else (current_position['entry_price'] - exit_price) * quantity
+                            all_trades.append({**current_position, "exit_price": exit_price, "exit_time": ts, "pnl": round(pnl, 2), "reason": "OUTSIDE_BOUNDS"})
+                            running_balance += pnl
+                            total_pnl += pnl
+                            current_position = None
+                        last_close_p = close_p
+                        continue
 
                     # 1. POSITION MONITORING (SAR)
                     if current_position:
@@ -102,70 +140,106 @@ class BacktestService:
                         test_p_up = high_p if trigger_mode == 'INSTANT_TOUCH' else close_p
                         test_p_down = low_p if trigger_mode == 'INSTANT_TOUCH' else close_p
                         
-                        if target_val and target_type == "POINTS":
-                            if side == "BUY" and high_p >= (entry_p + target_val): exit_price, reason = entry_p + target_val, "TARGET_PTS"
-                            elif side == "SELL" and low_p <= (entry_p - target_val): exit_price, reason = entry_p - target_val, "TARGET_PTS"
+                        # A. Target Check
+                        if target_val:
+                            if target_type == "POINTS":
+                                if side == "BUY" and high_p >= (entry_p + target_val): exit_price, reason = entry_p + target_val, "TARGET_PTS"
+                                elif side == "SELL" and low_p <= (entry_p - target_val): exit_price, reason = entry_p - target_val, "TARGET_PTS"
+                            elif target_type == "AMOUNT":
+                                # Profit = (Exit - Entry) * Qty
+                                # Required Exit = Entry + (Target / Qty)
+                                target_pts = target_val / quantity
+                                if side == "BUY" and high_p >= (entry_p + target_pts): exit_price, reason = entry_p + target_pts, "TARGET_AMT"
+                                elif side == "SELL" and low_p <= (entry_p - target_pts): exit_price, reason = entry_p - target_pts, "TARGET_AMT"
 
+                        # B. Stop Loss Check (Missing in original logic)
+                        sl_val = strategy_config.get('stop_loss')
+                        if not exit_price and sl_val:
+                            if side == "BUY" and low_p <= (entry_p - sl_val): exit_price, reason = entry_p - sl_val, "STOP_LOSS"
+                            elif side == "SELL" and high_p >= (entry_p + sl_val): exit_price, reason = entry_p + sl_val, "STOP_LOSS"
+
+                        # C. SAR Logic (Trap/Rejection)
                         if not exit_price:
                             for lv in levels:
                                 b = lv['p'] * buffer_pct
                                 if side == "BUY":
-                                    # Trap: Price goes below any level it should have held
+                                    # Trap: Price goes below any level it should have held (Prev Close support)
                                     if test_p_down < (lv['p'] - b) and prev_c_ref >= (lv['p'] - b):
-                                        exit_price, reason = lv['p'] - b, "trap_reverse"
+                                        exit_price, reason = lv['p'] - b, f"TRAP_{lv['n']}"
                                         break
                                     # Rejection: Hit higher level and failed
                                     elif high_p >= (lv['p'] + b) and close_p < lv['p']:
-                                        exit_price, reason = close_p, "rejection_reverse"
+                                        exit_price, reason = tick_round(close_p), f"REJECTION_{lv['n']}"
                                         break
                                 else:
                                     # Trap: Price breaks above resistance
                                     if test_p_up > (lv['p'] + b) and prev_c_ref <= (lv['p'] + b):
-                                        exit_price, reason = lv['p'] + b, "trap_reverse"
+                                        exit_price, reason = lv['p'] + b, f"TRAP_{lv['n']}"
                                         break
                                     # Rejection: Hit lower level and failed
                                     elif low_p <= (lv['p'] - b) and close_p > lv['p']: 
-                                        exit_price, reason = close_p, "rejection_reverse"
+                                        exit_price, reason = tick_round(close_p), f"REJECTION_{lv['n']}"
                                         break
 
                         if exit_price:
+                            exit_price = tick_round(exit_price)
                             pnl = (exit_price - entry_p) * quantity if side == "BUY" else (entry_p - exit_price) * quantity
                             all_trades.append({**current_position, "exit_price": exit_price, "exit_time": ts, "pnl": round(pnl, 2), "reason": reason})
                             running_balance += pnl
                             total_pnl += pnl
-                            new_side = "SELL" if side == "BUY" else "BUY"
-                            current_position = {"side": new_side, "entry_price": exit_price, "time": ts, "level": "SAR_FLIP", "level_p": exit_price}
+                            
+                            # STOP-AND-REVERSE: If reason was a TRAP or REJECTION, flip the position
+                            if "TRAP" in reason or "REJECTION" in reason:
+                                new_side = "SELL" if side == "BUY" else "BUY"
+                                current_position = {"side": new_side, "entry_price": exit_price, "time": ts, "level": "SAR_FLIP", "level_p": exit_price}
+                            else:
+                                # Normal exit (Target or SL)
+                                current_position = None
 
-                    # 2. ENTRY MONITORING (If flat)
+                    # 2. ENTRY MONITORING (SAR Hysteresis)
                     if current_position is None:
                         found_lv, side, entry_p_fixed = None, None, None
                         
-                        # Use high/low for Instant, close for Candle
                         trigger_p_up = high_p if trigger_mode == 'INSTANT_TOUCH' else close_p
                         trigger_p_down = low_p if trigger_mode == 'INSTANT_TOUCH' else close_p
                         
                         for lv in reversed(levels):
                             b = lv['p'] * buffer_pct
-                            # Breakout UP (Or started above)
-                            if trigger_p_up > (lv['p'] + b) and (prev_c_ref <= (lv['p'] + b) or idx_c == 0):
-                                found_lv, side, entry_p_fixed = lv, "BUY", max(open_p, lv['p'] + b)
+                            # Breakout UP (LONG ENTRY)
+                            # Logic: Close > Level
+                            if trigger_p_up > lv['p'] and (prev_c_ref <= lv['p'] or idx_c == 0):
+                                side = "BUY"
+                                if trigger_mode == 'CANDLE_CLOSE':
+                                    entry_p_fixed = tick_round(close_p)
+                                else:
+                                    entry_p_fixed = tick_round(max(open_p, lv['p']))
+
+                                found_lv = lv
                                 break
-                            # Rejection DOWN
-                            elif high_p >= (lv['p'] + b) and close_p < lv['p']:
-                                found_lv, side, entry_p_fixed = lv, "SELL", close_p
-                                break
-                                
+                            # Rejection DOWN (SHORT SAR from Buy Level?) 
+                            # Logic: Close < Level - Buffer
+                            elif high_p >= (lv['p'] + b) and close_p < (lv['p'] - b):
+                                # This is a specific Trap/Rejection case, but main SAR is below
+                                pass 
+
                         if not found_lv:
                             for lv in levels:
                                 b = lv['p'] * buffer_pct
-                                # Breakout DOWN (Or started below)
+                                # Breakout DOWN (SHORT ENTRY)
+                                # Logic: Close < (Level - Buffer)
                                 if trigger_p_down < (lv['p'] - b) and (prev_c_ref >= (lv['p'] - b) or idx_c == 0):
-                                    found_lv, side, entry_p_fixed = lv, "SELL", min(open_p, lv['p'] - b)
+                                    side = "SELL"
+                                    if trigger_mode == 'CANDLE_CLOSE':
+                                        entry_p_fixed = tick_round(close_p)
+                                    else:
+                                        entry_p_fixed = tick_round(min(open_p, lv['p'] - b))
+                                    found_lv = lv
                                     break
-                                # Rejection UP
-                                elif low_p <= (lv['p'] - b) and close_p > lv['p']:
-                                    found_lv, side, entry_p_fixed = lv, "BUY", close_p
-                                    break
+                                # Rejection UP (LONG SAR from Sell Level?)
+                                # Logic: Close > (Level + Buffer)
+                                elif low_p <= (lv['p'] - b) and close_p > (lv['p'] + b):
+                                     # Covered by Breakout UP loop
+                                     pass
 
                         if found_lv:
                             current_position = {"side": side, "entry_price": entry_p_fixed, "time": ts, "level": found_lv['n'], "level_p": found_lv['p'], "type": trigger_mode}
@@ -177,8 +251,9 @@ class BacktestService:
 
             # Intraday Square Off at Day End
             if trade_mode == "INTRADAY" and current_position:
-                pnl = (final_price - current_position['entry_price']) * quantity if current_position['side'] == "BUY" else (current_position['entry_price'] - final_price) * quantity
-                all_trades.append({**current_position, "exit_price": final_price, "exit_time": last_timestamp, "pnl": pnl, "reason": "EOD_SQUARE_OFF"})
+                exit_p = tick_round(final_price)
+                pnl = (exit_p - current_position['entry_price']) * quantity if current_position['side'] == "BUY" else (current_position['entry_price'] - exit_p) * quantity
+                all_trades.append({**current_position, "exit_price": exit_p, "exit_time": last_timestamp, "pnl": round(pnl, 2), "reason": "EOD_SQUARE_OFF"})
                 running_balance += pnl
                 total_pnl += pnl
                 current_position = None
@@ -187,13 +262,14 @@ class BacktestService:
 
         # Terminal Cleanup for Positional
         if current_position:
-            pnl = (final_price - current_position['entry_price']) * quantity if current_position['side'] == "BUY" else (current_position['entry_price'] - final_price) * quantity
-            all_trades.append({**current_position, "exit_price": final_price, "exit_time": last_timestamp, "pnl": pnl, "reason": "TERMINATED"})
+            exit_p = tick_round(final_price)
+            pnl = (exit_p - current_position['entry_price']) * quantity if current_position['side'] == "BUY" else (current_position['entry_price'] - exit_p) * quantity
+            all_trades.append({**current_position, "exit_price": exit_p, "exit_time": last_timestamp, "pnl": round(pnl, 2), "reason": "TERMINATED"})
             running_balance += pnl
             total_pnl += pnl
 
         wins = len([t for t in all_trades if t['pnl'] > 0])
-        total_brokerage = len(all_trades) * 50.0 # Estimate ₹50 per trade (Brokerage + STT + Taxes)
+        total_brokerage = len(all_trades) * 50.0 # Estimate 50 per trade (Brokerage + STT + Taxes)
         net_pnl = total_pnl - total_brokerage
         
         return {

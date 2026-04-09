@@ -26,7 +26,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                     isCustomRange: settings.isCustomRange || false,
                     startTime: settings.startTime || '09:15',
                     endTime: settings.endTime || '15:30',
-                    selectedLevels: settings.selectedLevels || ['High', 'Low', 'R1', 'S1']
+                    selectedLevels: settings.selectedLevels || ['High', 'Low', 'M', 'R1', 'S1']
                 };
             }
         } catch (e) {
@@ -37,7 +37,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
             isCustomRange: false,
             startTime: '09:15',
             endTime: '15:30',
-            selectedLevels: ['High', 'Low', 'R1', 'S1']
+            selectedLevels: ['High', 'Low', 'M', 'R1', 'S1']
         };
     };
 
@@ -329,7 +329,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Alert Levels</label>
                             <div className="flex flex-wrap gap-2">
-                                {['High', 'Low', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(level => (
+                                {['High', 'Low', 'M', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6'].map(level => (
                                     <button
                                         key={level}
                                         onClick={() => handleLevelToggle(level)}

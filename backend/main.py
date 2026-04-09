@@ -25,7 +25,7 @@ sys.stdout.flush()
 load_dotenv()
 
 # Import routes
-from routes import auth, watchlist, alerts, stream, indices, paper
+from routes import auth, watchlist, alerts, stream, indices, paper, live
 
 # Import services
 from services.session_manager import session_manager
@@ -89,6 +89,7 @@ app.include_router(watchlist.router)
 app.include_router(alerts.router)
 app.include_router(indices.router)
 app.include_router(paper.router)
+app.include_router(live.router)
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream.router) 
@@ -104,7 +105,7 @@ async def health_check():
         "status": "healthy",
         "service": "Trade Yantra API",
         "environment": "Google Cloud Run",
-        "version": "1.1.0-POST-FIX-v3"
+        "version": "1.1.0-POST-FIX-v4"
     }
 
 @app.get("/debug/session/{session_id}")
@@ -119,6 +120,19 @@ async def debug_session(session_id: str):
         "in_memory": memory_session is not None,
         "in_database": bool(db_data),
         "client_id": db_data.get('client_id') if db_data else None
+    }
+
+@app.get("/debug/heartbeat")
+async def debug_heartbeat():
+    """ Check if strategy heartbeat thread is running """
+    thread = ws_manager.heartbeat_thread
+    return {
+        "running": ws_manager.running,
+        "thread_exists": thread is not None,
+        "thread_alive": thread.is_alive() if thread else False,
+        "last_strategy_tick": getattr(ws_manager, '_last_strategy_tick', 'N/A'),
+        "active_broadcasts": len(ws_manager.broadcast_callbacks),
+        "active_connections": len(ws_manager.connections)
     }
 
 if __name__ == "__main__":

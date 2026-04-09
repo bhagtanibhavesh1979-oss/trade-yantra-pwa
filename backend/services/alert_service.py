@@ -6,6 +6,14 @@ from typing import List, Dict
 import datetime
 import uuid
 
+def tick_round(price, tick=0.05):
+    """Round to nearest 0.05 tick — identical to backtest_service.py"""
+    if price is None: return 0.0
+    try:
+        return round(float(price) * 20) / 20.0
+    except:
+        return float(price)
+
 from services.angel_service import angel_service
 from SmartApi import SmartConnect
 
@@ -61,10 +69,20 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
             
             # Calculate High/Low from all candles in the range
             for c in candles:
+                ts = c[0] # "YYYY-MM-DD HH:MM"
+                
+                # STRICT DATE + TIME FILTER
+                if date not in ts:
+                    continue
+                    
+                time_val = ts.split(' ')[1] if ' ' in ts else (ts.split('T')[1] if 'T' in ts else "")
+                if time_val and time_val < "09:15":
+                    continue
+                    
                 c_high = c[2]
                 c_low = c[3]
                 if c_high > high: high = c_high
-                if c_low < low: low = c_low
+                if low == 0 or c_low < low: low = c_low # Fixed 99999999 init issue
             
             print(f"DEBUG: Calculated High={high}, Low={low} for {symbol}")
         else:
@@ -79,9 +97,9 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
         half_step = step / 2.0
         
         levels = []
-        # Generate range from S6 to R6 (Total 25 levels including mids)
-        for j in range(-12, 13):
-            price = round(low + (j * half_step), 2)
+        # Generate range from S6 to R6 (Total levels)
+        for j in range(-12, 17):
+            price = tick_round(low + (j * half_step))
             label = ""
             condition = "ABOVE" # Default
             
@@ -90,7 +108,7 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
                 if idx == 0: 
                     label, condition = "Low", "BELOW"
                 elif idx == 1: 
-                    label, condition = "Mid-Pivot", "ABOVE"
+                    label, condition = "M", "ABOVE"
                 elif idx == 2: 
                     label, condition = "High", "ABOVE"
                 elif idx > 2: 
@@ -99,7 +117,9 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, d
                     label, condition = f"S{abs(idx)}", "BELOW"
             else: # Purple Mid-Level
                 label = f"Mid_{j}"
-                condition = "ABOVE" if price > high else "BELOW"
+                # If above Low -> Target to break UP
+                # If below Low -> Target to break DOWN
+                condition = "ABOVE" if j > 0 else "BELOW"
                 
             levels.append({"price": price, "type": condition, "label": label})
         

@@ -17,7 +17,8 @@ const TradesTab = ({
     strategyMode,
     setStrategyMode: updateStrategyModeState,
     bufferPct,
-    setBufferPct: updateBufferPctState
+    setBufferPct: updateBufferPctState,
+    isPaused
 }) => {
     // Local fallback state (optional, mainly for initial render safety)
     const [analytics, setAnalytics] = useState(null);
@@ -54,6 +55,8 @@ const TradesTab = ({
             console.log('💰 [DEBUG] TradesTab Paper Summary:', summaryData);
 
             // Sync all lifted states
+            // Sync all lifted states
+            console.log('🔄 [DEBUG] Syncing State -> Balance:', summaryData.virtual_balance, 'AutoExec:', summaryData.auto_paper_trade);
             if (setPaperBalance) setPaperBalance(summaryData.virtual_balance);
             if (setAutoExec) setAutoExec(summaryData.auto_paper_trade);
             if (updateStrategyModeState) updateStrategyModeState(summaryData.strategy_mode);
@@ -219,7 +222,7 @@ const TradesTab = ({
     };
 
     const handleClearHistory = async () => {
-        if (!window.confirm('Clear all trade history?')) return;
+        if (!window.confirm('Clear trade history? Open positions will be kept.')) return;
         try {
             await clearPaperTrades(sessionId);
             toast.success('History cleared');
@@ -367,7 +370,9 @@ const TradesTab = ({
                     <div>
                         <h2 className="text-sm font-bold text-[var(--text-primary)]">Automated Execution</h2>
                         <p className="text-[10px] text-[var(--text-muted)] transition-all">
-                            {autoExec ? 'Strategy is monitoring live alerts' : 'Manual monitoring only'}
+                            {autoExec
+                                ? (isPaused ? <span className="text-red-400 font-bold">⚠️ SYSTEM PAUSED: Alerts are OFF. Unpause in Alerts Tab.</span> : 'Strategy is monitoring live alerts')
+                                : 'Manual monitoring only'}
                         </p>
                     </div>
                     <button
@@ -411,16 +416,16 @@ const TradesTab = ({
                     <div>
                         <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest mb-2 px-1">Sensitivity (Buffer)</div>
                         <div className="flex bg-[var(--bg-primary)] p-1 rounded-xl border border-[var(--border-color)]/20 gap-1 overflow-x-auto scrollbar-hide">
-                            {[0.1, 0.25, 0.45, 0.6, 0.75, 0.9, 1.0].map(val => (
+                            {[0.10, 0.15, 0.25, 0.45, 0.50, 0.63, 0.72, 0.81, 0.90].map(val => (
                                 <button
                                     key={val}
                                     onClick={() => handleBufferChange(val)}
-                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all whitespace-nowrap ${Number(bufferPct) === Number(val)
+                                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition-all whitespace-nowrap ${Number(bufferPct || 0.45).toFixed(2) === val.toFixed(2)
                                         ? 'bg-yellow-500 text-black shadow-lg'
                                         : 'text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]'
                                         }`}
                                 >
-                                    {val}%
+                                    {val.toFixed(2)}%
                                 </button>
                             ))}
                         </div>
@@ -454,6 +459,9 @@ const TradesTab = ({
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${trade.side === 'BUY' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                                             {trade.side}
                                         </span>
+                                        <span className={`text-[8px] px-1.5 py-0.5 rounded border font-bold uppercase ${trade.strategy_mode === 'BOUNCE' ? 'border-blue-500/50 text-blue-400' : 'border-orange-500/50 text-orange-400'}`}>
+                                            {trade.strategy_mode === 'BOUNCE' ? 'Reversal' : 'Momentum'}
+                                        </span>
                                     </div>
                                     <div className="text-[10px] font-medium text-[var(--text-muted)] line-clamp-1 uppercase">
                                         {trade.quantity} QTY • ₹{trade.entry_price.toFixed(2)} • {trade.trigger_level}
@@ -464,6 +472,20 @@ const TradesTab = ({
                                         {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
                                     </div>
                                     <div className="text-[9px] font-bold text-[var(--text-muted)] uppercase">Live Profit</div>
+
+                                    {/* --- Target and SL Display --- */}
+                                    <div className="mt-2 flex flex-col gap-0.5 items-end">
+                                        {trade.target && (
+                                            <div className="text-[10px] text-[var(--success-neon)] font-bold flex items-center gap-1">
+                                                <span className="opacity-50 text-[8px]">TGT:</span> ₹{trade.target.toFixed(2)}
+                                            </div>
+                                        )}
+                                        {trade.stop_loss && (
+                                            <div className="text-[10px] text-[var(--danger-neon)] font-bold flex items-center gap-1">
+                                                <span className="opacity-50 text-[8px]">SL:</span> ₹{trade.stop_loss.toFixed(2)}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

@@ -146,97 +146,98 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
     }
 
     return (
-        <div className="w-full space-y-4">
+        <div className="w-full space-y-2">
             {/* Search */}
-            <div className="bg-[var(--bg-secondary)] md:rounded-2xl p-3 border border-[var(--border-color)] shadow-sm">
-                <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                    </div>
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search symbols (e.g., TATA, RELIANCE)..."
-                        className="w-full pl-10 pr-10 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-blue)]"
-                    />
-                    {loading && (
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                            <svg className="animate-spin h-5 w-5 text-[#667EEA]" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            <div className="px-0">
+                <div className="bg-[var(--bg-secondary)] p-2 md:rounded-2xl border border-[var(--border-color)] shadow-sm">
+                    <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
-                    )}
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search companies to invest or trade"
+                            className="w-full pl-9 pr-10 py-2 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-xl text-[var(--text-primary)] text-xs focus:outline-none focus:border-[var(--accent-blue)] placeholder:text-gray-500"
+                        />
+                        {loading && (
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                <svg className="animate-spin h-5 w-5 text-[#667EEA]" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                            </div>
+                        )}
 
-                    {/* Search Results Dropdown */}
-                    {showSearchResults && searchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 backdrop-blur-xl">
-                            {searchResults.map((stock) => (
-                                <div
-                                    key={stock.token}
-                                    onClick={() => handleAddStock(stock)}
-                                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--accent-blue)]/10 transition-colors border-b border-[var(--border-color)] last:border-0 cursor-pointer group"
-                                >
-                                    <div className="flex-1">
-                                        <div className="text-[var(--text-primary)] font-medium group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</div>
-                                        <div className="text-[10px] text-[var(--text-muted)] font-mono">TOKEN: {stock.token}</div>
-                                    </div>
-                                    <button
-                                        className="px-3 py-1.5 bg-[#667EEA] hover:bg-blue-600 text-white text-[10px] font-bold rounded-md shadow-lg transition-all active:scale-95 flex items-center gap-1"
+                        {/* Search Results Dropdown */}
+                        {showSearchResults && searchResults.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl shadow-2xl max-h-60 overflow-y-auto z-50 backdrop-blur-xl">
+                                {searchResults.map((stock) => (
+                                    <div
+                                        key={stock.token}
+                                        onClick={() => handleAddStock(stock)}
+                                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--accent-blue)]/10 transition-colors border-b border-[var(--border-color)] last:border-0 cursor-pointer group"
                                     >
-                                        <span>✚</span>
-                                        <span>ADD</span>
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                                        <div className="flex-1">
+                                            <div className="text-[var(--text-primary)] font-medium group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</div>
+                                            <div className="text-[10px] text-[var(--text-muted)] font-mono">TOKEN: {stock.token}</div>
+                                        </div>
+                                        <button
+                                            className="px-3 py-1.5 bg-[#667EEA] hover:bg-blue-600 text-white text-[10px] font-bold rounded-md shadow-lg transition-all active:scale-95 flex items-center gap-1"
+                                        >
+                                            <span>✚</span>
+                                            <span>ADD</span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
             {/* Refresh Button and Sort */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-4">
-                    <div className="text-gray-400 text-xs">
-                        {watchlist.length} stocks • Ref: <span className="text-[#667EEA] font-bold">{referenceDate}</span>
+            <div className="flex justify-between items-center px-2">
+                <div className="flex items-center gap-2">
+                    <div className="text-gray-400 text-[10px] uppercase font-bold tracking-widest">
+                        {watchlist.length} Stocks
                     </div>
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value)}
-                        className="px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-blue)]"
+                        className="px-2 py-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] text-[10px] font-bold focus:outline-none focus:border-[var(--accent-blue)]"
                     >
-                        <option value="none">Sort: Default</option>
-                        <option value="sym_az">Sort: A-Z</option>
-                        <option value="sym_za">Sort: Z-A</option>
-                        <option value="price_low">Sort: Price Low</option>
-                        <option value="price_high">Sort: Price High</option>
+                        <option value="none">Sort</option>
+                        <option value="sym_az">A-Z</option>
+                        <option value="sym_za">Z-A</option>
+                        <option value="price_low">Price Low</option>
+                        <option value="price_high">Price High</option>
                     </select>
                 </div>
                 <button
                     onClick={handleRefresh}
                     disabled={refreshing}
-                    className="px-4 py-2 bg-[#667EEA] hover:bg-[#5568D3] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="px-3 py-1.5 bg-[var(--accent-blue)]/10 hover:bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] text-[10px] font-bold rounded-lg transition-all border border-[var(--accent-blue)]/20 flex items-center gap-1.5"
                 >
-                    <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-3 h-3 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
+                    Refresh
                 </button>
             </div>
 
             {/* Watchlist */}
             <div className="w-full">
                 {filteredWatchlist.length === 0 ? (
-                    <div className="p-12 text-center bg-[var(--bg-secondary)] rounded-2xl border-2 border-dashed border-[var(--border-color)] m-2 transform transition-all duration-300 hover:border-[var(--accent-blue)]/30">
-                        <div className="text-4xl mb-4 opacity-20">📊</div>
-                        <p className="text-[var(--text-muted)] font-medium">Your watchlist is empty.</p>
-                        <p className="text-[10px] text-[var(--text-muted)] mt-1 uppercase tracking-widest">Search and add symbols to start monitoring</p>
+                    <div className="p-12 text-center bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] m-2">
+                        <div className="text-4xl mb-4 opacity-10">🔍</div>
+                        <p className="text-[var(--text-muted)] text-sm">Watchlist is empty</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 p-2">
+                    <div className="flex flex-col gap-[1px] bg-[var(--border-color)]/20 px-0">
                         <AnimatePresence mode="popLayout">
                             {filteredWatchlist.map((stock) => {
                                 const changeValue = stock.ltp - stock.pdc;
@@ -247,50 +248,30 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                                     <motion.div
                                         key={stock.token}
                                         layout
-                                        initial={{ opacity: 0, scale: 0.95 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
                                         onClick={() => setSelectedStock(stock)}
-                                        className="glass-card p-5 rounded-2xl shadow-xl hover:border-[var(--accent-blue)]/50 transition-all cursor-pointer group relative overflow-hidden active:scale-[0.98] border border-[var(--border-color)]"
+                                        className="bg-[var(--bg-secondary)] p-3 hover:bg-[var(--bg-primary)] transition-all cursor-pointer relative overflow-hidden active:bg-[var(--accent-blue)]/5 flex items-center justify-between border-l-4 border-l-transparent hover:border-l-[var(--accent-blue)]"
+                                        style={{ borderLeftColor: isPositive ? 'var(--success-neon)' : 'var(--danger-neon)' }}
                                     >
-                                        <div className="flex justify-between items-start relative z-10">
-                                            <div className="space-y-1.5">
-                                                <div className="flex items-center gap-2">
-                                                    <h3 className="text-[var(--text-primary)] font-black text-lg tracking-tight group-hover:text-[var(--accent-blue)] transition-colors">{stock.symbol}</h3>
-                                                    <span className="text-[8px] font-bold bg-[var(--bg-primary)] text-[var(--text-muted)] px-1.5 py-0.5 rounded border border-[var(--border-color)] uppercase tracking-widest">{stock.exch_seg || 'NSE'}</span>
-                                                </div>
-                                                <div className="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-1.5">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--border-color)]"></span>
-                                                    ID: {stock.token}
-                                                </div>
+                                        <div className="flex flex-col gap-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                                <h3 className="text-[var(--text-primary)] font-bold text-sm tracking-tight">{stock.symbol}</h3>
+                                                <span className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{stock.exch_seg || 'NSE'}</span>
                                             </div>
-
-                                            <div className="text-right">
-                                                <motion.div
-                                                    key={stock.ltp}
-                                                    className={`text-2xl font-black tabular-nums tracking-tighter ${isPositive ? 'price-up' : 'price-down'}`}
-                                                >
-                                                    ₹{stock.ltp?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
-                                                </motion.div>
-                                                <div className={`text-[10px] font-black flex items-center justify-end gap-1 ${isPositive ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
-                                                    <div className={`w-1.5 h-1.5 rounded-full ${isPositive ? 'bg-[var(--success-neon)] shadow-[0_0_8px_var(--success-neon)]' : 'bg-[var(--danger-neon)] shadow-[0_0_8px_var(--danger-neon)]'}`} />
-                                                    {isPositive ? '+' : ''}{Math.abs(changeValue).toFixed(2)} ({Math.abs(changePercent).toFixed(2)}%)
-                                                </div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[9px] text-[var(--accent-blue)] font-bold">H: {stock.pdh?.toFixed(1)}</span>
+                                                <span className="text-[9px] text-orange-400 font-bold">L: {stock.pdl?.toFixed(1)}</span>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-[var(--border-color)] relative z-10">
-                                            <div className="text-center">
-                                                <div className="text-[8px] text-[var(--text-muted)] uppercase font-black tracking-widest mb-1">P. Close</div>
-                                                <div className="text-xs text-[var(--text-primary)] font-bold opacity-70">₹{stock.pdc?.toFixed(1) || '0.0'}</div>
+                                        <div className="text-right flex flex-col items-end">
+                                            <div className={`text-base font-bold tabular-nums tracking-tight ${isPositive ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
+                                                {stock.ltp?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
                                             </div>
-                                            <div className="text-center group/high">
-                                                <div className="text-[8px] text-[var(--accent-blue)] uppercase font-black tracking-widest mb-1">Buy High</div>
-                                                <div className="text-xs text-[var(--text-primary)] font-black">₹{stock.pdh?.toFixed(1) || '0.0'}</div>
-                                            </div>
-                                            <div className="text-center group/low">
-                                                <div className="text-[8px] text-orange-400 uppercase font-black tracking-widest mb-1">Sell Low</div>
-                                                <div className="text-xs text-[var(--text-primary)] font-black">₹{stock.pdl?.toFixed(1) || '0.0'}</div>
+                                            <div className={`text-[10px] font-bold flex items-center gap-1 ${isPositive ? 'text-[var(--success-neon)]/90' : 'text-[var(--danger-neon)]/90'}`}>
+                                                {isPositive ? '+' : ''}{changeValue.toFixed(2)} ({changePercent.toFixed(2)}%)
                                             </div>
                                         </div>
                                     </motion.div>
@@ -300,6 +281,7 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                     </div>
                 )}
             </div>
+
             {/* Stock Details Modal */}
             {selectedStock && (
                 <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50" onClick={() => setSelectedStock(null)}>

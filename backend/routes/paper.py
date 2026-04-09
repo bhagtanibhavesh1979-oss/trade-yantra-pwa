@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 from services.session_manager import session_manager
 from services.paper_service import paper_service
+from datetime import datetime, timedelta
 
 import logging
 logger = logging.getLogger("paper_route")
@@ -78,27 +79,32 @@ async def get_paper_summary(session_id: str, client_id: Optional[str] = None):
     from services.persistence_service import persistence_service
     historical_trades = persistence_service.get_trade_history(session.client_id) or []
     
-    # Use a dictionary to avoid duplicates (prioritize memory trades for live updates)
+    # Use a dictionary to avoid duplicates
+    # CRITICAL: Build with HISTORICAL first, then OVERRIDE with in-memory (live) state.
+    # This ensures that a trade closed in memory is NOT resurrected by the old history file.
     trades_map = {str(t.get('id')): t for t in historical_trades}
     for t in session.paper_trades:
-        trades_map[str(t.get('id', ''))] = t
+        trades_map[str(t.get('id', ''))] = t  # In-memory is always the source of truth
         
     all_trades = sorted(trades_map.values(), key=lambda x: x.get('created_at', ''), reverse=True)
     
     # --- RIGID AUTO RECOVERY ---
-    # If balance is 0, we force it back to 500k baseline IMMEDIATELY
-    current_bal = float(getattr(session, 'virtual_balance', 0.0))
-    if current_bal == 0:
-        session.virtual_balance = 500000.0
-        print(f"💰 [RIGID] Forced balance reset to 500,000 for {session.client_id}")
-        session_manager.save_session(session_id)
+    # Disabled in favor of Session Init default 500k
+    # current_bal = float(getattr(session, 'virtual_balance', 0.0))
+    # if current_bal == 0:
+    #     session.virtual_balance = 500000.0
+    #     print(f"[MONEY] [RIGID] Forced balance reset to 500,000 for {session.client_id}")
+    #     session_manager.save_session(session_id)
     # ---------------------------
 
     response_data = {
         "auto_paper_trade": session.auto_paper_trade,
+        "is_paused": getattr(session, 'is_paused', False),
         "strategy_mode": getattr(session, 'strategy_mode', 'BOUNCE'),
         "trigger_mode": getattr(session, 'trigger_mode', 'CANDLE_CLOSE'),
         "buffer_pct": getattr(session, 'buffer_pct', 0.25),
+        "global_target": getattr(session, 'global_target', None),
+        "global_stop_loss": getattr(session, 'global_stop_loss', None),
         "virtual_balance": session.virtual_balance,
         "trades": all_trades[:200], # Keep a healthy amount in the UI
         "summary": {
@@ -108,8 +114,8 @@ async def get_paper_summary(session_id: str, client_id: Optional[str] = None):
         }
     }
     
-    # 🔍 RIGID DEBUG TRAP
-    print(f"📡 [API] Returning summary for {session.client_id}: Balance = {response_data['virtual_balance']}")
+    #  RIGID DEBUG TRAP
+    print(f" [API] Returning summary for {session.client_id}: Balance = {response_data['virtual_balance']}")
     
     return response_data
 
@@ -127,8 +133,20 @@ async def set_virtual_balance(session_id: str, req: SetBalanceRequest):
     return {"status": "success", "virtual_balance": req.amount}
 
 @router.post("/close/{session_id}/{trade_id}")
-async def close_trade(session_id: str, trade_id: str, ltp: float):
-    paper_service.close_virtual_trade(session_id, trade_id, ltp)
+async def close_trade(session_id: str, trade_id: str, ltp: float, client_id: Optional[str] = None):
+    """Manually close a single trade, with explicit disk flush"""
+    session = session_manager.get_session(session_id, client_id=client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    paper_service.close_virtual_trade(session_id, trade_id, ltp, reason="MANUAL_CLOSE")
+    
+    # CRITICAL: Also update in permanent trade history so merged view shows CLOSED
+    from services.persistence_service import persistence_service
+    closed_trade = next((t for t in session.paper_trades if t['id'] == trade_id), None)
+    if closed_trade:
+        persistence_service.add_to_trade_history(session.client_id, closed_trade)
+    
     return {"status": "success"}
 
 @router.post("/clear/{session_id}")
@@ -137,9 +155,31 @@ async def clear_trades(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
-    session.paper_trades = []
+    # 1. Filter In-Memory Trades: KEEP OPEN positions
+    open_trades = [t for t in session.paper_trades if t.get('status') == 'OPEN']
+    session.paper_trades = open_trades
+    
+    # 2. Clear Permanent Store but PRESERVE OPEN trades
+    from services.persistence_service import persistence_service
+    # Fetch historical trades to see if any are OPEN (should be synced with memory but safety first)
+    history = persistence_service.get_trade_history(session.client_id) or []
+    historical_open = [t for t in history if t.get('status') == 'OPEN']
+    
+    # Fully clear the history file/GCS blob
+    persistence_service.clear_trade_history(session.client_id)
+    
+    # Re-populate with preserved OPEN trades (merge from memory and history to be safe)
+    trades_map = {str(t.get('id')): t for t in open_trades}
+    for t in historical_open:
+        trades_map[str(t.get('id', ''))] = t
+        
+    for t in trades_map.values():
+        persistence_service.add_to_trade_history(session.client_id, t)
+    
     session_manager.save_session(session_id)
-    return {"status": "success"}
+    print(f" [CLEAR] History cleared for {session.client_id}. Preserved {len(trades_map)} open trades.")
+    
+    return {"status": "success", "preserved_count": len(trades_map)}
 
 class SetStopLossRequest(BaseModel):
     sl_price: float
@@ -156,6 +196,11 @@ class SetTargetRequest(BaseModel):
 async def set_target(session_id: str, trade_id: str, req: SetTargetRequest):
     paper_service.set_target(session_id, trade_id, req.target_price)
     return {"status": "success", "target_price": req.target_price}
+
+@router.post("/square-off/{session_id}")
+async def square_off_positions(session_id: str):
+    paper_service.close_all_open_trades(session_id, reason="MANUAL_SQUARE_OFF")
+    return {"status": "success"}
 
 # --- NEW FEATURES ---
 
@@ -175,8 +220,12 @@ async def manual_trade(session_id: str, req: ManualTradeRequest):
         "ltp": req.ltp
     }
     
+    # Fetch current session strategy mode
+    session = session_manager.get_session(session_id)
+    strategy_mode = getattr(session, 'strategy_mode', 'MANUAL') if session else "MANUAL"
+    
     # We use "MANUAL" as the alert name to indicate user action
-    paper_service.create_virtual_trade(session_id, stock, req.side, "MANUAL", quantity=req.quantity)
+    paper_service.create_virtual_trade(session_id, stock, req.side, "MANUAL", quantity=req.quantity, strategy_mode=strategy_mode)
     return {"status": "success", "message": f"Manual {req.side} order placed for {req.symbol}"}
 
 @router.get("/export/{session_id}")
@@ -195,9 +244,15 @@ async def export_trades(session_id: str):
     historical_trades = persistence_service.get_trade_history(session.client_id)
     
     # Merge logic: use trade ID to avoid duplicates
-    trades_map = {t['id']: t for t in historical_trades}
+    trades_map = {}
+    if historical_trades:
+        for t in historical_trades:
+            tid = t.get('id')
+            if tid: trades_map[tid] = t
+
     for t in session.paper_trades:
-        trades_map[t['id']] = t
+        tid = t.get('id')
+        if tid: trades_map[tid] = t
         
     # Sort by created_at descending
     trades = sorted(trades_map.values(), key=lambda x: x.get('created_at', ''), reverse=True)
@@ -206,30 +261,62 @@ async def export_trades(session_id: str):
     output = io.StringIO()
     writer = csv.writer(output)
     
-    # Header
-    writer.writerow(["ID", "Time", "Symbol", "Side", "Entry Price", "Exit Price", "Quantity", "Status", "PnL", "Reason"])
-    
-    for t in trades:
-        writer.writerow([
-            t['id'], 
-            t['created_at'], 
-            t['symbol'], 
-            t['side'], 
-            t['entry_price'], 
-            t.get('exit_price', ''), 
-            t.get('quantity', 100), 
-            t['status'], 
-            t.get('pnl', 0.0), 
-            t.get('trigger_level', 'AUTO')
-        ])
+    try:
+        # Header
+        writer.writerow(["Symbol", "Side", "Quantity", "Entry Price", "Exit Price", "Entry Time", "Exit Time", "Status", "PnL", "Execution Reason"])
         
-    output.seek(0)
-    
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=trade_report.csv"}
-    )
+        for t in trades:
+            # Format times for easier reading in Excel
+            entry_time = t.get('created_at', '')
+            if entry_time:
+                try:
+                    dt = datetime.fromisoformat(str(entry_time).replace('Z', ''))
+                    # Convert to IST (+5:30)
+                    dt_ist = dt + timedelta(hours=5, minutes=30)
+                    entry_time = dt_ist.strftime('%Y-%m-%d %H:%M:%S')
+                except: pass
+                
+            exit_time = t.get('closed_at', '')
+            if exit_time:
+                try:
+                    dt = datetime.fromisoformat(str(exit_time).replace('Z', ''))
+                    # Convert to IST (+5:30)
+                    dt_ist = dt + timedelta(hours=5, minutes=30)
+                    exit_time = dt_ist.strftime('%Y-%m-%d %H:%M:%S')
+                except: pass
+
+            # Robust helper for rounding
+            def safe_round(val, default=''):
+                try:
+                    v = float(val)
+                    # If it's a 0.05 tick, we want to see it clearly
+                    return round(v, 2)
+                except (TypeError, ValueError):
+                    return default
+
+            writer.writerow([
+                t.get('symbol', 'N/A'), 
+                t.get('side', 'N/A'), 
+                t.get('quantity', 100), 
+                safe_round(t.get('entry_price')), 
+                safe_round(t.get('exit_price')), 
+                entry_time,
+                exit_time,
+                t.get('status', 'N/A'), 
+                safe_round(t.get('pnl', 0.0), 0.0), 
+                f"{t.get('trigger_level', 'MANUAL')} ({t.get('exit_reason', 'OPEN')})"
+            ])
+            
+        output.seek(0)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=trade_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"}
+        )
+    except Exception as e:
+        logger.error(f"Export Failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Export Error: {str(e)}")
 
 @router.get("/analytics/{session_id}")
 async def get_analytics(session_id: str):
@@ -240,7 +327,8 @@ async def get_analytics(session_id: str):
         
     from services.persistence_service import persistence_service
     bal = getattr(session, 'virtual_balance', 100000.0)
-    return persistence_service.get_performance_stats(session.client_id, bal)
+    extra_trades = getattr(session, 'paper_trades', [])
+    return persistence_service.get_performance_stats(session.client_id, bal, extra_trades)
 
 class BacktestRequest(BaseModel):
     symbol: str

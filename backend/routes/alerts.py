@@ -24,6 +24,15 @@ logger = logging.getLogger("alerts_route")
 
 router = APIRouter(prefix="/api/alerts", tags=["Alerts"])
 
+# Mapping for technical vs display/strategy labels (Align with UI/Chart/Strategy)
+STRATEGY_DISPLAY_MAP = {
+    "High": "RANGE_HIGH", "Low": "RANGE_LOW", "M": "MIDPOINT",
+    "S1": "TGT_L1", "S2": "TGT_L2", "S3": "TGT_L3",
+    "S4": "TGT_L4", "S5": "TGT_L5", "S6": "TGT_L6",
+    "R1": "TGT_H1", "R2": "TGT_H2", "R3": "TGT_H3",
+    "R4": "TGT_H4", "R5": "TGT_H5", "R6": "TGT_H6"
+}
+
 class CreateAlertRequest(BaseModel):
     session_id: str
     symbol: str
@@ -143,26 +152,31 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         gen_date = today_str
 
     print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) on {gen_date}")
-    print(f"DEBUG: Levels requested: {req.levels}")
     
-    new_alert_data = generate_high_low_alerts(
-        session.smart_api, 
-        req.symbol, 
-        token, 
-        gen_date, 
-        req.start_time, 
-        req.end_time, 
-        req.is_custom_range,
-        exchange
-    )
+    # helper for generation with auto-refresh
+    async def _safe_generate():
+        return generate_high_low_alerts(
+            session.smart_api, 
+            req.symbol, 
+            token, 
+            gen_date, 
+            req.start_time, 
+            req.end_time, 
+            req.is_custom_range,
+            exchange
+        )
+
+    new_alert_data = await _safe_generate()
+    
+    # AUTO-REFRESH LOGIC: If generation failed with no data, try refreshing token ONCE
+    if not new_alert_data:
+        print(f"[RECOVERY] Alert generation returned nothing for {req.symbol}. Attempting token refresh...")
+        if session_manager.refresh_session_tokens(req.session_id):
+            print(f"[OK] Token refreshed. Retrying generation...")
+            new_alert_data = await _safe_generate()
     
     # REPLACE LOGIC: Clear existing AUTO alerts for this symbol before generating new ones
-    # This prevents old and new levels from being mixed as requested by the user.
-    initial_alerts_count = len(session.alerts)
     session.alerts = [a for a in session.alerts if not (str(a['token']) == str(token) and str(a.get('type', '')).startswith('AUTO_'))]
-    cleared_count = initial_alerts_count - len(session.alerts)
-    if cleared_count > 0:
-        print(f"DEBUG: Cleared {cleared_count} old auto-alerts for {req.symbol}")
     
     count = 0
     added_alerts = []
@@ -181,12 +195,13 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
         )
         
         if not is_duplicate:
+            label_display = STRATEGY_DISPLAY_MAP.get(alert_data.get('label'), alert_data.get('label'))
             alert = create_alert(
                 req.symbol,
                 token,
                 alert_data['type'],
                 alert_data['price'],
-                f"AUTO_{alert_data.get('label', 'HL').upper()}"
+                f"AUTO_{label_display.upper()}"
             )
             session.alerts.append(alert)
             added_alerts.append(alert)
@@ -403,12 +418,13 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     )
                     
                     if not is_duplicate:
+                        label_display = STRATEGY_DISPLAY_MAP.get(alert_data.get('label'), alert_data.get('label'))
                         alert = create_alert(
                             symbol=symbol,
                             token=token,
                             condition=alert_data['type'],
                             price=alert_data['price'],
-                            alert_type=f"AUTO_{alert_data.get('label', 'HL').upper()}"
+                            alert_type=f"AUTO_{label_display.upper()}"
                         )
                         session.alerts.append(alert)
                         stock_alerts_count += 1

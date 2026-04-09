@@ -9,28 +9,50 @@ import threading
 from services.persistence_service import persistence_service
 
 class Session:
-    def __init__(self, session_id: str, client_id: str, jwt_token: str, feed_token: str, api_key: str):
+    def __init__(self, session_id: str, client_id: str, jwt_token: str, feed_token: str, api_key: str, data_api_key: Optional[str] = None):
         self.session_id = session_id
-        self.client_id = client_id
+        self.client_id = client_id.upper()
         self.jwt_token = jwt_token
         self.feed_token = feed_token
         self.api_key = api_key
+        self.data_api_key = data_api_key or api_key # Fallback to main key
         self.refresh_token = None
         self.smart_api = None  # Authenticated SmartConnect instance
         self.watchlist = []  # List of {symbol, token, exch_seg, ltp, wc}
         self.alerts = []  # List of {id, symbol, token, condition, price, active}
         self.logs = []  # List of {time, symbol, msg}
         self.paper_trades = [] # List of virtual trade objects
-        self.virtual_balance = 0.0 # Virtual wallet balance
+        self.virtual_balance = 1000000.0 # Virtual wallet balance
         self.is_paused = False
         self.auto_paper_trade = False
+        self.auto_live_trade = False # Master Switch for Real Money Trading
         self.strategy_mode = 'BOUNCE' # 'BOUNCE' or 'SAR'
         self.trigger_mode = 'CANDLE_CLOSE' # 'CANDLE_CLOSE' or 'INSTANT'
-        self.buffer_pct = 0.25 # Default 0.25%
+        self.buffer_pct = 0.45 # Default 0.45%
+        self.trade_quantity = 100 # Default Quantity
+        self.global_target = None
+        self.global_stop_loss = None
         self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
         self.created_at = datetime.now()
         self.last_activity = datetime.now()
         self.websocket_clients = []  # List of WebSocket connections
+        self.last_auto_square_off = '' # Format: YYYY-MM-DD
+        self.market_offset = 0.10 # Default 0.10 INR for Market-to-Limit conversion
+
+    def update_tokens(self, jwt_token: str, feed_token: str, refresh_token: str):
+        """Update session tokens and re-init SmartAPI"""
+        self.jwt_token = jwt_token
+        self.feed_token = feed_token
+        self.refresh_token = refresh_token
+        if self.smart_api:
+            self.smart_api.setAccessToken(jwt_token)
+            self.smart_api.setRefreshToken(refresh_token)
+        else:
+            from SmartApi import SmartConnect
+            self.smart_api = SmartConnect(api_key=self.api_key)
+            self.smart_api.setAccessToken(jwt_token)
+            self.smart_api.setRefreshToken(refresh_token)
+        print(f"[REFRESH] [SESSION] Tokens updated for {self.client_id}")
 
 class SessionManager:
     def __init__(self):
@@ -41,8 +63,178 @@ class SessionManager:
         self._load_from_disk()
 
     def _load_from_disk(self):
-        """Cleanup old sessions on startup"""
-        persistence_service.cleanup_old_sessions()
+        """Load all sessions from disk into memory on startup"""
+        print("[REFRESH] [BOOT] Loading sessions from disk...")
+        try:
+            persistence_service.cleanup_old_sessions()
+            all_data = persistence_service._read_all(force_refresh=True)
+            
+            # --- AUTO-CLEANUP STUCK TRADES ON BOOT ---
+            if all_data:
+                cleaned_count = 0
+                today_str = datetime.now().strftime("%Y-%m-%d")
+                
+                for sid, s_data in all_data.items():
+                    p_trades = s_data.get('paper_trades', [])
+                    # PRESERVE TODAY'S TRADES: Only cleanup if trade date < today
+                    open_trades = []
+                    for t in p_trades:
+                        if t.get('status') == 'OPEN':
+                            created_at = t.get('created_at', '')
+                            # If created_at is today, preserve it
+                            if created_at and today_str in created_at:
+                                continue
+                            open_trades.append(t)
+                    
+                    if open_trades:
+                        open_ids = {t['id'] for t in open_trades}
+                        print(f" [BOOT] Found {len(open_trades)} stuck OPEN trades (pre-today) in {sid[:8]}. Closing them...")
+                        
+                        # Option 2: DELETE (Cleaner for 'stuck' ghosts)
+                        s_data['paper_trades'] = [t for t in p_trades if t.get('id') not in open_ids]
+                        
+                        # Refund Margin (Rough Estimate)
+                        refund = sum(float(t.get('entry_price', 0)) * int(t.get('quantity', 0)) * 0.05 for t in open_trades)
+                        current_bal = float(s_data.get('virtual_balance', 0))
+                        s_data['virtual_balance'] = current_bal + refund
+                        cleaned_count += 1
+                
+                if cleaned_count > 0:
+                     print(f" [BOOT] Saving cleaned state for {cleaned_count} sessions...")
+                     persistence_service._write_all(all_data)
+            # ----------------------------------------
+            if all_data:
+                # --- GROUP BY CLIENT AND FIND LATEST ---
+                latest_sessions = {}
+                for sid, s_data in all_data.items():
+                    cid = s_data.get('client_id', '').upper()
+                    if not cid: continue
+                    
+                    last_act = s_data.get('last_activity', '')
+                    has_alerts = len(s_data.get('alerts', [])) > 0
+                    
+                    if cid not in latest_sessions:
+                        latest_sessions[cid] = (sid, s_data)
+                    else:
+                        current_best_data = latest_sessions[cid][1]
+                        current_best_has_alerts = len(current_best_data.get('alerts', [])) > 0
+                        
+                        # PRIORITY LOGIC:
+                        # 1. If this session has alerts but current best doesn't -> PICK THIS
+                        # 2. If both have alerts or both none -> PICK LATEST activity
+                        if has_alerts and not current_best_has_alerts:
+                            latest_sessions[cid] = (sid, s_data)
+                        elif has_alerts == current_best_has_alerts:
+                            if last_act > current_best_data.get('last_activity', ''):
+                                latest_sessions[cid] = (sid, s_data)
+                
+                print(f" [BOOT] Found {len(all_data)} sessions on disk. Loading {len(latest_sessions)} unique client sessions.")
+                
+                for session_id, session_data in latest_sessions.values():
+                    try:
+                        session = Session(
+                            session_id,
+                            session_data['client_id'],
+                            session_data.get('jwt_token', ''),
+                            session_data.get('feed_token', ''),
+                            session_data.get('api_key', ''),
+                            session_data.get('data_api_key')
+                        )
+                        session.refresh_token = session_data.get('refresh_token', '')
+                        session.watchlist = session_data.get('watchlist', [])
+                        session.alerts = session_data.get('alerts', [])
+                        session.logs = session_data.get('logs', [])
+                        session.paper_trades = session_data.get('paper_trades', [])
+                        session.virtual_balance = session_data.get('virtual_balance', 0.0)
+                        session.is_paused = session_data.get('is_paused', False)
+                        session.auto_paper_trade = session_data.get('auto_paper_trade', False)
+                        session.auto_live_trade = session_data.get('auto_live_trade', False)
+                        session.strategy_mode = session_data.get('strategy_mode', 'BOUNCE')
+                        session.trigger_mode = session_data.get('trigger_mode', 'CANDLE_CLOSE')
+                        session.buffer_pct = session_data.get('buffer_pct', 0.45)
+                        session.trade_quantity = session_data.get('trade_quantity', 100)
+                        session.last_auto_square_off = session_data.get('last_auto_square_off', '')
+                        
+                        self.sessions[session_id] = session
+                        
+                        # Re-init SmartAPI and VERIFY TOKEN
+                        if session.jwt_token and session.api_key:
+                            from SmartApi import SmartConnect
+                            from services.angel_service import angel_service
+                            
+                            try:
+                                print(f" [BOOT] Verifying token for {session.client_id}...")
+                                smart_api = SmartConnect(api_key=session.api_key)
+                                smart_api.setAccessToken(session.jwt_token)
+                                smart_api.setRefreshToken(session.refresh_token)
+                                smart_api.setUserId(session.client_id)
+                                session.smart_api = smart_api
+                                
+                                # Try a small API call to see if it works
+                                profile = smart_api.getProfile(session.refresh_token)
+                                if profile and profile.get('status'):
+                                    print(f"[OK] [BOOT] Session alive for {session.client_id}")
+                                else:
+                                    # Use angel_service to get a readable error
+                                    err_code = profile.get('errorcode') if profile else 'UNKNOWN'
+                                    msg = angel_service.get_error_message(err_code)
+                                    print(f"[WARN] [BOOT] Token Status for {session.client_id}: {msg}. Attempting refresh...")
+                                    
+                                    if self.refresh_session_tokens(session_id):
+                                        print(f"[OK] [BOOT] Tokens refreshed for {session.client_id}")
+                                    else:
+                                        print(f"[ERR] [BOOT] Refresh failed for {session.client_id}. Re-login required.")
+                            except Exception as api_err:
+                                err_msg = str(api_err)
+                                print(f"[WARN] [BOOT] Token check error for {session.client_id}: {err_msg}. Trying refresh...")
+                                if self.refresh_session_tokens(session_id):
+                                    print(f"[OK] [BOOT] Recovered {session.client_id} via refresh.")
+                                else:
+                                    print(f"[ERR] [BOOT] Could not recover {session.client_id}.")
+                            
+                    except Exception as e:
+                        print(f"[ERR] [BOOT] Failed to load session {session_id[:8]}: {e}")
+                
+                print(f"[OK] [BOOT] Loaded {len(self.sessions)} sessions into memory.")
+                
+                # --- SYNC HISTORY FILES WITH IN-MEMORY STATE ---
+                # After boot cleanup strips stuck OPEN trades from sessions.json,
+                # we also need to close them in history_*.json to prevent the
+                # summary merge from resurrecting ghost OPEN positions.
+                try:
+                    for session in self.sessions.values():
+                        history = persistence_service.get_trade_history(session.client_id) or []
+                        in_memory_ids = {t['id'] for t in session.paper_trades}
+                        now_iso = datetime.utcnow().isoformat() + "Z"
+                        changed = False
+                        for t in history:
+                            # If trade is OPEN in history, but NOT in current memory session, close it
+                            if t.get('status') == 'OPEN' and t['id'] not in in_memory_ids:
+                                t['status'] = 'CLOSED'
+                                t['exit_price'] = t.get('entry_price')
+                                t['pnl'] = 0.0
+                                t['closed_at'] = now_iso
+                                t['exit_reason'] = 'BOOT_SYNC_CLEANUP'
+                                changed = True
+                                print(f" [BOOT] History sync: Closed orphan trade {t['id']} ({t.get('symbol')}) from history")
+                        if changed:
+                            # Write all updates back
+                            for t in history:
+                                persistence_service.add_to_trade_history(session.client_id, t)
+                except Exception as sync_err:
+                    print(f"[WARN] [BOOT] History sync error (non-fatal): {sync_err}")
+                # -----------------------------------------------
+                
+                # Restore Live Trading Master Switch if ANY session has it enabled
+                from services.live_service import live_service
+                if any(getattr(s, 'auto_live_trade', False) for s in self.sessions.values()):
+                    live_service.toggle_live_trading(True)
+                    print("[WARN] [BOOT] Live Trading Master Switch RESTORED to ON")
+            else:
+                print("[INFO] [BOOT] No sessions found on disk.")
+        except Exception as e:
+            print(f"[ERR] [BOOT] Critical error loading sessions: {e}")
+        
         print("Session manager initialized")
 
     def save_session(self, session_id: str):
@@ -51,39 +243,30 @@ class SessionManager:
         if not session:
             return
             
-        def _save_bg():
-            with self.lock:
-                if session_id in self._active_saves:
-                    # Mark as pending so it runs again after current finishes
-                    self._pending_saves.add(session_id)
-                    return
-                self._active_saves.add(session_id)
-            
-            try:
-                while True:
-                    persistence_service.save_session(session_id, session)
-                    
-                    with self.lock:
-                        if session_id in self._pending_saves:
-                            self._pending_saves.remove(session_id)
-                            # Loop again to save the latest state
-                            continue
-                        else:
-                            self._active_saves.remove(session_id)
-                            break
-            except Exception as e:
-                print(f"[ERROR] Background save FAILED for session {session_id}: {e}")
-                with self.lock:
-                    self._active_saves.discard(session_id)
-                    
-        threading.Thread(target=_save_bg, daemon=True).start()
+        try:
+            persistence_service.save_session(session_id, session)
+        except Exception as e:
+            print(f"[ERROR] Save FAILED for session {session_id}: {e}")
 
-    def create_session(self, client_id: str, jwt_token: str, feed_token: str, api_key: str) -> Session:
+    def create_session(self, client_id: str, jwt_token: str, feed_token: str, api_key: str, data_api_key: Optional[str] = None) -> Session:
         """Create a new session and restore user data if available"""
+        client_id = client_id.upper()
+        
+        # 0. Clean up any existing in-memory session for this client
+        # This prevents 429 Connection Limit Exceeded by ensuring only ONE 
+        # WebSocket is active per account.
+        with self.lock:
+            existing_sids = [sid for sid, s in self.sessions.items() if s.client_id == client_id]
+        
+        for old_sid in existing_sids:
+            print(f" [SESSION] Cleaning up old session {old_sid[:8]} for client {client_id}")
+            self.delete_session(old_sid)
+
         existing_data = persistence_service.get_session_by_client(client_id)
         
         session_id = str(uuid.uuid4())
-        session = Session(session_id, client_id, jwt_token, feed_token, api_key)
+        session = Session(session_id, client_id, jwt_token, feed_token, api_key, data_api_key)
+        session.refresh_token = existing_data.get('refresh_token') if existing_data else None
         
         if existing_data:
             print(f"[OK] Restoring data for client {client_id} from JSON")
@@ -97,13 +280,18 @@ class SessionManager:
             if not session.virtual_balance or session.virtual_balance == 0:
                 atomic_bal = persistence_service.get_atomic_balance(client_id)
                 session.virtual_balance = atomic_bal
-                print(f"💰 [LOGIN] Rigid balance ₹{session.virtual_balance} enforced for {client_id}")
+                print(f"[MONEY] [LOGIN] Rigid balance {session.virtual_balance} enforced for {client_id}")
 
             session.is_paused = existing_data.get('is_paused', False)
             session.auto_paper_trade = existing_data.get('auto_paper_trade', False)
+            session.auto_live_trade = existing_data.get('auto_live_trade', False)
             session.strategy_mode = existing_data.get('strategy_mode', 'BOUNCE')
             session.trigger_mode = existing_data.get('trigger_mode', 'CANDLE_CLOSE')
-            session.buffer_pct = existing_data.get('buffer_pct', 0.25)
+            session.buffer_pct = existing_data.get('buffer_pct', 0.45)
+            session.trade_quantity = existing_data.get('trade_quantity', 100)
+            session.trade_capital = existing_data.get('trade_capital', 0.0)
+            session.last_auto_square_off = existing_data.get('last_auto_square_off', '')
+            session._prev_candle_closes = existing_data.get('prev_candle_closes', {})
             print(f"[OK] Restored {len(session.watchlist)} watchlist items, {len(session.alerts)} alerts, {len(session.paper_trades)} paper trades, Balance: {session.virtual_balance}")
         
         with self.lock:
@@ -140,24 +328,30 @@ class SessionManager:
                 session_data['client_id'],
                 session_data.get('jwt_token', ''),
                 session_data.get('feed_token', ''),
-                session_data.get('api_key', '')
+                session_data.get('api_key', ''),
+                session_data.get('data_api_key')
             )
+            session.refresh_token = session_data.get('refresh_token', '')
             session.watchlist = session_data.get('watchlist', [])
             session.alerts = session_data.get('alerts', [])
             session.logs = session_data.get('logs', [])
             session.paper_trades = session_data.get('paper_trades', [])
             session.virtual_balance = session_data.get('virtual_balance', 0.0)
+            session._prev_candle_closes = session_data.get('prev_candle_closes', {})
             if not session.virtual_balance or session.virtual_balance == 0:
                 # Ultimate fallback to atomic per-client balance file
                 atomic_bal = persistence_service.get_atomic_balance(session.client_id)
                 session.virtual_balance = atomic_bal
-                print(f"💰 [RESTORED] Rigid balance ₹{session.virtual_balance} enforced for {session.client_id}")
+                print(f"[MONEY] [RESTORED] Rigid balance {session.virtual_balance} enforced for {session.client_id}")
 
             session.is_paused = session_data.get('is_paused', False)
             session.auto_paper_trade = session_data.get('auto_paper_trade', False)
+            session.auto_live_trade = session_data.get('auto_live_trade', False)
             session.strategy_mode = session_data.get('strategy_mode', 'BOUNCE')
             session.trigger_mode = session_data.get('trigger_mode', 'CANDLE_CLOSE')
-            session.buffer_pct = session_data.get('buffer_pct', 0.25)
+            session.buffer_pct = session_data.get('buffer_pct', 0.45)
+            session.trade_quantity = session_data.get('trade_quantity', 100)
+            session.trade_capital = session_data.get('trade_capital', 0.0)
             session.last_activity = datetime.now()
             
             with self.lock:
@@ -166,11 +360,21 @@ class SessionManager:
             # Re-initialize SmartAPI
             if session.jwt_token and session.api_key and not session.smart_api:
                 from SmartApi import SmartConnect
+                from services.angel_service import angel_service
                 try:
                     smart_api = SmartConnect(api_key=session.api_key)
                     smart_api.setAccessToken(session.jwt_token)
+                    smart_api.setRefreshToken(session.refresh_token)
+                    smart_api.setUserId(session.client_id)
                     session.smart_api = smart_api
-                    print(f"[OK] SmartAPI re-initialized for {session.client_id}")
+                    
+                    # Verify on recovery
+                    profile = smart_api.getProfile(session.refresh_token)
+                    if not profile or not profile.get('status'):
+                        print(f"[WARN] [RECOVERY] Profile check failed for {session.client_id}. Refreshing...")
+                        self.refresh_session_tokens(session_id)
+                    else:
+                        print(f"[OK] SmartAPI re-initialized for {session.client_id}")
                 except Exception as e:
                     print(f"[ERROR] Failed to re-initialize SmartAPI: {e}")
 
@@ -178,11 +382,57 @@ class SessionManager:
         
         return None
 
+    def refresh_session_tokens(self, session_id: str) -> bool:
+        """Attempt to refresh tokens for a session using its refresh token"""
+        session = self.get_session(session_id)
+        if not session or not session.refresh_token:
+            return False
+            
+        print(f"[REFRESH] [REFRESH] Attempting token refresh for {session.client_id}...")
+        from services.angel_service import angel_service
+        from SmartApi import SmartConnect
+        
+        try:
+            # We need a SmartConnect instance to call renewAccessToken
+            # If the session doesn't have one, create a temporary one
+            api = session.smart_api
+            if not api:
+                api = SmartConnect(api_key=session.api_key)
+                # VERY IMPORTANT: Angel API requirements for token renewal:
+                # 1. Authorization header MUST contain the EXPIRED jwt_token
+                # 2. Body MUST contain the valid refresh_token
+                api.setAccessToken(session.jwt_token)
+                api.setRefreshToken(session.refresh_token)
+                
+            new_tokens = angel_service.refresh_access_token(api, session.refresh_token)
+            if new_tokens:
+                session.update_tokens(
+                    jwt_token=new_tokens['jwt_token'],
+                    feed_token=new_tokens['feed_token'],
+                    refresh_token=new_tokens['refresh_token']
+                )
+                self.save_session(session_id)
+                print(f"[OK] [REFRESH] Tokens renewed successfully for {session.client_id}")
+                return True
+            else:
+                print(f"[ERR] [REFRESH] Token renewal failed for {session.client_id}")
+        except Exception as e:
+            print(f"[ERR] [REFRESH] Error during refresh: {e}")
+            
+        return False
+
     def delete_session(self, session_id: str) -> bool:
-        """Delete a session"""
+        """Delete a session - Clears all background tasks"""
+        from services.websocket_manager import ws_manager
+        
+        # Ensure WebSocket is closed before deleting session
+        # This prevents 429 "Connection Limit Exceeded" errors
+        ws_manager.stop_websocket(session_id)
+        
         with self.lock:
             if session_id in self.sessions:
                 del self.sessions[session_id]
+                print(f" [SESSION] Deleted and WebSocket stopped for {session_id[:8]}")
                 return True
             return False
 

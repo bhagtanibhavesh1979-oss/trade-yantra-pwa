@@ -65,17 +65,24 @@ async def add_stock(req: AddStockRequest):
         
         def fetch_data():
             try:
-                smart_api = session.smart_api
-                if not smart_api: return
+                # Use Data API Key for market data
+                from SmartApi import SmartConnect
+                smart_api = SmartConnect(api_key=session.data_api_key)
+                smart_api.setAccessToken(session.jwt_token)
                 
-                ltp = angel_service.fetch_ltp(smart_api, req.symbol, req.token, exchange=req.exch_seg)
-                if ltp: stock_data['ltp'] = ltp
+                ltp_data = angel_service.get_ltp_data(smart_api, req.exch_seg, req.symbol, req.token)
                 
-                pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
+                # Self-healing for background thread
+                if ltp_data and not ltp_data.get('status') and ltp_data.get('errorCode') == 'AG8001':
+                    if session_manager.refresh_session_tokens(req.session_id):
+                        smart_api = session.smart_api
+                        ltp_data = angel_service.get_ltp_data(smart_api, req.exch_seg, req.symbol, req.token)
+
+                if ltp_data:
+                    stock_data['ltp'] = ltp_data['ltp']
+                
+                pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
                     smart_api, req.token, exchange=req.exch_seg, specific_date=session.selected_date
-                )
-                _, _, pdc = angel_service.fetch_previous_day_high_low(
-                    smart_api, req.token, exchange=req.exch_seg, specific_date=None
                 )
 
                 if pdh is not None: stock_data['pdh'] = pdh
@@ -141,28 +148,44 @@ async def refresh_watchlist(req: RefreshRequest):
     
     def refresh_all():
         try:
-            smart_api = session.smart_api
-            if not smart_api: return
+            from SmartApi import SmartConnect
+            # Use Data API Key for market data
+            smart_api = SmartConnect(api_key=session.data_api_key)
+            smart_api.setAccessToken(session.jwt_token)
             
-            for stock in session.watchlist:
+            # Identify stocks with AUTO_ alerts to prioritize them
+            auto_tokens = {str(a['token']) for a in session.alerts if str(a.get('type','')).startswith('AUTO_')}
+            
+            # Sort watchlist to process strategy stocks first
+            sorted_watchlist = sorted(session.watchlist, key=lambda s: str(s['token']) in auto_tokens, reverse=True)
+            
+            for stock in sorted_watchlist:
                 try:
+                    priority = 'high' if str(stock['token']) in auto_tokens else 'low'
                     stock['loading'] = True
                     exch = stock.get('exch_seg', 'NSE')
-                    ltp = angel_service.fetch_ltp(smart_api, stock['symbol'], stock['token'], exchange=exch)
-                    if ltp: stock['ltp'] = ltp
+                    ltp_data = angel_service.get_ltp_data(smart_api, exch, stock['symbol'], stock['token'])
                     
-                    pdh, pdl, _ = angel_service.fetch_previous_day_high_low(
-                        smart_api, stock['token'], exchange=exch, specific_date=session.selected_date
+                    if ltp_data and not ltp_data.get('status') and ltp_data.get('errorCode') == 'AG8001':
+                        if session_manager.refresh_session_tokens(req.session_id):
+                            smart_api = session.smart_api
+                            ltp_data = angel_service.get_ltp_data(smart_api, exch, stock['symbol'], stock['token'])
+                    
+                    if ltp_data:
+                        stock['ltp'] = ltp_data['ltp']
+                        # PDC is automatically cached by get_ltp_data now
+                    
+                    pdh, pdl, pdc = angel_service.fetch_previous_day_high_low(
+                        smart_api, stock['token'], exchange=exch, specific_date=session.selected_date, priority=priority
                     )
-                    _, _, pdc = angel_service.fetch_previous_day_high_low(
-                        smart_api, stock['token'], exchange=exch, specific_date=None
-                    )
+                    # We NO LONGER need the separate PDC fetch here because get_ltp_data cached it!
+                    # And fetch_previous_day_high_low with specific_date=None would just use the cache.
 
                     if pdh is not None: stock['pdh'] = pdh
                     if pdl is not None: stock['pdl'] = pdl
                     if pdc is not None: stock['pdc'] = pdc
                     stock['loading'] = False
-                    time.sleep(0.5)
+                    # Removed redundant time.sleep(0.5) - Global limiter handles this now
                 except:
                     stock['loading'] = False
             session_manager.save_session(req.session_id)

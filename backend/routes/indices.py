@@ -5,6 +5,7 @@ Fetch live data for major NSE indices
 from fastapi import APIRouter, HTTPException
 from services.session_manager import session_manager
 from services.angel_service import angel_service
+from typing import Optional
 import datetime
 import traceback
 import time
@@ -34,41 +35,37 @@ indices_cache = {
     "data": None,
     "last_updated": 0
 }
-CACHE_DURATION = 300 # 5 minutes
+CACHE_DURATION = 60 # Reduced to 1 minute for better responsiveness
 
 @router.get("/{session_id}")
-async def get_indices(session_id: str):
+async def get_indices(session_id: str, client_id: Optional[str] = None):
     try:
         # 1. Return cached data if available and fresh
         now = time.time()
         if indices_cache["data"] and (now - indices_cache["last_updated"]) < CACHE_DURATION:
             return {"indices": indices_cache["data"]}
 
-        session = session_manager.get_session(session_id)
+        session = session_manager.get_session(session_id, client_id=client_id)
         if not session:
-            # If no sessions, we can still show cached data as it's generic index data
-            if indices_cache["data"]:
-                return {"indices": indices_cache["data"]}
+            # Check disk if not in memory (Recovery)
+            if indices_cache["data"]: return {"indices": indices_cache["data"]}
             return {"indices": []}
         
         smart_api = session.smart_api
         if not smart_api:
-            # Fallback to cache
-            if indices_cache["data"]:
-                return {"indices": indices_cache["data"]}
+            # Try to restore smart_api if missing
+            if indices_cache["data"]: return {"indices": indices_cache["data"]}
             return {"indices": []}
         
         indices_data = []
         
-        # 2. Fetch data ( Angel One rates limit applies, so caching is critical )
+        # 2. Fetch data
         for index in INDICES:
             try:
-                # Fetch LTP
                 exchange = index.get("exch", "NSE")
-                ltp_data = smart_api.ltpData(exchange, index["symbol"], index["token"])
-                ltp = 0
-                if ltp_data and ltp_data.get('status'):
-                    ltp = ltp_data['data']['ltp']
+                
+                # USE SAFE WRAPPER
+                ltp = angel_service.fetch_ltp(smart_api, index["symbol"], index["token"], exchange)
                 
                 # Fetch previous day close
                 today_str = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -80,23 +77,27 @@ async def get_indices(session_id: str):
                 else:
                     try:
                         pdc = angel_service.fetch_previous_day_close(smart_api, index["token"], exchange)
-                        if pdc:
-                            pdc_cache[index["token"]] = {"pdc": pdc, "date": today_str}
-                    except:
-                        pass
+                    except: pass
+                    
+                    if pdc:
+                        pdc_cache[index["token"]] = {"pdc": pdc, "date": today_str}
                 
                 indices_data.append({
                     "symbol": index["symbol"],
                     "token": index["token"],
-                    "ltp": ltp,
+                    "ltp": ltp or 0,
                     "pdc": pdc or 0,
+                    "exch": exchange
                 })
-            except:
+            except Exception as e:
+                print(f"[ERROR] failed index {index['symbol']}: {e}")
+                # Append cleanup
                 indices_data.append({
                     "symbol": index["symbol"],
                     "token": index["token"],
                     "ltp": 0,
                     "pdc": 0,
+                    "exch": exchange
                 })
         
         # 3. Update global cache
@@ -109,5 +110,4 @@ async def get_indices(session_id: str):
         }
     except Exception as e:
         print(f"[ERROR] Indices route failed: {e}")
-        # Return empty safe response instead of 500
         return {"indices": []}

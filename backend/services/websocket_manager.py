@@ -8,8 +8,46 @@ import struct
 import asyncio
 import json
 import time
+import os
 from typing import Dict, List, Callable, Optional
-import datetime
+from datetime import datetime, timedelta
+import pytz
+import logging
+
+# Setup Logger
+logger = logging.getLogger("websocket_manager")
+logger.setLevel(logging.INFO)
+
+# Ensure logs reach the standard app.log
+try:
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    # Base dir is backend/
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    log_dir = os.path.join(base_dir, "logs", today_str)
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+    
+    log_file = os.path.join(log_dir, "app.log")
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    formatter = logging.Formatter('[%(levelname)1.1s %(asctime)s %(module)s:%(lineno)d] %(message)s', datefmt='%y%m%d %H:%M:%S')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    
+    # Also add StreamHandler for console visibility
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(stream_handler)
+    
+    logger.info(f"[INIT] Logging initialized for websocket_manager. Target: {log_file}")
+except Exception as e:
+    print(f"[ERR] Failed to initialize logging file handler: {e}")
+
+def tick_round(price):
+    if price is None: return 0.0
+    try:
+        return round(float(price) * 20) / 20.0
+    except:
+        return float(price)
 
 def check_and_trigger_alerts(session_id: str, stock: dict):
     from services.session_manager import session_manager
@@ -23,67 +61,275 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
     # Make a copy to iterate safely
     active_alerts = list(session.alerts)
     trigger_mode = getattr(session, 'trigger_mode', 'CANDLE_CLOSE')
+
+    def get_live_trade_quantity(ltp):
+        """Calculates quantity for LIVE TRADING based on Capital OR Fixed Lot"""
+        try:
+            # 1. Check for Fixed Capital Setting (session.trade_capital)
+            cap = getattr(session, 'trade_capital', 0)
+            if cap > 0:
+                qty = int(cap / ltp)
+                return max(1, qty) # Minimum 1
+            
+            # 2. Fallback to Fixed Quantity (session.trade_quantity)
+            # Defaults to 1 for live if not set (User must configure)
+            return getattr(session, 'trade_quantity', 1) 
+        except:
+            return 1
     
+    # Opening Protection Filter (Avoid 9:30 AM fake spikes)
+    opening_bias = getattr(session, '_opening_bias', {}).get(str(stock['token']))
+    protection_end = getattr(session, '_opening_protection_end', {}).get(str(stock['token']), 0)
+    is_protected = time.time() < protection_end
+
     for alert in active_alerts:
         if str(alert['token']) == str(stock['token']) and alert.get('active', True):
-            # NEW: If Candle Close mode, ignore AUTO_ alerts in this Tick loop
-            # This keeps them alive for the _process_candle_trades loop
             alert_type = str(alert.get('type', '')).upper()
-            if alert_type.startswith('AUTO_') and trigger_mode == 'CANDLE_CLOSE':
+            
+            # --- OPENING PROTECTION CHECK ---
+            if is_protected and opening_bias:
+                # If 15m Trend is SELL, block "BUY" momentum alerts
+                if opening_bias == "SELL" and "BUY" in alert_type:
+                    continue
+                # If 15m Trend is BUY, block "SELL" momentum alerts
+                if opening_bias == "BUY" and "SELL" in alert_type:
+                    continue
+
+            # NEW: AUTO_ alerts must ONLY be processed by the 15-minute candle loop,
+            # regardless of trigger_mode. Skipping them here prevents them from being
+            # consumed by real-time ticks.
+            if alert_type.startswith('AUTO_'):
                 continue
 
             if check_alert_trigger(alert, stock):
+
                 log_entry = create_alert_log(stock, alert)
                 session.logs.insert(0, log_entry)
                 session.alerts.remove(alert)
                 triggered_alerts.append({"alert": alert, "log": log_entry})
                 
+    # --- SAME-TYPE ALERT FILTER (Prevent multi-trigger on same candle spike) ---
+    if triggered_alerts:
+        from services.websocket_manager import ws_manager
+        client_id = session.client_id
+        if client_id not in ws_manager.last_alert_times:
+            ws_manager.last_alert_times[client_id] = {}
+            
+        filtered_triggers = []
+        for item in triggered_alerts:
+            alert = item['alert']
+            alert_type = alert.get('type', '')
+            token = str(alert['token'])
+            key = f"{token}_{alert_type}"
+            
+            last_at = ws_manager.last_alert_times[client_id].get(key, 0)
+            if (time.time() - last_at) < 2:
+                print(f"[SHIELD] [ALERT-DEDUPE] Ignoring redundant alert {alert_type} for {stock['symbol']} (Triggered < 2s ago)")
+                continue
+            
+            ws_manager.last_alert_times[client_id][key] = time.time()
+            filtered_triggers.append(item)
+        triggered_alerts = filtered_triggers
+
+    # --- SMART SL / TRAP MONITORING (Match Backtest Logic) ---
+    # This ensures we don't exit on random wicks unless the structure (Prev Close) supports the Trap
+    if session.paper_trades and trigger_mode != 'CANDLE_CLOSE':
+        from services.websocket_manager import ws_manager
+        
+        # --- TRADE COOLDOWN & CANDLE LOCK (Prevent Flapping) ---
+        # 1. Standard Cooldown (60s) - PER CLIENT
+        client_id = session.client_id
+        last_trades = ws_manager.last_stock_trade_times.get(client_id, {})
+        last_trade_at = last_trades.get(str(stock['token']), 0)
+        COOLDOWN_SECONDS = 60
+        
+        if (time.time() - last_trade_at) < COOLDOWN_SECONDS:
+            return
+
+        # 2. Candle Lock (Prevent more than 1 SAR per 15min interval to match Lab)
+        interval_mins = 15
+        now_ts = int(time.time())
+        current_candle_start = (now_ts // (interval_mins * 60)) * (interval_mins * 60)
+        
+        if not hasattr(ws_manager, 'last_sar_intervals'):
+            ws_manager.last_sar_intervals = {}
+        if client_id not in ws_manager.last_sar_intervals:
+            ws_manager.last_sar_intervals[client_id] = {}
+            
+        last_flip_interval = ws_manager.last_sar_intervals[client_id].get(str(stock['token']), 0)
+        if last_flip_interval == current_candle_start:
+            return
+
+        is_in_cooldown = (time.time() - last_trade_at) < COOLDOWN_SECONDS
+        
+        prev_closes = getattr(session, '_prev_candle_closes', {})
+        trades_to_close = []
+        
+        for trade in session.paper_trades:
+            if trade['status'] == 'OPEN' and trade.get('smart_sl', False):
+                 token = str(trade['token'])
+                 # Only process if this is the stock being updated in this tick or we have data
+                 if token != str(stock['token']): continue
+                 
+                 # Dynamic TRAP evaluation based on Strategy Levels (SAR based on price touch)
+                 # Reconstruct levels from active alerts
+                 strategy_alerts = [a for a in active_alerts if str(a.get('token')) == token and str(a.get('type','')).startswith('AUTO_')]
+                 if not strategy_alerts: continue
+                 
+                 # Filter and sort levels
+                 levels = sorted([{'p': float(a['price']), 'n': a.get('type','')} for a in strategy_alerts], key=lambda x: x['p'])
+                 buffer_pct = getattr(session, 'buffer_pct', 0.45) / 100.0
+                 prev_c = prev_closes.get(token)
+                 if prev_c is None: continue # Safe guard
+                 
+                 ltp = float(stock['ltp'])
+                 
+                 if trade['side'] == 'BUY':
+                     # TRAP / SAR Logic for LONG position
+                     for lv in levels:
+                         b = lv['p'] * buffer_pct
+                         # Break below support level
+                         if ltp <= (lv['p'] - b) and prev_c >= (lv['p'] - b):
+                             if is_in_cooldown:
+                                 # print(f"[DEBUG] [COOLDOWN] Skipping SAR Break (TRAP) for {stock['symbol']} - cooldown active")
+                                 break
+                             trades_to_close.append((trade, lv['p'] - b, f"TRAP_{lv['n']}"))
+                             break
+                         # Rejection from resistance
+                         elif ltp >= (lv['p'] + b) and prev_c < lv['p']: # simplified rejection intra-candle
+                             if is_in_cooldown:
+                                 # print(f"[DEBUG] [COOLDOWN] Skipping SAR Rejection for {stock['symbol']} - cooldown active")
+                                 break
+                             trades_to_close.append((trade, lv['p'], f"REJECTION_{lv['n']}"))
+                             break
+                 else:
+                     # TRAP / SAR Logic for SHORT position
+                     for lv in levels:
+                         b = lv['p'] * buffer_pct
+                         # Break above resistance level
+                         if ltp >= (lv['p'] + b) and prev_c <= (lv['p'] + b):
+                             if is_in_cooldown:
+                                 # print(f"[DEBUG] [COOLDOWN] Skipping SAR Break (TRAP) for {stock['symbol']} - cooldown active")
+                                 break
+                             trades_to_close.append((trade, lv['p'] + b, f"TRAP_{lv['n']}"))
+                             break
+                         # Rejection from support
+                         elif ltp <= (lv['p'] - b) and prev_c > lv['p']:
+                             if is_in_cooldown:
+                                 # print(f"[DEBUG] [COOLDOWN] Skipping SAR Rejection for {stock['symbol']} - cooldown active")
+                                 break
+                             trades_to_close.append((trade, lv['p'], f"REJECTION_{lv['n']}"))
+                             break
+        if trades_to_close:
+            from services.paper_service import paper_service
+            from services.live_service import live_service
+            from services.risk_service import risk_service
+            
+            for t, price, reason in trades_to_close:
+                print(f"[STOP] [SMART-SL] Closing {t['symbol']} @ {price}. Trap Confirmed (Level touch limit).")
+                
+                # 1. Close Existing Paper Trade
+                paper_service.close_virtual_trade(session_id, t['id'], price, reason=reason)
+                
+                # IMMEDIATELY OPEN REVERSE POSITION using exact exit price
+                if "TRAP" in reason or "REJECTION" in reason:
+                    new_side = 'SELL' if t['side'] == 'BUY' else 'BUY'
+                    print(f"[SAR] [REVERSAL] Triggering real-time reversal exactly at limit {price} for {t['symbol']}: {t['side']} -> {new_side}")
+                    
+                    # A. PAPER REVERSAL
+                    if getattr(session, 'auto_paper_trade', False):
+                        # Use the specific reason (TRAP_M etc) for the NEW trade to match Lab
+                        paper_service.create_virtual_trade(
+                            session_id, stock, new_side, reason, 
+                            quantity=t.get('quantity', 100),
+                            strategy_mode=getattr(session, 'strategy_mode', 'SAR'),
+                            smart_sl=True,
+                            entry_price=price
+                        )
+                        # Update Cooldown and Candle Lock - PER CLIENT
+                        client_id = session.client_id
+                        if client_id not in ws_manager.last_stock_trade_times:
+                            ws_manager.last_stock_trade_times[client_id] = {}
+                        ws_manager.last_stock_trade_times[client_id][token] = time.time()
+                        
+                        # Update Candle Lock Interval
+                        if client_id not in ws_manager.last_sar_intervals:
+                            ws_manager.last_sar_intervals[client_id] = {}
+                        ws_manager.last_sar_intervals[client_id][token] = (int(time.time()) // (15 * 60)) * (15 * 60)
+                    
+                    # B. LIVE REVERSAL (Double Quantity Net Order)
+                    if getattr(session, 'auto_live_trade', False) and risk_service.check_safety(session_id):
+                        live_qty = get_live_trade_quantity(price)
+                        # Reversal needs double the current position to flip
+                        live_submit_qty = live_qty * 2
+                        
+                        if risk_service.check_margin(session_id, stock['symbol'], live_submit_qty, price):
+                            live_service.place_live_order(
+                                session_id, stock, new_side, live_submit_qty, 
+                                tag=f"LIVE_SAR_FLIP",
+                                product_type="INTRADAY"
+                            )
+                
     if triggered_alerts:
         from services.websocket_manager import ws_manager
         from services.paper_service import paper_service
+        from services.live_service import live_service
+        from services.risk_service import risk_service
         
-        if session.auto_paper_trade:
+        # Determine if we should trade (Paper OR Live)
+        is_paper = getattr(session, 'auto_paper_trade', False)
+        is_live = getattr(session, 'auto_live_trade', False)
+        
+        if is_paper or is_live:
             # --- Trigger Mode Check ---
             trigger_mode = getattr(session, 'trigger_mode', 'CANDLE_CLOSE')
             
-            # Helper to calculate Diff & Target
-            def calculate_diff_and_target(trigger_price, trigger_type, all_alerts):
-                diff = 0.0
-                levels = {}
-                for a in all_alerts:
-                    if str(a['token']) == str(stock['token']) and str(a.get('type','')).startswith('AUTO_'):
-                        levels[a['type']] = a['price']
-                levels[trigger_type] = trigger_price
+            # Helper to calculate TGT and SL based on levels
+            def get_level_based_targets(ltp, side, all_alerts):
+                try:
+                    # Get all AUTO levels for this stock
+                    relevant_levels = sorted([
+                        float(a['price']) for a in all_alerts 
+                        if str(a['token']) == str(stock['token']) and str(a.get('type','')).startswith('AUTO_')
+                    ])
+                    
+                    if not relevant_levels:
+                        # Fallback to simple percentage if no levels found
+                        diff = ltp * 0.015 # 1.5%
+                        b = ltp * (getattr(session, 'buffer_pct', 0.45) / 100.0)
+                        if side == "BUY":
+                            return round(ltp + diff, 2), round(ltp - b, 2)
+                        else:
+                            return round(ltp - diff, 2), round(ltp + b, 2)
 
-                if 'AUTO_HIGH' in levels and 'AUTO_LOW' in levels:
-                    diff = (levels['AUTO_HIGH'] - levels['AUTO_LOW']) / 2.0
-                elif 'AUTO_R1' in levels and 'AUTO_HIGH' in levels:
-                    diff = levels['AUTO_R1'] - levels['AUTO_HIGH']
-                elif 'AUTO_LOW' in levels and 'AUTO_S1' in levels:
-                    diff = levels['AUTO_LOW'] - levels['AUTO_S1']
-                elif 'AUTO_R2' in levels and 'AUTO_R1' in levels:
-                    diff = levels['AUTO_R2'] - levels['AUTO_R1']
-                elif 'AUTO_S1' in levels and 'AUTO_S2' in levels:
-                    diff = levels['AUTO_S1'] - levels['AUTO_S2']
-                
-                if diff <= 0: return None
-                
-                # Logic Pattern Check
-                mode = getattr(session, 'strategy_mode', 'BOUNCE')
-                
-                if mode == 'BOUNCE':
-                    # Reversal targets
-                    if 'AUTO_S' in trigger_type: return trigger_price + diff
-                    if 'AUTO_R' in trigger_type: return trigger_price - diff
-                    if trigger_type == 'AUTO_LOW': return trigger_price + (2 * diff)
-                    if trigger_type == 'AUTO_HIGH': return trigger_price - (2 * diff)
-                else:
-                    # SAR Momentum targets (Follow the trend)
-                    if 'AUTO_S' in trigger_type: return trigger_price - diff
-                    if 'AUTO_R' in trigger_type: return trigger_price + diff
-                    if trigger_type == 'AUTO_LOW': return trigger_price - (2 * diff)
-                    if trigger_type == 'AUTO_HIGH': return trigger_price + (2 * diff)
-                return None
+                    tgt, sl = None, None
+                    buffer_pct = getattr(session, 'buffer_pct', 0.45) / 100.0
+
+                    if side == "BUY":
+                        # Target is the next level above
+                        tgt_lv = next((p for p in relevant_levels if p > ltp + 0.01), None)
+                        if tgt_lv: tgt = tgt_lv
+                        else: tgt = round(ltp + (relevant_levels[1] - relevant_levels[0]), 2) if len(relevant_levels) > 1 else round(ltp * 1.015, 2)
+
+                        # SL is the level just below
+                        sl_lv = next((p for p in reversed(relevant_levels) if p < ltp - 0.01), None)
+                        if sl_lv: sl = round(sl_lv - (sl_lv * buffer_pct), 2)
+                        else: sl = round(ltp - (ltp * buffer_pct), 2)
+                    else:
+                        # Target is the next level below
+                        tgt_lv = next((p for p in reversed(relevant_levels) if p < ltp - 0.01), None)
+                        if tgt_lv: tgt = tgt_lv
+                        else: tgt = round(ltp - (relevant_levels[1] - relevant_levels[0]), 2) if len(relevant_levels) > 1 else round(ltp * 0.985, 2)
+
+                        # SL is the level just above
+                        sl_lv = next((p for p in relevant_levels if p > ltp + 0.01), None)
+                        if sl_lv: sl = round(sl_lv + (sl_lv * buffer_pct), 2)
+                        else: sl = round(ltp + (ltp * buffer_pct), 2)
+                    
+                    return round(tgt, 2), round(sl, 2)
+                except Exception as e:
+                    print(f"DEBUG: TGT/SL Calculation error: {e}")
+                    return None, None
 
             all_known_alerts = list(session.alerts) + [t['alert'] for t in triggered_alerts]
 
@@ -96,16 +342,108 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
 
                 side = None
                 mode = getattr(session, 'strategy_mode', 'BOUNCE')
+                alert_cond = alert.get('condition', 'ABOVE').upper() # ABOVE or BELOW
+                
                 if mode == 'BOUNCE':
-                    if any(x in alert_type for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']): side = 'BUY'
-                    elif any(x in alert_type for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']): side = 'SELL'
+                    # Hit ABOVE alert (Resistance) -> SELL (Reversal)
+                    # Hit BELOW alert (Support) -> BUY (Reversal)
+                    side = 'SELL' if alert_cond == 'ABOVE' else 'BUY'
                 else:
-                    if any(x in alert_type for x in ['LOW', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']): side = 'SELL'
-                    elif any(x in alert_type for x in ['HIGH', 'R1', 'R2', 'R3', 'R4', 'R5', 'R6']): side = 'BUY'
+                    # SAR Momentum Mode (Follow trend breakout)
+                    # Hit ABOVE alert (Breakout UP) -> BUY
+                    # Hit BELOW alert (Breakout DOWN) -> SELL
+                    side = 'BUY' if alert_cond == 'ABOVE' else 'SELL'
 
                 if side:
-                    target_price = calculate_diff_and_target(alert['price'], alert_type, all_known_alerts)
-                    paper_service.create_virtual_trade(session_id, stock, side, alert_type, target_price=target_price)
+                    # Check for Session Global SL/TGT Overrides first
+                    target_price = getattr(session, 'global_target', None)
+                    stop_loss = getattr(session, 'global_stop_loss', None)
+
+                    # If not set globally, use Level-based Tighter Logic (Next Level)
+                    if target_price is None or stop_loss is None:
+                        calc_tgt, calc_sl = get_level_based_targets(stock['ltp'], side, all_known_alerts)
+                        if target_price is None: target_price = calc_tgt
+                        if stop_loss is None: stop_loss = calc_sl
+
+                    # Align Reason with Lab
+                    clean_label = alert_type.replace('AUTO_', '')
+                    print(f"[TARGET] [AUTO] Triggering {side} for {stock['symbol']} @ {stock['ltp']} | TGT: {target_price} | SL: {stop_loss}")
+                    
+                    # Calculate Quantities
+                    live_order_qty = get_live_trade_quantity(stock['ltp'])
+                    paper_order_qty = 100 # Fixed Default for Paper Trades
+                    
+                    # FUND CHECK before calling service to log it properly
+                    current_bal = getattr(session, 'virtual_balance', 0)
+                    req_margin = stock['ltp'] * paper_order_qty * 0.05 # Paper Margin 5%
+                    is_live_check = getattr(session, 'auto_live_trade', False)
+
+                    if not is_live_check and current_bal < req_margin:
+                        err_msg = f"[ERR] [FUNDS] Skipped {side} {stock['symbol']} - Insufficient Virtual Balance (Req: {req_margin:,.0f}, Bal: {current_bal:,.0f})"
+                        session.logs.insert(0, {"time": datetime.now(pytz.utc).isoformat(), "symbol": stock['symbol'], "msg": err_msg, "type": "error"})
+                        session_manager.save_session(session_id)
+                        continue
+
+                    # --- TRUE SAR EXECUTION FLOW for BOTH Paper & Live ---
+                    # --- TRUE SAR EXECUTION FLOW ---
+                    # 1. LIVE EXECUTION (Optimized: Double Quantity / Net Order)
+                    if is_live and risk_service.check_safety(session_id):
+                        open_trade = next((t for t in session.paper_trades if str(t['token']) == str(stock['token']) and t['status'] == 'OPEN'), None)
+                        
+                        live_submit_qty = live_order_qty # Default for fresh entry
+                        is_reversal_live = False
+
+                        if open_trade and open_trade['side'] != side:
+                            # REVERSAL DETECTED: We are Long X, want Short Y.
+                            # Since Paper Quantity (100) != Live Quantity, we cannot use open_trade['quantity'].
+                            # We assume the user holds 'live_order_qty' in the live account.
+                            # Net Order = Sell (Old + New) = 2 * live_order_qty
+                            live_submit_qty = live_order_qty * 2
+                            is_reversal_live = True
+                            print(f"[FAST] [LIVE-SAR] Optimizing Reversal: {stock['symbol']} {open_trade['side']} -> {side}. Sending {side} {live_submit_qty} Qty (2x Lot).")
+                        elif open_trade and open_trade['side'] == side:
+                             # Already in position (No Pyramiding)
+                             continue # Skip Live
+                        
+                        if is_in_cooldown:
+                            # print(f"[DEBUG] [COOLDOWN] Skipping AUTO trade for {stock['symbol']} - cooldown active")
+                            continue
+
+                        # Place Single Net Order
+                        if risk_service.check_margin(session_id, stock['symbol'], live_submit_qty, stock['ltp']):
+                             tag = f"SAR_{clean_label}" if is_reversal_live else f"AUTO_{clean_label}"
+                             live_service.place_live_order(
+                                 session_id, stock, side, abs(live_submit_qty), 
+                                 tag=tag,
+                                 product_type="INTRADAY" # Explicitly MIS
+                             )
+
+                    # Update Cooldown
+                    if session_id not in ws_manager.last_stock_trade_times:
+                        ws_manager.last_stock_trade_times[session_id] = {}
+                    ws_manager.last_stock_trade_times[session_id][str(stock['token'])] = time.time()
+
+                    # 2. PAPER EXECUTION (Keep Close+Open for cleaner UI tracking)
+                    # We still do Close + Open for Paper to maintain accurate PnL history per trade leg.
+                    open_trade = next((t for t in session.paper_trades if str(t['token']) == str(stock['token']) and t['status'] == 'OPEN'), None)
+                    if open_trade:
+                        if open_trade['side'] != side:
+                            # Paper Close Prev
+                            paper_service.close_virtual_trade(session_id, open_trade['id'], stock['ltp'], reason=f"SAR_{clean_label}")
+                        else:
+                            # Already in position
+                            continue
+
+                    # Paper Open New
+                    paper_service.create_virtual_trade(
+                        session_id, stock, side, clean_label, 
+                        quantity=paper_order_qty,
+                        target_price=target_price, 
+                        stop_loss=stop_loss,
+                        strategy_mode=mode,
+                        smart_sl=True
+                    )
+
 
         session_manager.save_session(session_id)
         
@@ -127,19 +465,53 @@ class WebSocketManager:
         self.connections: Dict[str, SmartWebSocketV2] = {}
         self.token_maps: Dict[str, Dict] = {}
         self.broadcast_callbacks: Dict[str, Callable] = {}
-        self.lock = threading.Lock()
+        self.lock = threading.RLock() # Changed to RLock to prevent deadlocks
+        self.session_locks: Dict[str, threading.Lock] = {} # Per-session execution locks
         self.heartbeat_thread = None
+        self.last_tick_times: Dict[str, float] = {}
+        self.last_refresh_times: Dict[str, float] = {}
+        self.last_stock_trade_times: Dict[str, Dict[str, float]] = {} # {client_id: {token: timestamp}}
+        self.last_alert_times: Dict[str, Dict[str, float]] = {} # {client_id: {token_type: timestamp}}
         self.running = True
+        self._last_strategy_tick = ""
+
+    def _threaded_alert_check(self, session_id: str, stock: dict):
+        """Wrapper for threaded alert execution with Non-Blocking Lock to prevent race conditions"""
+        # 1. Get or create the lock for this specific session
+        with self.lock:
+            if session_id not in self.session_locks:
+                self.session_locks[session_id] = threading.Lock()
+            s_lock = self.session_locks[session_id]
+
+        # 2. Try to acquire the lock without blocking. 
+        # If another thread is already processing alerts for this session, we skip this tick.
+        if not s_lock.acquire(blocking=False):
+            # Already processing a tick for this session, skip to prevent race condition/duplicates
+            if time.time() % 10 < 0.1: # Throttled debug log
+                print(f"[DEBUG] [WS] Skipping concurrent tick for {session_id[:8]} (Lock Active)")
+            return
+
+        try:
+            check_and_trigger_alerts(session_id, stock)
+        except Exception as e:
+            print(f"[ERROR] Threaded Alert Check Failed: {e}")
+        finally:
+            # Always release the lock
+            s_lock.release()
 
     def _start_heartbeat(self):
-        """Send heartbeats to keep connections alive"""
+        """Send heartbeats and monitor connection health"""
+        logger.info("[HEARTBEAT] Heartbeat thread STARTED")
         consecutive_errors = 0
-        max_errors = 10  # Increased from 5 to be more lenient
+        max_errors = 10
         while self.running:
             try:
-                time.sleep(10)  # Heartbeat every 10 seconds
+                # Use shorter wait for debugging (revert to 10s later)
+                time.sleep(10)
+                # print(f"[DEBUG] [HEARTBEAT] Loop tic: {time.time()}")
+
                 
-                # 1. Send Heartbeats
+                # 1. Send Heartbeats to Frontend
                 with self.lock:
                     active_sessions = list(self.broadcast_callbacks.items())
                 
@@ -148,26 +520,91 @@ class WebSocketManager:
                         callback(session_id, {"type": "heartbeat", "data": {"timestamp": time.time()}})
                         consecutive_errors = 0
                     except Exception as e:
+                        logger.error(f"[HEARTBEAT] Error sending heartbeat to frontend for {session_id[:8]}: {e}", exc_info=True)
                         consecutive_errors += 1
                         if consecutive_errors >= max_errors:
-                            print(f"[WARN] Removing stale session {session_id} after {max_errors} consecutive errors")
-                            with self.lock:
-                                if session_id in self.broadcast_callbacks:
-                                    del self.broadcast_callbacks[session_id]
+                            logger.warning(f"[HEARTBEAT] Max consecutive errors reached for {session_id[:8]}. Stopping websocket.")
+                            self.stop_websocket(session_id)
                             consecutive_errors = 0
             
-                # 2. Live 15-Minute Candle Check (Every minute)
+                # 2. Connection Health Check (Market Hours)
+                utc_now = datetime.now(pytz.utc)
+                ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+                
+                market_start = ist_now.replace(hour=9, minute=15, second=0, microsecond=0)
+                market_end = ist_now.replace(hour=15, minute=35, second=0, microsecond=0)
+                is_market_active = market_start <= ist_now <= market_end
+
+                if is_market_active:
+                    with self.lock:
+                        # Check everyone who should have a connection (active frontend sessions)
+                        active_sid_list = list(self.broadcast_callbacks.keys())
+                    
+                    for sid in active_sid_list:
+                        try:
+                            last_tick = self.last_tick_times.get(sid, 0)
+                            last_recovery = self.last_refresh_times.get(sid, 0)
+                            
+                            # If no data for 60 seconds during market, or connection object missing, reconnect
+                            with self.lock:
+                                is_missing = sid not in self.connections
+                                
+                            # Use 30s backoff for recovery attempts to allow 429 locks to clear
+                            if (is_missing or (time.time() - last_tick > 60)) and (time.time() - last_recovery > 30):
+                                logger.warning(f"[WS] Connection check for {sid[:8]}: {'Missing' if is_missing else 'Stale'}. Attempting recovery in background...")
+                                self._recover_session(sid)
+                        except Exception as e:
+                            logger.error(f"[HEARTBEAT] Error during connection health check for {sid[:8]}: {e}", exc_info=True)
+
+                # 3. Strategy Execution Check (Every 15 minutes)
                 try:
-                    now = datetime.datetime.now()
-                    # We check for candle closes every 1 min, but execute only at :00, :15, :30, :45
-                    if now.minute in [0, 1, 15, 16, 30, 31, 45, 46]:
-                        with self.lock:
-                            active_sessions = list(self.broadcast_callbacks.items())
+                    # Get Current Time in IST
+                    utc_now = datetime.now(pytz.utc)
+                    ist_now = utc_now.astimezone(pytz.timezone('Asia/Kolkata'))
+                    
+                    # Log heartbeat occasionally for debug
+                    if ist_now.second < 12:
+                        logger.debug(f"[HEARTBEAT] Server Time (IST): {ist_now.strftime('%H:%M:%S')}")
+
+                    # Market Hours: 9:15 AM to 3:30 PM
+                    # We check exactly at :00, :15, :30, :45 intervals for strategy
+                    
+                    # CATCH-UP LOGIC: If we just started or missed an interval, check the CURRENT or most RECENT 15m block
+                    # This ensures if we start at 9:31 AM, we still process the 9:30 AM candle.
+                    target_minute = (ist_now.minute // 15) * 15
+                    check_time = ist_now.replace(minute=target_minute, second=0, microsecond=0)
+                    
+                    start_trading_time = ist_now.replace(hour=9, minute=30, second=0, microsecond=0)
+                    market_end = ist_now.replace(hour=15, minute=15, second=0, microsecond=0)
+
+                    if start_trading_time <= check_time <= market_end:
+                        # TRIGGER once per 15m interval (using date + time for unique tracking)
+                        tag = check_time.strftime('%Y-%m-%d %H:%M')
+                        if not hasattr(self, '_last_strategy_tick'): self._last_strategy_tick = ""
                         
-                        for sid, callback in active_sessions:
-                            threading.Thread(target=self._process_candle_trades, args=(sid,), daemon=True).start()
+                        if self._last_strategy_tick != tag:
+                            # 10s Offset: Wait until 10s past the mark to allow broker data to finalize
+                            is_exact = (ist_now.minute % 15 == 0 and ist_now.second >= 10 and ist_now.second < 55)
+                            # 15m Catch-up: If we missed the exact mark (e.g. server restart), trigger if within 15m
+                            is_catchup = (not is_exact and (ist_now - check_time).total_seconds() < 900)
+                            
+                            if is_exact or is_catchup:
+                                if is_catchup:
+                                    logger.info(f"[CATCH-UP] [STRATEGY] Late start detected at {ist_now.strftime('%H:%M:%S')}. Processing {tag} candle.")
+                                
+                                self._last_strategy_tick = tag
+                                from services.session_manager import session_manager
+                                all_sessions = session_manager.get_all_sessions()
+                                
+                                for sid, session in all_sessions.items():
+                                    is_p = getattr(session, 'auto_paper_trade', False)
+                                    is_l = getattr(session, 'auto_live_trade', False)
+                                    if (is_p or is_l) and not session.is_paused:
+                                        logger.info(f"[TIME] [STRATEGY] Triggering check for {session.client_id} (SID: {sid[:8]}) for interval {tag}")
+                                        threading.Thread(target=self._process_candle_trades, args=(sid, check_time), daemon=True).start()
                 except Exception as e:
-                    print(f"[ERROR] Candle check failed: {e}")
+                    logger.error(f"[ERROR] Strategy check failed: {e}", exc_info=True)
+
 
                 # 3. Auto-Square Off Check 
                 session_tokens_copy = {}
@@ -176,38 +613,139 @@ class WebSocketManager:
                         session_ids = list(self.token_maps.keys())
                         for sid in session_ids:
                             session_tokens_copy[sid] = self.token_maps[sid].copy()
-                except Exception: pass
+                except Exception as e:
+                    logger.error(f"[HEARTBEAT] Error copying session tokens for square-off: {e}", exc_info=True)
 
                 if session_tokens_copy:
                     try:
                         from services.paper_service import paper_service
                         for sid, tokens in session_tokens_copy.items():
                             if tokens:
-                                paper_service.check_and_square_off(sid, tokens)
+                                # Serialize EOD check with session lock
+                                with self.lock:
+                                    if sid not in self.session_locks:
+                                        self.session_locks[sid] = threading.Lock()
+                                    s_lock = self.session_locks[sid]
+                                
+                                # Blocking lock for square-off to ensure it completes
+                                with s_lock:
+                                    paper_service.check_and_square_off(sid, tokens)
                     except Exception as e:
-                        print(f"[ERROR] Auto-Square off check failed: {e}")
+                        logger.error(f"[ERROR] Auto-Square off check failed: {e}", exc_info=True)
 
             except Exception as e:
-                print(f"[ERROR] Heartbeat thread exception: {e}")
+                logger.error(f"[ERROR] Heartbeat thread exception: {e}", exc_info=True)
                 time.sleep(10)
+
+    def _recover_session(self, session_id: str):
+        """Refreshes tokens and restarts WebSocket for a session"""
+        from services.session_manager import session_manager
+        
+        # 1. Decide if we need to refresh tokens
+        last_ref = self.last_refresh_times.get(session_id, 0)
+        last_tick = self.last_tick_times.get(session_id, 0)
+        
+        # Refresh if tokens are older than 5 mins AND we are currently disconnected/stale
+        if (time.time() - last_ref > 300):
+            logger.info(f"[REFRESH] [RECOVER] Attempting periodic token refresh for {session_id[:8]}...")
+            self.last_refresh_times[session_id] = time.time()
+            success = session_manager.refresh_session_tokens(session_id)
+            if not success:
+                logger.error(f"[ERR] [RECOVER] Token refresh failed. Aborting connection attempt to prevent 429 lock.")
+                return False
+        else:
+            logger.info(f"[INFO] [RECOVER] Using existing tokens for {session_id[:8]} (Refresh throttled)")
+        
+        # 2. Restart WebSocket
+        session = session_manager.get_session(session_id)
+        if session:
+            # Update tick time to avoid immediate re-trigger
+            self.last_tick_times[session_id] = time.time()
+            
+            # Close existing if any to avoid 429 Connection Limit Exceeded
+            with self.lock:
+                if session_id in self.connections:
+                    try:
+                        logger.info(f"[DISC] [RECOVER] Closing old connection for {session_id[:8]}...")
+                        self.connections[session_id].close_connection()
+                        time.sleep(1) # Small delay to let socket release
+                    except Exception as ce:
+                        logger.warning(f"[WARN] [RECOVER] Error closing old connection: {ce}", exc_info=True)
+                    finally:
+                        if session_id in self.connections:
+                            del self.connections[session_id]
+            
+            # Start new
+            callback = self.broadcast_callbacks.get(session_id)
+            if callback:
+                # Use data key if available, but be ready to fallback if it's known bad
+                key_to_use = session.data_api_key if (session.data_api_key and session.data_api_key.strip()) else session.api_key
+                self.start_websocket(
+                    session_id, session.jwt_token, key_to_use, 
+                    session.client_id, session.feed_token, session.watchlist, 
+                    callback
+                )
 
     def start_websocket(self, session_id: str, jwt_token: str, api_key: str, 
                        client_id: str, feed_token: str, watchlist: List[Dict],
                        broadcast_callback: Callable):
+        """
+        Main entry point to start the data stream for a session.
+        Ensures the strategy heartbeat is running.
+        """
+        # Check if heartbeat is running or needs a restart
+        needs_restart = False
         if self.heartbeat_thread is None:
+            needs_restart = True
+        elif not self.heartbeat_thread.is_alive():
+            logger.warning("[AUTH] Heartbeat thread was found DEAD. Restarting...")
+            needs_restart = True
+            
+        if needs_restart:
+            self.running = True
             self.heartbeat_thread = threading.Thread(target=self._start_heartbeat, daemon=True)
             self.heartbeat_thread.start()
+            logger.info("[AUTH] Strategy Heartbeat thread initiated/restarted.")
+
+        logger.debug(f"[DEBUG] Attempting to start Angel One WebSocket for session {session_id}")
+        if not all([jwt_token, api_key, client_id, feed_token]):
+            logger.error(f"[ERR] [WS] Missing credentials: jwt={bool(jwt_token)}, api={bool(api_key)}, id={bool(client_id)}, feed={bool(feed_token)}")
+            return False
 
         try:
-            sws = SmartWebSocketV2(jwt_token, api_key, client_id, feed_token)
-        except:
+            # SmartWebSocketV2 NEEDS the 'Bearer ' prefix, but our REST API needs it RAW.
+            # We add it here just for the WebSocket connection.
+            ws_jwt = jwt_token
+            if not ws_jwt.startswith("Bearer "):
+                ws_jwt = f"Bearer {ws_jwt}"
+
+            sws = SmartWebSocketV2(ws_jwt, api_key, client_id, feed_token, max_retry_attempt=0)
+            
+            # MONKEY-PATCH for SDK Bug: _on_close takes 2 args, but library passes 4
+            # We fix it at the instance level.
+            def patched_on_close(wsapp_inst, *args):
+                sws.on_close(wsapp_inst, *args)
+            
+            def patched_on_error(wsapp_inst, err, *args):
+                sws.on_error(wsapp_inst, err, *args)
+
+            sws._on_close = patched_on_close
+            sws._on_error = patched_on_error
+            
+            print(f"[OK] [WS] SmartWebSocketV2 instance created for {session_id}")
+            print(f"[KEY] [WS-HANDSHAKE] Using Key: {api_key[:5]}..., ID: {client_id}, JWT: {jwt_token[:5]}..., Feed: {feed_token[:5]}...")
+        except Exception as e:
+            print(f"[ERR] [WS] Failed to initialize SmartWebSocketV2: {e}")
             return False
 
         token_map = {str(s['token']): s for s in watchlist}
+        print(f"[WS] Watchlist size: {len(watchlist)} tokens")
         with self.lock:
             self.connections[session_id] = sws
             self.token_maps[session_id] = token_map
             self.broadcast_callbacks[session_id] = broadcast_callback
+            # Initialize tick timer to avoid immediate stale recovery
+            self.last_tick_times[session_id] = time.time()
 
         def _get_callback():
             with self.lock:
@@ -231,6 +769,8 @@ class WebSocketManager:
 
         def on_data(wsapp, message):
             try:
+                # print(f"DEBUG: RAW MESSAGE RX for {session_id[:8]}")
+                from services.session_manager import session_manager
                 callback = _get_callback()
                 if not callback: return
 
@@ -238,13 +778,37 @@ class WebSocketManager:
                     if isinstance(message, dict): message = [message]
                     for tick in message:
                         token = tick.get('token') or tick.get('tk')
+                        # 'last_traded_price' for quote, 'ltp' for ltpData, 'c' for some binary variants
+                        # The SmartStream V2 typically uses 'last_traded_price' in the parsed dict
                         raw_price = tick.get('last_traded_price') or tick.get('ltp') or tick.get('c')
+                        
+                        # DEBUG FILTER: Print one update every 5 seconds per token to avoid spam
+                        current_ts = time.time()
+                        if token and current_ts - self.last_tick_times.get(session_id, 0) > 5:
+                           print(f"[WS-DEBUG] {session_id[:8]} Data RX: {token} -> {raw_price}")
+
                         if token and raw_price is not None:
+                            self.last_tick_times[session_id] = time.time()
                             stock = token_map.get(str(token))
                             if stock:
                                 stock['ltp'] = float(raw_price) / 100.0 if 'last_traded_price' in tick else float(raw_price)
-                                check_and_trigger_alerts(session_id, stock)
-                                _broadcast_price(callback, str(token), stock['symbol'], stock['ltp'])
+                            # 3. Handle Alert Triggering (Threaded to prevent WS lag)
+                            triggered_alerts = []
+                            session = session_manager.get_session(session_id)
+                            
+                            # Initial fast filter (Check if ANY alert condition is met)
+                            # We clone a snapshot to pass to the thread so LTP doesn't change
+                            stock_snapshot = stock.copy()
+                            if session and session.alerts:
+                                # Start a background thread to process complex trade logic
+                                # This ensures the WebSocket loop (price updates) never freezes
+                                threading.Thread(
+                                    target=self._threaded_alert_check,
+                                    args=(session_id, stock_snapshot),
+                                    daemon=True
+                                ).start()
+                                
+                            _broadcast_price(callback, str(token), stock['symbol'], stock['ltp'])
                 
                 elif isinstance(message, bytes) and len(message) > 50:
                     token_bytes = message[2:27]
@@ -252,14 +816,30 @@ class WebSocketManager:
                     ltp_bytes = message[43:51]
                     ltp_paise = struct.unpack('<q', ltp_bytes)[0]
                     real_price = ltp_paise / 100.0
+                    
+                    if time.time() - self.last_tick_times.get(session_id, 0) > 5:
+                         print(f"[WS-DEBUG] {session_id[:8]} BINARY RX: {token} -> {real_price}")
+
+                    self.last_tick_times[session_id] = time.time()
                     stock = token_map.get(str(token))
                     if stock:
                         stock['ltp'] = real_price
-                        check_and_trigger_alerts(session_id, stock)
+                        
+                        # Threaded Alert Check (Binary)
+                        stock_snapshot = stock.copy()
+                        session = session_manager.get_session(session_id)
+                        if session and session.alerts:
+                            threading.Thread(
+                                target=self._threaded_alert_check,
+                                args=(session_id, stock_snapshot),
+                                daemon=True
+                            ).start()
+
                         _broadcast_price(callback, str(token), stock['symbol'], real_price)
             except: pass
 
         def on_open(wsapp):
+            print(f"[OK] [WS] WebSocket Connected for session {session_id}")
             with self.lock:
                 callback = self.broadcast_callbacks.get(session_id)
             if callback:
@@ -290,11 +870,27 @@ class WebSocketManager:
                         sws.subscribe("watchlist", 3, [{"exchangeType": int(etype), "tokens": tokens}])
                     except: pass
 
-        def on_close(wsapp, code, reason):
+        def on_close(wsapp, *args):
+            # Args might be (code, reason) or more depending on library version
+            code = args[0] if len(args) > 0 else 'unknown'
+            reason = args[1] if len(args) > 1 else 'unknown'
+            print(f"[DISC] [WS] WebSocket Closed for session {session_id}. Code: {code}, Reason: {reason}")
+            print(f"[WS] Full args: {args}")
+            with self.lock:
+                if session_id in self.connections:
+                    del self.connections[session_id]
             broadcast_callback(session_id, {'type': 'status', 'data': {'status': 'DISCONNECTED'}})
 
-        def on_error(wsapp, error):
-            print(f"❌ [WS] WebSocket Error: {error}")
+        def on_error(wsapp, error, *args):
+            print(f"[ERR] [WS] WebSocket Error for session {session_id}")
+            print(f"[WS] Error type: {type(error)}")
+            print(f"[WS] Error message: {error}")
+            print(f"[WS] Error args: {args}")
+            import traceback
+            traceback.print_exc()
+            with self.lock:
+                if session_id in self.connections:
+                    del self.connections[session_id]
             broadcast_callback(session_id, {'type': 'status', 'data': {'status': 'ERROR', 'error': str(error)}})
 
         sws.on_data = on_data
@@ -331,150 +927,520 @@ class WebSocketManager:
                     except: pass
         return False
 
-    def _process_candle_trades(self, session_id: str):
-        """Fetches last two 15m candles and triggers crossing logic"""
-        from services.session_manager import session_manager
-        from services.angel_service import angel_service
-        from services.paper_service import paper_service
-        
-        session = session_manager.get_session(session_id)
-        if not session or not session.auto_paper_trade or session.is_paused: return
-        
-        watchlist = list(session.watchlist)
-        strategy_alerts = [a for a in list(session.alerts) if str(a.get('type', '')).startswith('AUTO_')]
-        if not watchlist or not strategy_alerts: return
-        
-        # Determine 15m windows
-        now = datetime.datetime.now()
-        rem = now.minute % 15
-        end_time_cur = now.replace(second=0, microsecond=0) - datetime.timedelta(minutes=rem)
-        start_time_prev = end_time_cur - datetime.timedelta(minutes=30) # Get 2 candles
-        
-        # Prevent double execution in the same minute
-        last_run = getattr(session, '_last_candle_run', '')
-        current_minute = now.strftime('%H:%M')
-        if last_run == current_minute: return
-        session._last_candle_run = current_minute
+    def _process_candle_trades(self, session_id: str, ist_time: datetime):
+        """
+        Executes Strategy Logic mirroring the Backtest Service exactly.
+        - Uses strict crossovers (Previous Close vs Current Close).
+        - Respects Buffers and Strategy Modes (SAR/Bounce).
+        - No Pyramiding (Averaging).
+        """
+        try:
+            self._process_candle_trades_inner(session_id, ist_time)
+        except Exception as e:
+            import traceback
+            print(f"[CRITICAL] [STRATEGY] _process_candle_trades CRASHED for {session_id[:8]}: {e}")
+            traceback.print_exc()
 
-        print(f"[LIVE] 📊 Running Strategy Candle Check for {session_id} ({current_minute})")
+    def _process_candle_trades_inner(self, session_id: str, ist_time: datetime):
+        """Inner implementation with full error visibility and session locking"""
+        from services.session_manager import session_manager
+        from services.paper_service import paper_service
+        from services.live_service import live_service
+        from services.risk_service import risk_service
+        
+        # Lock acquisition for strategy processing
+        with self.lock:
+            if session_id not in self.session_locks:
+                self.session_locks[session_id] = threading.Lock()
+            s_lock = self.session_locks[session_id]
+        
+        # --- STAGGERED EXECUTION (Rate Limit Protection) ---
+        # Random jitter to prevent all sessions from colliding on Angel API at same second
+        import random
+        jitter = random.uniform(0.5, 12.0)
+        time.sleep(jitter)
+        
+        # We use a BLOCKING lock here because strategy execution is critical
+        # and happens only once every 15 mins. We must wait for any tick check to finish.
+        with s_lock:
+            session = session_manager.get_session(session_id)
+            if not session:
+                print(f"[ERR] [STRATEGY] No session object for {session_id[:8]}")
+                return
+            
+        # Check if EITHER mode is active
+        is_paper = getattr(session, 'auto_paper_trade', False)
+        is_live = getattr(session, 'auto_live_trade', False)
+        
+        if (not is_paper and not is_live):
+            # print(f"[DEBUG] [STRATEGY] skipping {session_id[:8]} - auto modes OFF")
+            return
+            
+        if session.is_paused:
+            print(f"[DEBUG] [STRATEGY] skipping {session_id[:8]} - session paused")
+            return
+        
+        current_interval_tag = ist_time.strftime('%Y-%m-%d %H:%M')
+        
+        last_run = getattr(session, '_last_candle_run', '')
+        if last_run == current_interval_tag: return
+        session._last_candle_run = current_interval_tag
+        
+        token_map = self.token_maps.get(session_id, {})
+        watchlist = list(session.watchlist)
+        print(f"[STRATEGY] [TIME] 15m Candle Close Check {current_interval_tag} for {session.client_id} (SID: {session_id[:8]})")
+
+        # Establish prev_close if missing, especially at 9:30 AM
+        if not hasattr(session, '_prev_candle_closes'): 
+            session._prev_candle_closes = {}
+        # Ensure opening protection dicts exist (critical: avoids AttributeError crash at 9:30 AM)
+        if not hasattr(session, '_opening_bias'):
+            session._opening_bias = {}
+        if not hasattr(session, '_opening_protection_end'):
+            session._opening_protection_end = {}
+        
+        is_opening_candle = (ist_time.hour == 9 and ist_time.minute == 30)
+        
+        # SOLUTION: If we don't have prev_close, we DON'T trade at 9:30 AM unless it's a gap-up/down
+        buffer_pct = getattr(session, 'buffer_pct', 0.45) / 100.0
+        
+        # --- 2. Track Crossovers & Fetch Candle Data ---
+        # OPTIMIZATION: Create one API instance for the entire session loop
+        from SmartApi import SmartConnect
+        from services.angel_service import angel_service
+        
+        api_key_to_use = session.data_api_key if (session.data_api_key and session.data_api_key.strip()) else session.api_key
+        api_instance = SmartConnect(api_key=api_key_to_use)
+        api_instance.setAccessToken(session.jwt_token)
+        api_instance.setUserId(session.client_id)
+        
+        # Helper for safer candle fetch with key fallback
+        def _get_candle_safe(req_data, attempt=0):
+            try:
+                res = angel_service.fetch_candle_data(api_instance, req_data, priority='high')
+                
+                # Check for AG8004 (Key), AG8001/AB1019 (Token), AB1004 (Rate)
+                err_code = ""
+                if res and not res.get('status'):
+                    err_code = str(res.get('errorcode', '') or res.get('errorCode', ''))
+                
+                # --- AUTO-REFRESH LOGIC (AG8001 / AB1019 / Invalid Token) ---
+                # NOTE: Angel uses AB1019 for both 'Invalid Session' AND 'Too many requests'.
+                # We only refresh if it's actually an auth issue.
+                is_auth_error = err_code == 'AG8001' or (err_code == 'AB1019' and "too many requests" not in str(res).lower())
+                
+                if is_auth_error or "invalid token" in str(res).lower():
+                    print(f"[RECOVERY] Token expired ({err_code}) for {session.client_id}. Refreshing...")
+                    if session_manager.refresh_session_tokens(session_id):
+                        # Update api_instance with new token
+                        api_instance.setAccessToken(session.jwt_token)
+                        # Retry once
+                        return angel_service.fetch_candle_data(api_instance, req_data)
+                
+                # --- RATE LIMIT BACKOFF (AB1004) ---
+                if err_code == 'AB1004' and attempt < 2:
+                    print(f"[RETRY] [RATE-LIMIT] hit AB1004 for {req_data.get('symboltoken')}. Waiting 5s...")
+                    time.sleep(5)
+                    return _get_candle_safe(req_data, attempt + 1)
+
+                is_invalid_key = (err_code == 'AG8004')
+                
+                if not is_invalid_key and res and res.get('status'):
+                    return res
+                
+                # If AG8004 or we have reason to suspect the key, try primary
+                if (is_invalid_key or not res) and api_key_to_use != session.api_key:
+                    print(f"[WARN] API Key {api_key_to_use} failed. Retrying with primary key {session.api_key}")
+                    try:
+                        fallback_api = SmartConnect(api_key=session.api_key)
+                        fallback_api.setAccessToken(session.jwt_token)
+                        fallback_api.setUserId(session.client_id)
+                        return angel_service.fetch_candle_data(fallback_api, req_data)
+                    except Exception as fe:
+                        print(f"[ERR] Fallback candle fetch failed: {fe}")
+                        return None
+                return res
+            except Exception as e:
+                err_msg = str(e).lower()
+                print(f"[ERR] Candle fetch exception: {e}")
+                
+                # If exception indicates invalid key, try fallback
+                if ("api key" in err_msg or "ag8004" in err_msg) and api_key_to_use != session.api_key:
+                    print(f"[RECOVERY] Exception suggests invalid key. Trying primary key {session.api_key}")
+                    try:
+                        fallback_api = SmartConnect(api_key=session.api_key)
+                        fallback_api.setAccessToken(session.jwt_token)
+                        fallback_api.setUserId(session.client_id)
+                        return angel_service.fetch_candle_data(fallback_api, req_data)
+                    except Exception as fe:
+                        print(f"[ERR] Fallback recovery failed: {fe}")
+                return None
+
+        # Diagnostic: Gather eligible stocks with AUTO_ alerts
+        eligible_stocks = []
+        total_auto = 0
         
         for stock in watchlist:
-            try:
-                # 1. Fetch latest candles
-                req = {
-                    "exchange": stock.get('exch_seg', 'NSE'),
-                    "symboltoken": str(stock['token']),
-                    "interval": "FIFTEEN_MINUTE",
-                    "fromdate": start_time_prev.strftime('%Y-%m-%d %H:%M'),
-                    "todate": end_time_cur.strftime('%Y-%m-%d %H:%M')
-                }
-                res = angel_service.fetch_candle_data(session.smart_api, req)
-                if not (res and res.get('data') and len(res['data']) >= 2): continue
-                
-                # To be 100% sure we have crossing, we look at:
-                # Candle 1 (Older): e.g. 9:30-9:45
-                # Candle 2 (Newest Completed): e.g. 9:45-10:00
-                c2 = res['data'][-1] # Newest closed candle
-                c1 = res['data'][-2] # Previous candle
-                
-                o2, h2, l2, close2 = float(c2[1]), float(c2[2]), float(c2[3]), float(c2[4])
-                close1 = float(c1[4])
-                
-                print(f"DEBUG: {stock['symbol']} 15m Candle: PrevClose: {close1}, CurrClose: {close2} (H:{h2} L:{l2})")
+            token = str(stock['token'])
+            # Use all AUTO alerts associated with this stock in the current session
+            # as requested by user (ignore creation date)
+            strategy_alerts = [
+                a for a in session.alerts 
+                if str(a.get('token')) == token 
+                and str(a.get('type','')).startswith('AUTO_')
+                and a.get('active', True)
+            ]
+            total_auto += len(strategy_alerts)
+            
+            if strategy_alerts:
+                eligible_stocks.append((stock, strategy_alerts))
 
-                # 2. Check against active alerts
-                all_strategy_alerts = [a for a in list(session.alerts) if str(a.get('token')) == str(stock['token']) and str(a.get('type','')).startswith('AUTO_')]
-                
-                for alert in list(session.alerts):
-                    if str(alert['token']) == str(stock['token']) and str(alert.get('type', '')).startswith('AUTO_'):
-                        lv_p = float(alert.get('price', 0))
-                        buffer_pct = getattr(session, 'buffer_pct', 0.25) / 100.0
-                        buffer = lv_p * buffer_pct
-                        triggered = False
-                        side = None
+        if total_auto > 0:
+            print(f"[STRATEGY] [DIAG] Session {session_id[:8]}: {total_auto} AUTO alerts found. {len(eligible_stocks)} stocks eligible.")
+        
+        if not eligible_stocks:
+            if total_auto > 0:
+                print(f"[STRATEGY] [SKIP] No eligible stocks for {session_id[:8]} (All {total_auto} alerts are stale or timestamp missing)")
+            return
+
+        print(f"[STRATEGY] Processing {len(eligible_stocks)} eligible stocks for {session.client_id}")
+
+        # At market open (9:30 AM), wait 30s for Angel API to finalize the 9:15-9:30 candle.
+        # Moved outside the loop to prevent multiplying the delay by number of stocks.
+        if is_opening_candle:
+            print(f"[STRATEGY] [OPENING] Waiting 30s for Angel API to finalize 9:15-9:30 candle...")
+            time.sleep(30)
+
+        for stock, strategy_alerts in eligible_stocks:
+            # Rate limit protection between stocks (Increased for stability)
+            time.sleep(1.5)
+            token = str(stock['token'])
+            ltp = 0.0
+            live_data = token_map.get(token)
+            if live_data and live_data.get('ltp'): ltp = float(live_data['ltp'])
+            else: ltp = float(stock.get('ltp', 0.0))
+            
+            if ltp <= 0: continue
+
+            # Get Open Position for this stock
+            open_trade = next((t for t in session.paper_trades if str(t['token']) == token and t['status'] == 'OPEN'), None)
+            current_side = open_trade['side'] if open_trade else None
+            
+            prev_close_ref = session._prev_candle_closes.get(token)
+            
+            # DEFAULT VALUES (Fallback to LTP if candle fetch fails)
+            open_p, high_p, low_p, close_p = ltp, ltp, ltp, ltp
+            
+            # FETCH REAL 15-MIN CANDLE (Robust retry & targeted selection)
+            for attempt in range(3):
+                try:
+                    # Time range: Last 15 mins
+                    # Add 1 min to todate so Angel returns the just-closed candle (data finalization lag)
+                    end_dt = ist_time + timedelta(minutes=1)
+                    end_dt_str = end_dt.strftime('%Y-%m-%d %H:%M')
+                    from_dt = (ist_time - timedelta(minutes=15))
+                    start_dt_str = from_dt.strftime('%H:%M') # Just time for searching
+                    
+                    full_from_dt_str = (ist_time - timedelta(minutes=60)).strftime('%Y-%m-%d %H:%M')
+                    
+                    # Targeted Index Segment Logic
+                    exch = stock.get('exch_seg', 'NSE')
+                    if str(token).startswith('999') and exch == 'NSE':
+                        # Indices need special treatment in some API versions for historical
+                        pass
+
+                    req_data = {
+                        "exchange": exch,
+                        "symboltoken": stock['token'],
+                        "interval": "FIFTEEN_MINUTE", 
+                        "fromdate": full_from_dt_str, # Get a wider range for safety
+                        "todate": end_dt_str,
+                        "symbol": stock.get('symbol') # For logging
+                    }
+                    
+                    c_data = _get_candle_safe(req_data)
+                    
+                    if c_data and c_data.get('data'):
+                        # Target specific interval start (e.g. "09:15")
+                        targeted_candle = None
+                        for c in reversed(c_data['data']):
+                            # Candle time format: "2026-03-10T09:15:00+05:30"
+                            if start_dt_str in c[0]:
+                                targeted_candle = c
+                                break
                         
-                        mode = getattr(session, 'strategy_mode', 'BOUNCE')
+                        if targeted_candle:
+                            open_p, high_p, low_p, close_p = float(targeted_candle[1]), float(targeted_candle[2]), float(targeted_candle[3]), float(targeted_candle[4])
+                            print(f"[CANDLE] {stock['symbol']} Targeted {start_dt_str}: O={open_p} H={high_p} L={low_p} C={close_p}")
+                            break # Success!
+                    
+                    if attempt < 2:
+                        print(f"[RETRY] {stock['symbol']} Candle {start_dt_str} not ready. Waiting 2s... (Attempt {attempt+1}/3)")
+                        time.sleep(2)
+                    else:
+                        print(f"[WARN] [CANDLE] {stock['symbol']} No data after 3 attempts. Using LTP {ltp} as proxy.")
 
-                        if mode == 'SAR':
-                            # CROSSING LOGIC
-                            # BUY: Previous was below, Current is above Resistance + Buffer
-                            if alert['condition'] == 'ABOVE' and close1 <= (lv_p + buffer) and close2 > (lv_p + buffer):
-                                triggered, side = True, "BUY"
-                            # SELL: Previous was above, Current is below Support - Buffer
-                            elif alert['condition'] == 'BELOW' and close1 >= (lv_p - buffer) and close2 < (lv_p - buffer):
-                                triggered, side = True, "SELL"
-                        else:
-                            # BOUNCE LOGIC (Rejection)
-                            # SELL: Wick touched Resistance but close is back below
-                            if alert['condition'] == 'ABOVE' and h2 >= (lv_p + buffer) and close2 < lv_p and close1 < lv_p:
-                                triggered, side = True, "SELL"
-                            # BUY: Wick touched Support but close is back above
-                            elif alert['condition'] == 'BELOW' and l2 <= (lv_p - buffer) and close2 > lv_p and close1 > lv_p:
-                                triggered, side = True, "BUY"
+                except Exception as e:
+                    if attempt < 2:
+                        time.sleep(2)
+                    else:
+                        print(f"[WARN] [CANDLE] {stock['symbol']} Fetch Error: {e}")
 
-                        if triggered:
-                            print(f"✅ [STRATEGY] Triggered {side} for {stock['symbol']} at {close2}")
-                            
-                            # --- Target Calculation (Match check_and_trigger_alerts) ---
-                            target_price = None
-                            try:
-                                diff = 0.0
-                                levels = {a['type']: a['price'] for a in all_strategy_alerts}
-                                
-                                if 'AUTO_HIGH' in levels and 'AUTO_LOW' in levels:
-                                    diff = (levels['AUTO_HIGH'] - levels['AUTO_LOW']) / 2.0
-                                elif 'AUTO_R1' in levels and 'AUTO_HIGH' in levels:
-                                    diff = levels['AUTO_R1'] - levels['AUTO_HIGH']
-                                elif 'AUTO_LOW' in levels and 'AUTO_S1' in levels:
-                                    diff = levels['AUTO_LOW'] - levels['AUTO_S1']
-                                elif 'AUTO_R2' in levels and 'AUTO_R1' in levels:
-                                    diff = levels['AUTO_R2'] - levels['AUTO_R1']
-                                elif 'AUTO_S1' in levels and 'AUTO_S2' in levels:
-                                    diff = levels['AUTO_S1'] - levels['AUTO_S2']
-                                
-                                if diff > 0:
-                                    t_type = alert.get('type', '')
-                                    mode = getattr(session, 'strategy_mode', 'BOUNCE')
-                                    
-                                    if mode == 'BOUNCE':
-                                        if 'AUTO_S' in t_type: target_price = lv_p + diff
-                                        elif 'AUTO_R' in t_type: target_price = lv_p - diff
-                                        elif t_type == 'AUTO_LOW': target_price = lv_p + (2 * diff)
-                                        elif t_type == 'AUTO_HIGH': target_price = lv_p - (2 * diff)
-                                    else:
-                                        # Momentum targets
-                                        if 'AUTO_S' in t_type: target_price = lv_p - diff
-                                        elif 'AUTO_R' in t_type: target_price = lv_p + diff
-                                        elif t_type == 'AUTO_LOW': target_price = lv_p - (2 * diff)
-                                        elif t_type == 'AUTO_HIGH': target_price = lv_p + (2 * diff)
-                                    
-                                    if target_price:
-                                        print(f"DEBUG: Calculated Target for {stock['symbol']}: {target_price:.2f}")
-                            except: pass
+            # Update Prev Close Reference for NEXT loop
+            session._prev_candle_closes[token] = close_p
+            if is_opening_candle:
+                # At 9:30 AM, we use the 9:15 OPEN as the previous close reference
+                # to detect if the 9:30 CLOSE broke a level.
+                prev_close_ref = open_p 
+            elif prev_close_ref is None: 
+                prev_close_ref = open_p # Fallback for first run
 
-                            # Execute Paper Trade with Target
-                            paper_service.create_virtual_trade(
-                                session_id, stock, side, 
-                                alert.get('label', alert.get('type', 'STRATEGY')), 
-                                target_price=target_price
-                            )
-                            
-                            # Remove alert after trigger
-                            if alert in session.alerts:
-                                session.alerts.remove(alert)
-                            
-            except Exception as e:
-                print(f"[WARN] Failed to process candle for {stock['symbol']}: {e}")
+
+            # --- 3. Execute Signal Logic (Mirrors BacktestService EXACTLY) ---
+            levels = sorted([{'p': float(a['price']), 'n': a.get('type',''), 'obj': a} for a in strategy_alerts], key=lambda x: x['p'])
+            
+            # UNIFIED PRICE SOURCE (Matches Lab Logic)
+            trigger_mode = getattr(session, 'trigger_mode', 'CANDLE_CLOSE')
+            test_p_up = high_p if trigger_mode == 'INSTANT_TOUCH' else close_p
+            test_p_down = low_p if trigger_mode == 'INSTANT_TOUCH' else close_p
+            
+            mode = getattr(session, 'strategy_mode', 'SAR') 
+            signal_side = None
+            trigger_lv_p = None
+            label_tag = "STRATEGY"
+            exit_price_fixed = tick_round(close_p) # Default
+
+            # --- 1. SIGNAL & SAR MONITORING (Prioritize over SL/TGT) ---
+            # Matches Lab outer loop structure
+            if mode != 'BOUNCE':
+                if current_side:
+                    # Look for Trap/Reversal (Exit existing and Flip)
+                    for lv in levels:
+                        b = lv['p'] * buffer_pct
+                        if current_side == "BUY":
+                            # Trap: Price falls below (Level - Buffer)
+                            if test_p_down < (lv['p'] - b) and prev_close_ref >= (lv['p'] - b):
+                                signal_side, label_tag = "SELL", f"TRAP_{lv['n']}"
+                                trigger_lv_p = lv['p']
+                                exit_price_fixed = tick_round(lv['p'] - b) # Fix to Level Price
+                                break
+                            # REJECTION: Hit higher level and FAILED
+                            elif high_p >= (lv['p'] + b) and close_p < lv['p']:
+                                signal_side, label_tag = "SELL", f"REJECTION_{lv['n']}"
+                                trigger_lv_p = lv['p']
+                                exit_price_fixed = tick_round(close_p) # Rejection exits at close
+                                break
+                        else: # current_side == "SELL"
+                            # Trap: Price breaks back above (Level + Buffer)
+                            if test_p_up > (lv['p'] + b) and prev_close_ref <= (lv['p'] + b):
+                                signal_side, label_tag = "BUY", f"TRAP_{lv['n']}"
+                                trigger_lv_p = lv['p']
+                                exit_price_fixed = tick_round(lv['p'] + b) # Fix to Level Price
+                                break
+                            # REJECTION: Hit lower level and FAILED
+                            elif low_p <= (lv['p'] - b) and close_p > lv['p']:
+                                signal_side, label_tag = "BUY", f"REJECTION_{lv['n']}"
+                                trigger_lv_p = lv['p']
+                                exit_price_fixed = tick_round(close_p)
+                                break
+
+            # --- 2. Safety Check (SL/Target Enforcement) ---
+            # Only runs if NO SAR signal was generated this candle
+            if open_trade and not signal_side:
+                sl = float(open_trade.get('stop_loss')) if open_trade.get('stop_loss') else None
+                tgt = float(open_trade.get('target')) if open_trade.get('target') else None
+                
+                if sl:
+                    is_sl_hit = (current_side == "BUY" and test_p_down <= sl) or (current_side == "SELL" and test_p_up >= sl)
+                    if is_sl_hit:
+                        signal_side = "EXIT"
+                        label_tag = "STOP_LOSS"
+                        exit_price_fixed = sl
+                        print(f"[STRATEGY] [SL] SL hit at {sl} for {stock['symbol']}. Closing.")
+                
+                # Target Check (Only if NO SL hit)
+                if not signal_side and tgt:
+                    is_tgt_hit = (current_side == "BUY" and test_p_up >= tgt) or (current_side == "SELL" and test_p_down <= tgt)
+                    if is_tgt_hit:
+                        signal_side = "EXIT" # Pure exit for target
+                        label_tag = "TARGET_BOOKED"
+                        exit_price_fixed = tgt
+                        print(f"[STRATEGY] [TGT] Target hit at {tgt} for {stock['symbol']}.")
+            
+            # If a signal was generated by SL/TGT, and it's an EXIT, close the trade.
+            # If it's a flip (SMART_SL_TRAP), it will be handled by the main signal_side logic.
+            if signal_side == "EXIT":
+                print(f"[STOP] [STRATEGY] {stock['symbol']} hit {label_tag} @ {exit_price_fixed}. Closing.")
+                paper_service.close_virtual_trade(session_id, open_trade['id'], tick_round(exit_price_fixed), reason=label_tag)
+                current_side = None; open_trade = None
+                signal_side = None # Clear signal_side so it doesn't trigger a new trade
+
+            # --- OUTER BOUNDARY CHECK ---
+            if levels:
+                min_lv = levels[0]['p']
+                max_lv = levels[-1]['p']
+                # STRICT: No trades outside S6/R6 range (Match Lab)
+                if close_p < min_lv or close_p > max_lv:
+                    if open_trade:
+                        print(f"[WARN] [BOUNDARY] {stock['symbol']} @ {close_p} strictly outside S6-R6. Squaring off.")
+                        paper_service.close_virtual_trade(session_id, open_trade['id'], tick_round(close_p), reason="OUTSIDE_BOUNDS")
+                    continue
+
+            # 3. ENTRY & REVERSAL MONITORING (Only if no SAR signal yet)
+            if not signal_side:
+                if not current_side:
+                    # Scan for breakouts
+                    for lv in reversed(levels):
+                        b = lv['p'] * buffer_pct
+                        # STRICT Breakout UP (Close > Level + Buffer)
+                        if test_p_up > (lv['p'] + b) and (prev_close_ref <= (lv['p'] + b) or is_opening_candle):
+                            signal_side, label_tag = "BUY", lv['n']
+                            trigger_lv_p = lv['p']
+                            if trigger_mode == 'CANDLE_CLOSE':
+                                exit_price_fixed = tick_round(close_p)
+                            else:
+                                exit_price_fixed = tick_round(max(open_p, lv['p'] + b))
+                            break
+                    
+                    if not signal_side:
+                        for lv in levels:
+                            b = lv['p'] * buffer_pct
+                            # STRICT Breakout DOWN (Close < Level - Buffer)
+                            if test_p_down < (lv['p'] - b) and (prev_close_ref >= (lv['p'] - b) or is_opening_candle):
+                                signal_side, label_tag = "SELL", lv['n']
+                                trigger_lv_p = lv['p']
+                                if trigger_mode == 'CANDLE_CLOSE':
+                                    exit_price_fixed = tick_round(close_p)
+                                else:
+                                    exit_price_fixed = tick_round(min(open_p, lv['p'] - b))
+                                break
+                else:
+                    # No Reversal Scan needed for non-SAR mode if we want pure Lab parity
+                    # Lab only reverses on TRAP/REJECTION of an active position.
+                    pass
+
+            # Helper to calculate quantity
+            def get_live_trade_quantity(price):
+                try:
+                    cap = getattr(session, 'trade_capital', 0)
+                    if cap > 0:
+                         return max(1, int(cap / price))
+                    return getattr(session, 'trade_quantity', 1)
+                except: return 1
+
+            if signal_side:
+                # NO PYRAMIDING Check
+                if current_side == signal_side:
+                    # Already in correct position. Do nothing.
+                    # print(f"  [SKIP] Matches current {current_side} position for {stock['symbol']}")
+                    continue
+                
+                # If Opposite position exists, PaperService handles the Close (SAR) & Open.
+                # If No position, PaperService opens New.
+                
+                # --- Advanced SL & Target Logic (Next Level) ---
+                # MIRROR LAB: Target/SL from Session Settings
+                g_tgt = getattr(session, 'global_target', None)
+                g_sl = getattr(session, 'global_stop_loss', None)
+                
+                target_price = None
+                stop_loss = None
+                
+                # Target/SL handled by global points below
+
+                # Quantity Definitions
+                live_order_qty = get_live_trade_quantity(exit_price_fixed)
+                paper_order_qty = 100 # Fixed Default
+
+                if g_tgt:
+                    try:
+                        val = float(g_tgt)
+                        pts = val
+                        if signal_side == "BUY": target_price = tick_round(close_p + pts)
+                        else: target_price = tick_round(close_p - pts)
+                    except: pass
+                
+                if g_sl:
+                    try:
+                        pts = float(g_sl)
+                        if signal_side == "BUY": stop_loss = tick_round(close_p - pts)
+                        else: stop_loss = tick_round(close_p + pts)
+                    except: pass
+
+                # --- 9:30 AM PROTECTION LOGIC ---
+                # If this is the 9:30 AM opening candle, save the bias to protect against 1m fake spikes
+                if is_opening_candle:
+                    session._opening_bias[token] = signal_side
+                    session._opening_protection_end[token] = time.time() + 60 # Protect for 60 seconds
+                    print(f"[SHIELD] [PROTECTION] Set {signal_side} bias for {stock['symbol']} until {datetime.fromtimestamp(session._opening_protection_end[token]).strftime('%H:%M:%S')}")
+
+                print(f"[OK] [STRATEGY] Signal {signal_side} on {stock['symbol']} @ {close_p} [{label_tag}]")
+
+                
+                # --- TRUE SAR EXECUTION FLOW (Candle Strategy) ---
+                
+                # 1. LIVE EXECUTION (Optimized: Double Quantity)
+                if is_live and risk_service.check_safety(session_id):
+                     open_trade = next((t for t in session.paper_trades if str(t['token']) == token and t['status'] == 'OPEN'), None)
+                     live_submit_qty = live_order_qty
+                     is_live_reversal = False
+
+                     if open_trade and open_trade['side'] != signal_side:
+                         # REVERSAL DETECTED: Use Net Order (Old + New)
+                         live_submit_qty = live_order_qty * 2
+                         is_live_reversal = True
+                         print(f"[FAST] [LIVE-SAR-CANDLE] Reversal: {stock['symbol']} {open_trade['side']} -> {signal_side}. Qty: {live_submit_qty}")
+                     
+                     # Check if margin is sufficient for the FULL reversal swing (technically, margin requirement is max(Old, New), not Sum, but let's be safe)
+                     # Actually for MIS, reversing requires margin only for the new leg effectively, but hitting limit rejection is bad. 
+                     # Checking margin for just the 'New' leg quantity is usually sufficient if PnL is not deeply negative.
+                     # But let's check for at least the new leg.
+                     
+                     if risk_service.check_margin(session_id, stock['symbol'], live_submit_qty, exit_price_fixed):
+                         tag = f"SAR_{label_tag}" if is_live_reversal else f"AUTO_{label_tag}"
+                         live_service.place_live_order(
+                             session_id, stock, signal_side, abs(live_submit_qty), 
+                             tag=tag,
+                             product_type="INTRADAY"
+                         )
+
+                # 2. PAPER EXECUTION (Close + Open for records)
+                open_trade = next((t for t in session.paper_trades if str(t['token']) == token and t['status'] == 'OPEN'), None)
+                if open_trade and open_trade['side'] != signal_side:
+                     if is_paper or is_live:
+                         # Use Fixed price (Level price for SAR) to match Lab results
+                        paper_service.close_virtual_trade(session_id, open_trade['id'], exit_price_fixed, reason=label_tag)
+                
+                if (is_paper or is_live) and (not open_trade or open_trade['side'] != signal_side):
+                    # Use Same Level/Calculated price for entry to match Lab theory
+                    paper_service.create_virtual_trade(
+                        session_id, stock, signal_side, 
+                        label_tag, 
+                        quantity=paper_order_qty,
+                        target_price=target_price,
+                        stop_loss=stop_loss,
+                        strategy_mode=mode,
+                        smart_sl=True,
+                        entry_price=exit_price_fixed
+                    )
+                    
+                    # Update Cooldown - PER CLIENT
+                    client_id = session.client_id
+                    if client_id not in ws_manager.last_stock_trade_times:
+                        ws_manager.last_stock_trade_times[client_id] = {}
+                    ws_manager.last_stock_trade_times[client_id][str(stock['token'])] = time.time()
 
     def stop_websocket(self, session_id: str):
         with self.lock:
             if session_id in self.connections:
                 try:
-                    self.connections[session_id].close()
+                    self.connections[session_id].close_connection()
                 except: pass
                 del self.connections[session_id]
                 del self.token_maps[session_id]
                 del self.broadcast_callbacks[session_id]
+                if session_id in self.session_locks:
+                    del self.session_locks[session_id]
 
     def stop_all(self):
         self.running = False

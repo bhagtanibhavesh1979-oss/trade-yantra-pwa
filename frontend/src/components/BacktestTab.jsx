@@ -6,10 +6,12 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 const BacktestTab = ({ clientId, sessionId, watchlist }) => {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
+
+    // Initialize state, checking localStorage for blueprint_date
     const [params, setParams] = useState({
         token: '',
         symbol: '',
-        blueprint_date: '', // The reference day for levels
+        blueprint_date: localStorage.getItem('blueprint_date') || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Use saved date or default to yesterday
         start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
         interval: 'FIFTEEN_MINUTE',
@@ -18,12 +20,12 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
         low: '',
         quantity: 100,
         target: '',
-        target_type: 'AMOUNT', // New: AMOUNT or POINTS
-        trade_type: 'INTRADAY', // New: INTRADAY or POSITIONAL
+        target_type: 'AMOUNT',
+        trade_type: 'INTRADAY',
         stop_loss: '',
         trailing_sl: '',
-        buffer: 0.1, // New: 0.1% to 0.25%
-        trigger_mode: 'CANDLE_CLOSE' // New: CANDLE_CLOSE or INSTANT_TOUCH
+        buffer: 0.25,
+        trigger_mode: 'CANDLE_CLOSE'
     });
 
     const handleRun = async () => {
@@ -58,7 +60,7 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
             token: stock.token,
             high: stock.pdh || '',
             low: stock.pdl || '',
-            blueprint_date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0] // Default to yesterday
+            // REMOVED: blueprint_date reset. It now persists from state.
         }));
     };
 
@@ -105,8 +107,17 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                             ))}
                         </select>
                     </div>
+                </div>
 
-                    {/* Blueprint Date */}
+                <details className="group mb-6">
+                    <summary className="text-xs font-bold text-[var(--accent-blue)] uppercase cursor-pointer list-none flex items-center justify-between p-4 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] hover:border-[var(--accent-blue)] transition-all select-none shadow-sm">
+                        <span>⚙️ Configure Strategy Parameters (Expand to view Blueprint, Targets, etc.)</span>
+                        <span className="group-open:rotate-180 transition-transform duration-300">▼</span>
+                    </summary>
+                    
+                    <div className="space-y-6 pt-4 animate-in fade-in duration-300">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Blueprint Date */ }
                     <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/20">
                         <label className="text-[10px] uppercase font-bold text-indigo-400 mb-2 block flex items-center gap-1">
                             <span>📅 Blueprint Reference Date</span>
@@ -116,7 +127,11 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                             type="date"
                             className="w-full bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-sm"
                             value={params.blueprint_date}
-                            onChange={(e) => setParams(prev => ({ ...prev, blueprint_date: e.target.value }))}
+                            onChange={(e) => {
+                                const newDate = e.target.value;
+                                localStorage.setItem('blueprint_date', newDate);
+                                setParams(prev => ({ ...prev, blueprint_date: newDate }));
+                            }}
                         />
                     </div>
 
@@ -268,7 +283,7 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                     <div>
                         <label className="text-[10px] uppercase font-bold text-gray-500 mb-2 block">Wick Sensitivity (Buffer)</label>
                         <div className="flex bg-[var(--bg-secondary)] p-1 rounded-xl border border-[var(--border-color)] overflow-x-auto scrollbar-hide gap-1 custom-scroll">
-                            {[0.1, 0.15, 0.25, 0.30, 0.45, 0.5, 0.75, 0.90, 1.0].map(b => (
+                            {[0.18, 0.25, 0.27, 0.30, 0.36, 0.45, 0.54, 0.63, 0.72, 0.81, 0.90, 1.0].map(b => (
                                 <button
                                     key={b}
                                     onClick={() => setParams(prev => ({ ...prev, buffer: b }))}
@@ -280,6 +295,8 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                         </div>
                     </div>
                 </div>
+                    </div>
+                </details>
 
                 <button
                     onClick={handleRun}
@@ -341,22 +358,23 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                                     <defs>
                                         <linearGradient id="splitColor" x1="0" y1="0" x2="0" y2="1">
                                             {(() => {
+                                                if (!results.equity_curve || results.equity_curve.length === 0) return null;
                                                 const balances = results.equity_curve.map(d => d.balance);
                                                 const dataMax = Math.max(...balances);
                                                 const dataMin = Math.min(...balances);
 
-                                                if (dataMax <= 0) return (
-                                                    <stop offset="0%" stopColor="#ef4444" stopOpacity={0.4} />
-                                                );
-                                                if (dataMin >= 0) return (
-                                                    <stop offset="0%" stopColor="#4ade80" stopOpacity={0.4} />
-                                                );
+                                                if (dataMax <= 0) {
+                                                    return <stop offset="0%" stopColor="#ef4444" stopOpacity={0.4} />;
+                                                }
+                                                if (dataMin >= 0) {
+                                                    return <stop offset="0%" stopColor="#4ade80" stopOpacity={0.4} />;
+                                                }
 
-                                                const offset = (dataMax / (dataMax - dataMin)) * 100;
+                                                const offset = (dataMax / (dataMax - dataMin));
                                                 return (
                                                     <>
-                                                        <stop offset={`${offset}%`} stopColor="#4ade80" stopOpacity={0.4} />
-                                                        <stop offset={`${offset}%`} stopColor="#ef4444" stopOpacity={0.4} />
+                                                        <stop offset={offset} stopColor="#4ade80" stopOpacity={0.4} />
+                                                        <stop offset={offset} stopColor="#ef4444" stopOpacity={0.4} />
                                                     </>
                                                 );
                                             })()}

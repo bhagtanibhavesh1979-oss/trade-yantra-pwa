@@ -8,6 +8,7 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 class LoginRequest(BaseModel):
     api_key: str
+    data_api_key: Optional[str] = None # Added for users with separate Market Data API keys
     client_id: str
     password: str
     totp_secret: str
@@ -57,7 +58,8 @@ def login(req: LoginRequest):
         client_id=req.client_id.upper(),
         jwt_token=tokens['jwt_token'],
         feed_token=tokens['feed_token'],
-        api_key=req.api_key
+        api_key=req.api_key,
+        data_api_key=req.data_api_key # Use separate data key if provided
     )
     session.refresh_token = tokens['refresh_token']
     session.smart_api = smart_api
@@ -145,9 +147,27 @@ def verify_session(session_id: str, client_id: Optional[str] = None):
         raise HTTPException(status_code=404, detail="Session expired or invalid")
     
     print(f"[OK] Verified session for client {session.client_id}")
+    
+    # Optional Broker Check (if requested or every 10 mins)
+    broker_ok = True
+    if session.smart_api:
+        try:
+            # Lightweight check: getProfile
+            profile = session.smart_api.getProfile(session.refresh_token)
+            if not profile or not profile.get('status'):
+                err_code = profile.get('errorcode')
+                if err_code in ["AG8001", "AG8002"]:
+                    print(f"[WARN] Broker session invalid for {session.client_id}. Refreshing...")
+                    broker_ok = session_manager.refresh_session_tokens(session_id)
+                else:
+                    broker_ok = False
+        except Exception:
+            broker_ok = False
+
     return {
         "success": True,
         "valid": True,
+        "broker_connected": broker_ok,
         "client_id": session.client_id,
         "created_at": session.created_at.isoformat(),
         "last_activity": session.last_activity.isoformat()

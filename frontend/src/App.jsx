@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import LoginPage from './components/LoginPage';
 import Dashboard from './components/Dashboard';
 import wsClient from './services/websocket';
-import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist, getWatchlist, getPaperSummary } from './services/api';
+import { getSession, setSession, clearSession, getAlerts, getLogs, setWatchlistDate, refreshWatchlist, getWatchlist, getPaperSummary, getLiveStatus } from './services/api';
 import { registerServiceWorker, requestNotificationPermission, showNotification } from './services/notifications';
 import { Toaster, toast } from 'react-hot-toast';
 import './App.css';
@@ -35,6 +35,11 @@ function App() {
   const [paperTrades, setPaperTrades] = useState([]);
   const [paperBalance, setPaperBalance] = useState(500000);
   const [autoExec, setAutoExec] = useState(false);
+  // Live Trading Persisted State
+  const [liveAutoExec, setLiveAutoExec] = useState(false);
+  const [liveTradeQty, setLiveTradeQty] = useState(100);
+  const [liveTradeCap, setLiveTradeCap] = useState(0);
+
   const [strategyMode, setStrategyMode] = useState('BOUNCE');
   const [bufferPct, setBufferPct] = useState(0.25);
   const [isPaused, setIsPaused] = useState(false);
@@ -106,7 +111,7 @@ function App() {
     const clientId = currentSession?.clientId || currentSession?.client_id;
 
     try {
-      const [alertsData, logsData, wlData, paperData] = await Promise.all([
+      const [alertsData, logsData, wlData, paperData, liveData] = await Promise.all([
         getAlerts(sessionId, clientId).catch(err => {
           console.error('Failed to fetch alerts:', err);
           return null;
@@ -121,6 +126,10 @@ function App() {
         }),
         getPaperSummary(sessionId, clientId).catch(err => {
           console.error('Failed to fetch paper trades:', err);
+          return null;
+        }),
+        getLiveStatus(sessionId).catch(err => {
+          console.error('Failed to fetch live status:', err);
           return null;
         })
       ]);
@@ -163,6 +172,12 @@ function App() {
         if (paperData.buffer_pct !== undefined) setBufferPct(paperData.buffer_pct);
       }
 
+      if (liveData) {
+        if (liveData.auto_live_trade !== undefined) setLiveAutoExec(liveData.auto_live_trade);
+        if (liveData.trade_quantity !== undefined) setLiveTradeQty(liveData.trade_quantity);
+        if (liveData.trade_capital !== undefined) setLiveTradeCap(liveData.trade_capital);
+      }
+
       if (isManualSync) toast.success('Data synced from server!', { id: 'sync-data' });
 
     } catch (err) {
@@ -181,6 +196,7 @@ function App() {
     const handleConnected = () => setWsStatus('connected');
     const handleDisconnected = () => setWsStatus('disconnected');
     const handlePriceUpdate = (data) => {
+      setWsStatus('connected');
       setWatchlist((prevWatchlist) =>
         prevWatchlist.map((stock) => {
           if (String(stock.token) === String(data.token)) {
@@ -334,15 +350,23 @@ function App() {
       const visible = document.visibilityState === 'visible';
       setIsVisible(visible);
 
-      // If we become visible and session exists, ensure WS is connected
+      // If we become visible and session exists, ensure WS is connected + refresh data
       if (visible) {
         const savedSession = getSession();
-        if (savedSession && !wsClient.isConnected() && !wsClient.isConnecting()) {
-          console.log('🔄 App became visible, ensuring WebSocket connection...');
-          // Small delay to let browser stabilize after becoming visible
-          setTimeout(() => {
-            wsClient.connect(savedSession.sessionId);
-          }, 1000);
+        if (savedSession) {
+          const sid = savedSession.sessionId || savedSession.session_id;
+          const cid = savedSession.clientId || savedSession.client_id;
+
+          // Immediately fetch fresh prices/data so UI is up-to-date after being hidden
+          loadData(sid, false);
+
+          if (!wsClient.isConnected() && !wsClient.isConnecting()) {
+            console.log('🔄 App became visible, ensuring WebSocket connection...');
+            // Small delay to let browser stabilize after becoming visible
+            setTimeout(() => {
+              wsClient.connect(sid, cid);
+            }, 1000);
+          }
         }
       }
     };
@@ -432,6 +456,14 @@ function App() {
             setLogs={setLogs}
             paperTrades={paperTrades}
             setPaperTrades={setPaperTrades}
+            paperBalance={paperBalance}
+            setPaperBalance={setPaperBalance}
+            autoExec={autoExec}
+            setAutoExec={setAutoExec}
+            strategyMode={strategyMode}
+            setStrategyMode={setStrategyMode}
+            bufferPct={bufferPct}
+            setBufferPct={setBufferPct}
             isPaused={isPaused}
             setIsPaused={setIsPaused}
             referenceDate={referenceDate}
@@ -444,6 +476,12 @@ function App() {
             isLoadingData={isLoadingData}
             isVisible={isVisible}
             onRefreshData={loadData}
+            liveAutoExec={liveAutoExec}
+            setLiveAutoExec={setLiveAutoExec}
+            liveTradeQty={liveTradeQty}
+            setLiveTradeQty={setLiveTradeQty}
+            liveTradeCap={liveTradeCap}
+            setLiveTradeCap={setLiveTradeCap}
           />
         </>
       )}

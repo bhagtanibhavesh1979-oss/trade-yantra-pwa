@@ -1,3 +1,4 @@
+from services.angel_service import angel_service
 from typing import Dict, Optional
 
 class RiskService:
@@ -26,7 +27,6 @@ class RiskService:
             Available = Net Available Funds
         """
         from services.session_manager import session_manager
-        from services.angel_service import angel_service
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api: return False
 

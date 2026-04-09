@@ -10,3 +10,4 @@ python-multipart==0.0.9
 logzero==1.7.0
 google-cloud-storage
 psycopg2-binary==2.9.10
+pytz

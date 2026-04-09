@@ -135,7 +135,7 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
     };
 
     const handleClearHistory = async () => {
-        if (!window.confirm('Clear all paper trade history?')) return;
+        if (!window.confirm('Clear paper trade history? Open positions will be kept.')) return;
         try {
             await clearPaperTrades(sessionId);
             toast.success('History cleared');

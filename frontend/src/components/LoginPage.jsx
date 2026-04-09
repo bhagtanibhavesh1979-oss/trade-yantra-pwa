@@ -4,6 +4,7 @@ import { login } from '../services/api';
 function LoginPage({ onLoginSuccess }) {
     const [formData, setFormData] = useState({
         apiKey: '',
+        dataApiKey: '', // Optional separate key for market data
         clientId: '',
         password: '',
         totpSecret: '',
@@ -31,7 +32,8 @@ function LoginPage({ onLoginSuccess }) {
                 formData.apiKey,
                 formData.clientId,
                 formData.password,
-                formData.totpSecret
+                formData.totpSecret,
+                formData.dataApiKey || null // Pass optional data key
             );
 
             // Store session and notify parent
@@ -60,10 +62,10 @@ function LoginPage({ onLoginSuccess }) {
 
                 <form onSubmit={handleSubmit} className="bg-[#222844] rounded-lg p-6 border border-[#2D3748]">
                     <div className="space-y-4">
-                        {/* API Key */}
+                        {/* Trading API Key */}
                         <div>
                             <label className="block text-gray-300 text-sm font-medium mb-2">
-                                SmartAPI Key
+                                Trading API Key (SmartAPI)
                             </label>
                             <input
                                 type="text"
@@ -71,8 +73,24 @@ function LoginPage({ onLoginSuccess }) {
                                 value={formData.apiKey}
                                 onChange={handleInputChange}
                                 className="w-full px-4 py-2 bg-[#0A0E27] border border-[#2D3748] rounded-lg text-white focus:outline-none focus:border-[#667EEA]"
-                                placeholder="Enter your API key"
+                                placeholder="Enter your Trading API key"
                                 required
+                            />
+                        </div>
+
+                        {/* Market Data API Key */}
+                        <div>
+                            <label className="block text-gray-300 text-sm font-medium mb-2 flex justify-between">
+                                Market Data API Key
+                                <span className="text-[10px] text-gray-500 uppercase font-bold bg-gray-800 px-1 rounded">Optional</span>
+                            </label>
+                            <input
+                                type="text"
+                                name="dataApiKey"
+                                value={formData.dataApiKey}
+                                onChange={handleInputChange}
+                                className="w-full px-4 py-2 bg-[#0A0E27] border border-[#2D3748] rounded-lg text-white focus:outline-none focus:border-[#667EEA] border-dashed"
+                                placeholder="Separate API Key for data (if any)"
                             />
                         </div>
 

@@ -9,7 +9,7 @@ Write-Host "==============================================" -ForegroundColor Cya
 # Configuration
 $PROJECT_ID = $env:GCP_PROJECT_ID
 $SERVICE_NAME = "trade-yantra-api"
-$REGION = if ($env:GCP_REGION) { $env:GCP_REGION } else { "us-central1" }
+$REGION = if ($env:GCP_REGION) { $env:GCP_REGION } else { "asia-south1" }
 $MIN_INSTANCES = if ($env:MIN_INSTANCES) { $env:MIN_INSTANCES } else { "0" }
 $MAX_INSTANCES = if ($env:MAX_INSTANCES) { $env:MAX_INSTANCES } else { "10" }
 $MEMORY = if ($env:MEMORY) { $env:MEMORY } else { "512Mi" }

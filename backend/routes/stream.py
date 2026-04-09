@@ -21,15 +21,23 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
     
     # Get session
     session = session_manager.get_session(session_id, client_id=client_id)
+    print(f"[WS-INIT] WebSocket connection initiated for session {session_id[:8]}...")
+    
     if not session:
+        print(f"[WS-INIT] [ERR] Session not found for {session_id}")
         await websocket.send_json({"type": "error", "message": "Session not found"})
         await websocket.close()
         return
+    
+    print(f"[WS-INIT] [OK] Session found. Watchlist: {len(session.watchlist)} stocks")
+    print(f"[WS-INIT] feed_token present: {bool(session.feed_token)}")
+    print(f"[WS-INIT] jwt_token present: {bool(session.jwt_token)}")
     
     # Register this WebSocket connection
     if not hasattr(session, 'websocket_clients'):
         session.websocket_clients = []
     session.websocket_clients.append(websocket)
+    print(f"[WS-INIT] Registered client. Total clients: {len(session.websocket_clients)}")
     
     # Broadcast callback for WebSocket manager
     # Uses run_coroutine_threadsafe to safely bridge from Angel's thread to FastAPI's async loop
@@ -43,7 +51,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                     pass
     
     # Start WebSocket if not already running on backend
-    if session.watchlist and session.smart_api:
+    # FIX: Allow starting if we have a feed_token, even if smart_api object is missing (persisted session)
+    if session.watchlist and session.feed_token:
+        print(f"[WS-INIT] Conditions met for WebSocket start (watchlist + feed_token)")
         # Check if already running to avoid duplicate connection attempts
         is_running = False
         with ws_manager.lock:
@@ -51,20 +61,21 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                 is_running = True
                 # Update the callback to the new connection
                 ws_manager.broadcast_callbacks[session_id] = broadcast_callback
+                print(f"[WS-INIT]   Reusing existing Angel WebSocket connection")
         
         if not is_running:
-            ws_manager.start_websocket(
+            print(f"[WS-INIT] [EXEC] Starting NEW Angel One WebSocket...")
+            success = ws_manager.start_websocket(
                 session_id,
                 session.jwt_token,
-                session.api_key,
+                session.data_api_key,
                 session.client_id,
                 session.feed_token,
                 session.watchlist,
                 broadcast_callback
             )
-            print(f"[INFO] Starting new Angel One WebSocket for {session_id}")
+            print(f"[WS-INIT] WebSocket start result: {success}")
         else:
-            print(f"[INFO] Reusing existing Angel One WebSocket for {session_id}")
             # Immediately send status and last prices if possible
             await websocket.send_json({"type": "status", "data": {"status": "CONNECTED"}})
     

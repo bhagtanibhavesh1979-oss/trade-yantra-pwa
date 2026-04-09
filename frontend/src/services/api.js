@@ -9,11 +9,11 @@ const getBaseUrl = () => {
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // Default Fallback (Asia-South1 - Mumbai Region - NOW PRIMARY - UPDATED)
-    return 'https://trade-yantra-api-ibynqazflq-el.a.run.app';
+    // Default Fallback (VPS Node)
+    return 'http://5.231.93.235:8002';
 };
 
-const API_BASE_URL = getBaseUrl();
+export const API_BASE_URL = getBaseUrl();
 console.log('🌐 API_BASE_URL:', API_BASE_URL);
 
 const api = axios.create({
@@ -42,9 +42,10 @@ export const clearSession = () => {
 };
 
 // Auth APIs
-export const login = async (apiKey, clientId, password, totpSecret) => {
+export const login = async (apiKey, clientId, password, totpSecret, dataApiKey = null) => {
     const response = await api.post('/api/auth/login', {
         api_key: apiKey,
+        data_api_key: dataApiKey,
         client_id: clientId,
         password: password,
         totp_secret: totpSecret,
@@ -211,6 +212,8 @@ export const setBufferPct = async (sessionId, buffer, clientId = null) => {
     return response.data;
 };
 
+
+
 export const closePaperTrade = async (sessionId, tradeId, ltp) => {
     const response = await api.post(`/api/paper/close/${sessionId}/${tradeId}?ltp=${ltp}`);
     return response.data;
@@ -252,61 +255,52 @@ export const getPaperAnalytics = async (sessionId) => {
     return response.data;
 };
 
+export const squareOffPositions = async (sessionId) => {
+    const response = await api.post(`/api/paper/square-off/${sessionId}`);
+    return response.data;
+};
+
 export const runBacktest = async (sessionId, params, clientId = null) => {
     const response = await api.post(`/api/paper/backtest/${sessionId}`, { ...params, client_id: clientId });
     return response.data;
 };
 
-// Live Trading APIs
-export const getLiveStatus = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/live/status/${sessionId}?client_id=${clientId}` : `/api/live/status/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
-export const toggleLiveTrading = async (sessionId, enabled, clientId = null) => {
-    const response = await api.post('/api/live/toggle', {
-        session_id: sessionId,
-        client_id: clientId,
-        enabled: enabled,
-    });
-    return response.data;
-};
-
-export const updateLiveSettings = async (sessionId, settings, clientId = null) => {
-    const response = await api.post('/api/live/config', {
-        session_id: sessionId,
-        client_id: clientId,
-        ...settings,
-    });
-    return response.data;
-};
-
-export const placeLiveOrder = async (sessionId, orderData, clientId = null) => {
-    const response = await api.post('/api/live/order', {
-        session_id: sessionId,
-        client_id: clientId,
-        ...orderData,
-    });
-    return response.data;
-};
-
-export const getLiveFunds = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/live/funds/${sessionId}?client_id=${clientId}` : `/api/live/funds/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
-export const getLivePositions = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/live/positions/${sessionId}?client_id=${clientId}` : `/api/live/positions/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
-export const getLiveOrders = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/live/orders/${sessionId}?client_id=${clientId}` : `/api/live/orders/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
 export default api;
+
+// Live Trading APIs
+export const toggleLiveTrading = async (sessionId, enabled) => {
+    const response = await api.post(`/api/live/toggle/${sessionId}`, { enabled });
+    return response.data;
+};
+
+export const placeLiveOrder = async (sessionId, orderDetails) => {
+    // orderDetails: { symbol, token, exch_seg, side, quantity, product_type, order_type, price }
+    const response = await api.post(`/api/live/order/${sessionId}`, orderDetails);
+    return response.data;
+};
+
+export const getLivePositions = async (sessionId) => {
+    const response = await api.get(`/api/live/positions/${sessionId}`);
+    return response.data;
+};
+
+export const getLiveOrders = async (sessionId) => {
+    const response = await api.get(`/api/live/orders/${sessionId}`);
+    return response.data;
+};
+
+export const getLiveFunds = async (sessionId) => {
+    const response = await api.get(`/api/live/funds/${sessionId}`);
+    return response.data;
+};
+
+export const getLiveStatus = async (sessionId) => {
+    const response = await api.get(`/api/live/status/${sessionId}`);
+    return response.data;
+};
+
+export const updateLiveSettings = async (sessionId, settings) => {
+    // settings: { trade_quantity: int, trade_capital: float }
+    const response = await api.post(`/api/live/settings/${sessionId}`, settings);
+    return response.data;
+};

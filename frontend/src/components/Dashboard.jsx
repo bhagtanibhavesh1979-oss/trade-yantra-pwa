@@ -6,7 +6,8 @@ import BacktestTab from './BacktestTab'; // New
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
-import TradesTab from './TradesTab';
+import OrdersTab from './OrdersTab';
+import LiveOrdersTab from './LiveOrdersTab';
 import toast from 'react-hot-toast';
 
 function Dashboard({
@@ -38,7 +39,12 @@ function Dashboard({
     strategyMode,
     setStrategyMode,
     bufferPct,
-    setBufferPct
+    liveAutoExec,
+    setLiveAutoExec,
+    liveTradeQty,
+    setLiveTradeQty,
+    liveTradeCap,
+    setLiveTradeCap
 }) {
     // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
@@ -78,7 +84,7 @@ function Dashboard({
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 flex flex-col pb-16 md:pb-0">
             {/* Premium Top Bar */}
-            <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-6 py-4 sticky top-0 z-30 shadow-2xl">
+            <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-2.5 md:px-6 py-4 sticky top-0 z-30 shadow-2xl">
                 <div className="flex items-center justify-between max-w-[1400px] mx-auto">
                     <div className="flex items-center gap-4">
                         <div className="relative">
@@ -128,7 +134,7 @@ function Dashboard({
             {/* Main Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
                 {/* Market Indices (Sticky at top of content or just below header) */}
-                <div className="px-2 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
+                <div className="px-0 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
                     <MarketOverview
                         sessionId={session.sessionId || session.session_id}
                         isVisible={isVisible}
@@ -166,21 +172,26 @@ function Dashboard({
                 {activeTab === 'logs' && (
                     <LogsTab logs={logs} />
                 )}
-                {activeTab === 'trades' && (
-                    <TradesTab
+                {activeTab === 'orders' && (
+                    <OrdersTab
                         clientId={session?.clientId}
                         sessionId={session?.sessionId || session?.session_id}
                         watchlist={watchlist}
-                        trades={paperTrades}
-                        setTrades={setPaperTrades}
-                        paperBalance={paperBalance}
-                        setPaperBalance={setPaperBalance}
-                        autoExec={autoExec}
-                        setAutoExec={setAutoExec}
-                        strategyMode={strategyMode}
-                        setStrategyMode={setStrategyMode}
-                        bufferPct={bufferPct}
-                        setBufferPct={setBufferPct}
+                        isPaused={isPaused}
+                    />
+                )}
+                {activeTab === 'live_orders' && (
+                    <LiveOrdersTab
+                        clientId={session?.clientId}
+                        sessionId={session?.sessionId || session?.session_id}
+                        watchlist={watchlist}
+                        isPaused={isPaused}
+                        liveAutoExec={liveAutoExec}
+                        setLiveAutoExec={setLiveAutoExec}
+                        liveTradeQty={liveTradeQty}
+                        setLiveTradeQty={setLiveTradeQty}
+                        liveTradeCap={liveTradeCap}
+                        setLiveTradeCap={setLiveTradeCap}
                     />
                 )}
                 {activeTab === 'lab' && (
@@ -197,7 +208,8 @@ function Dashboard({
                 <div className="flex justify-around items-center h-20 max-w-lg mx-auto">
                     {[
                         { id: 'watchlist', label: 'Market', icon: '📋' },
-                        { id: 'trades', label: 'Trades', icon: '💰' },
+                        { id: 'orders', label: 'Paper', icon: '💰' },
+                        { id: 'live_orders', label: 'LIVE', icon: '🔴' },
                         { id: 'lab', label: 'Lab', icon: '🧪' },
                         { id: 'alerts', label: 'Alerts', icon: '🔔' },
                         { id: 'logs', label: 'Logs', icon: '📝' },

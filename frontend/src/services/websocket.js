@@ -1,15 +1,16 @@
 const getWebSocketUrl = () => {
-    // If explicitly set in env, use it
-    if (import.meta.env.VITE_API_URL) {
-        const url = import.meta.env.VITE_API_URL;
-        return url.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
+    // 1. Detective work based on location (Highest priority for local dev)
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal) return 'ws://127.0.0.1:8002';
+
+    // 2. Prioritize environment variable for cloud/custom deployments
+    const envUrl = import.meta.env.VITE_API_URL;
+    if (envUrl) {
+        return envUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
     }
 
-    // Otherwise detect if we are on localhost or production
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-    // Use matching endpoint: ibynqazflq-el (Asia-South1 - Mumbai)
-    return isLocal ? 'ws://localhost:8002' : 'wss://trade-yantra-api-ibynqazflq-el.a.run.app';
+    // Default Fallback (VPS Node)
+    return 'ws://5.231.93.235:8002';
 };
 
 const WS_BASE_URL = getWebSocketUrl();
@@ -97,6 +98,7 @@ class WebSocketClient {
                 break;
 
             case 'price_update':
+                console.log('[WS] Price update received:', data.symbol, data.ltp);
                 this.emit('price_update', data);
                 break;
 
@@ -137,6 +139,7 @@ class WebSocketClient {
         this.pingInterval = setInterval(() => {
             if (this.isConnected()) {
                 try {
+                    // console.log('💓 Sending Ping'); // Uncomment for deep debug
                     this.ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
                 } catch (err) {
                     console.error('Failed to send ping:', err);
@@ -248,8 +251,10 @@ class WebSocketClient {
         // 1. Reconnect when tab becomes visible again
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
-                console.log('👀 App visible. Checking connection...');
-                // Add a small delay to let the system stabilize after visibility change
+                console.log('👀 App visible. Force checking connection...');
+                // Immediate check for mobile responsiveness
+                this.checkAndRecover();
+                // Follow up check
                 setTimeout(() => this.checkAndRecover(), 2000);
             }
         });
