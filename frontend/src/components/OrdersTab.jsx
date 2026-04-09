@@ -328,7 +328,7 @@ const OrdersTab = ({
                                             {trade.strategy_mode === 'BOUNCE' ? 'REV' : 'MOM'}
                                         </span>
                                     </div>
-                                    <div className="opacity-60">{new Date(trade.created_at).toLocaleTimeString()} @ {trade.entry_price.toFixed(1)}</div>
+                                    <div className="opacity-60">{new Date(trade.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} @ {trade.entry_price.toFixed(1)}</div>
                                 </div>
                                 <div className={`font-black text-sm ${trade.pnl >= 0 ? 'text-[var(--success-neon)]' : 'text-[var(--danger-neon)]'}`}>
                                     {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(0)}
@@ -375,7 +375,7 @@ const OrdersTab = ({
                                     <div className="space-y-1">
                                         <p className="text-[9px] text-gray-500 font-bold uppercase">Entry Execution</p>
                                         <p className="text-xs font-bold text-white">₹{selectedOrder.entry_price.toFixed(2)}</p>
-                                        <p className="text-[10px] text-gray-400">{new Date(selectedOrder.created_at).toLocaleTimeString()}</p>
+                                        <p className="text-[10px] text-gray-400">{new Date(selectedOrder.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
                                         <p className="text-[10px] text-[var(--accent-blue)] bg-[var(--accent-blue)]/10 px-2 py-0.5 rounded inline-block font-bold">
                                             {selectedOrder.trigger_level || 'MANUAL'}
                                         </p>
@@ -385,7 +385,7 @@ const OrdersTab = ({
                                         {selectedOrder.status === 'CLOSED' ? (
                                             <>
                                                 <p className="text-xs font-bold text-white">₹{selectedOrder.exit_price?.toFixed(2)}</p>
-                                                <p className="text-[10px] text-gray-400">{new Date(selectedOrder.closed_at).toLocaleTimeString()}</p>
+                                                <p className="text-[10px] text-gray-400">{new Date(selectedOrder.closed_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</p>
                                                 <p className="text-[10px] text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded inline-block font-bold">
                                                     {selectedOrder.exit_reason || 'CLOSED'}
                                                 </p>

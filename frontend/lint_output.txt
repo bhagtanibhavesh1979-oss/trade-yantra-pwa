@@ -28,4 +28,3 @@ C:\Users\bhave\Downloads\trade-yantra\frontend\src\components\WatchlistTab.jsx
   93:15  error  'pollInterval' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
 
 Γ£û 14 problems (12 errors, 2 warnings)
-

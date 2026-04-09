@@ -123,6 +123,7 @@ class AngelService:
                     raw_jwt = raw_jwt.replace("Bearer ", "").strip()
                 
                 print(f"[OK] [ANGEL] Login Successful for {client_id}")
+                smart_api.setUserId(client_id) # CRITICAL FIX: Explicitly set User ID
                 tokens = {
                     'jwt_token': raw_jwt,
                     'feed_token': data['data']['feedToken'],
@@ -155,6 +156,9 @@ class AngelService:
                 # Update the smart_api instance manually like the SDK would have
                 if jwt: smart_api.setAccessToken(jwt)
                 if feed: smart_api.setFeedToken(feed)
+                # Ensure userId is retained or re-set if available
+                if hasattr(smart_api, 'userId') and smart_api.userId:
+                    smart_api.setUserId(smart_api.userId)
                 
                 return {
                     'jwt_token': jwt,
@@ -537,6 +541,15 @@ class AngelService:
                 print(f"[WARN] [LIVE] Ambiguous Response: {response}")
                 return str(response)
                 
+            # --- DEEP DIAGNOSTIC ON EMPTY RESPONSE ---
+            print("🛑 [CRITICAL] BROKER RETURNED EMPTY RESPONSE")
+            print(f"DEBUG: Symbol: {order_params.get('tradingsymbol')} [{order_params.get('symboltoken')}]")
+            print(f"DEBUG: Params: {json.dumps(order_params, indent=2)}")
+            # Attempt to probe the SDK instance state
+            try:
+                print(f"DEBUG: SDK State: User={getattr(smart_api, 'userId', 'None')}")
+            except: pass
+            
             raise Exception("Broker returned empty response")
 
         except Exception as e:

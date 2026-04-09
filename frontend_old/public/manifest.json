@@ -1,0 +1,18 @@
+{
+    "name": "Trade Yantra",
+    "short_name": "Trade Yantra",
+    "description": "Real-time stock trading alerts and watchlist",
+    "theme_color": "#1A1F3A",
+    "background_color": "#0A0E27",
+    "display": "standalone",
+    "orientation": "portrait",
+    "scope": "/",
+    "start_url": "/",
+    "icons": [
+        {
+            "src": "/logo.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+        }
+    ]
+}

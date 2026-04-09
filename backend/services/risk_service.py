@@ -14,7 +14,7 @@ class RiskService:
         
         # 1. Kill Switch
         if not getattr(session, 'auto_live_trade', False):
-            # Silent return because this is checked frequently in loops
+            print(f"[RISK] [SKIP] skipping live trade for {session.client_id} - auto_live_trade switch is OFF in backend")
             return False
 
         return True
@@ -46,9 +46,12 @@ class RiskService:
             required_margin = price * quantity * leverage
             
             if available_cash >= required_margin:
+                print(f"✅ [RISK] Margin Check Passed for {symbol}: Needed {required_margin:.2f}, Avail {available_cash:.2f}")
                 return True
             else:
-                print(f"[ERR] [RISK] Insufficient Funds for {symbol}: Req {required_margin:.2f} > Avail {available_cash:.2f}")
+                msg = f"❌ [RISK] INSUFFICIENT FUNDS for {symbol} x {quantity}: Need {required_margin:.2f} but available balance is only {available_cash:.2f}"
+                print(msg)
+                # Also log to session logs if possible (will be handled by live_service if it fails)
                 return False
                 
         except Exception as e:

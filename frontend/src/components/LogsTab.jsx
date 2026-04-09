@@ -22,9 +22,9 @@ function LogsTab({ logs }) {
                                     key={index}
                                     className="px-4 py-3 hover:bg-[var(--bg-primary)] transition-colors flex gap-4"
                                 >
-                                    <div className="text-[var(--text-muted)] text-xs whitespace-nowrap pt-0.5">
+                                    <div className="text-[var(--text-muted)] text-[10px] whitespace-nowrap pt-0.5 leading-tight">
                                         {log.time && log.time.includes('T')
-                                            ? new Date(log.time).toLocaleTimeString()
+                                            ? new Date(log.time).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
                                             : log.time}
                                     </div>
                                     <div className="flex-1 min-w-0">

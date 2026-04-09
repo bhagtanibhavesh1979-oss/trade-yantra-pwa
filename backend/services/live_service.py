@@ -7,7 +7,7 @@ from services.angel_service import angel_service, TokenExpiredException
 class LiveService:
     def __init__(self):
         self.lock = threading.RLock()
-        self.LIVE_ENABLED = False # Master Kill Switch (Hardcoded Safety first)
+        self.LIVE_ENABLED = True # Session-level safety is handled by session.auto_live_trade (persisted on disk)
 
     def toggle_live_trading(self, enabled: bool):
         self.LIVE_ENABLED = enabled
@@ -50,7 +50,7 @@ class LiveService:
                 if current_ltp > 0:
                     # Apply fixed paise offset (e.g. 0.30) to get filled like a market order
                     # BUY at LTP + offset | SELL at LTP - offset
-                    offset = getattr(session, 'market_offset', 0.30)
+                    offset = getattr(session, 'market_offset', 0.10) # 0.10 default
                     if transaction_type == "BUY":
                         limit_price = current_ltp + offset
                     else:
@@ -59,9 +59,13 @@ class LiveService:
                     # Round to nearest 0.05 tick size
                     price = round(limit_price * 20) / 20.0
                     order_type = "LIMIT"
-                    print(f"🔄 [LIVE] Market-to-Limit Conversion: {stock['symbol']} @ {price} (LTP: {current_ltp})")
+                    print(f"🔄 [LIVE] Market-to-Limit: {stock['symbol']} [Token:{stock.get('token')}] @ {price:.2f} (LTP:{current_ltp:.2f})")
             except Exception as le:
                  print(f"⚠️ [LIVE] LTP fetch failed for Market conversion: {le}")
+        else:
+            # Even if it's already LIMIT, ensure it's tick-rounded
+            price = round(price * 20) / 20.0
+
         
         # Normalize Product Type
         # Angel SmartAPI Types: "INTRADAY", "CARRYFORWARD", "DELIVERY", "MARGIN", "BO"
@@ -80,11 +84,11 @@ class LiveService:
             "transactiontype": transaction_type,
             "exchange": exchange,
             "ordertype": order_type,
-            "producttype": p_type, 
+            "producttype": p_type,
             "duration": "DAY",
-            "price": str(price) if order_type == "LIMIT" else "0",
-            "quantity": str(quantity),
-            "ordertag": tag[:20] 
+            "price": "{:.2f}".format(float(price)) if order_type == "LIMIT" else "0",
+            "quantity": str(int(quantity)),
+            "ordertag": tag[:20]
         }
         
         def _place():

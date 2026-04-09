@@ -1,0 +1,31 @@
+
+> frontend@0.0.0 lint
+> eslint .
+
+
+C:\Users\bhave\Downloads\trade-yantra\frontend\public\sw.js
+   1:35  error  'event' is defined but never used  no-unused-vars
+  13:9   error  'clients' is not defined           no-undef
+  21:17  error  'clients' is not defined           no-undef
+  22:24  error  'clients' is not defined           no-undef
+
+C:\Users\bhave\Downloads\trade-yantra\frontend\src\App.jsx
+   35:13  error    Empty block statement                                                                                       no-empty
+   55:6   warning  React Hook useEffect has a missing dependency: 'session'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  137:15  error    'audio' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                       no-unused-vars
+  139:15  error    'chime' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                       no-unused-vars
+  147:15  error    'beep' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u                        no-unused-vars
+  185:22  error    'err' is defined but never used                                                                             no-unused-vars
+
+C:\Users\bhave\Downloads\trade-yantra\frontend\src\components\Dashboard.jsx
+  8:91  error  'setLogs' is defined but never used  no-unused-vars
+
+C:\Users\bhave\Downloads\trade-yantra\frontend\src\components\IndicesTab.jsx
+  41:8  warning  React Hook useEffect has a missing dependency: 'fetchIndices'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\bhave\Downloads\trade-yantra\frontend\src\components\WatchlistTab.jsx
+   3:10  error  'motion' is defined but never used. Allowed unused vars must match /^[A-Z_]/u                 no-unused-vars
+  93:15  error  'pollInterval' is assigned a value but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+Γ£û 14 problems (12 errors, 2 warnings)
+

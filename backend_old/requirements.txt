@@ -1,0 +1,12 @@
+fastapi==0.115.0
+gunicorn==21.2.0
+uvicorn[standard]==0.32.0
+python-dotenv==1.0.0
+smartapi-python
+pyotp==2.9.0
+requests==2.31.0
+websocket-client==1.8.0
+python-multipart==0.0.9
+logzero==1.7.0
+google-cloud-storage
+psycopg2-binary==2.9.10

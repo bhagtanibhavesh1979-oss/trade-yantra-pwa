@@ -16,4 +16,3 @@ C:\Users\bhave\Downloads\trade-yantra\frontend\src\components\IndicesTab.jsx
   41:8  warning  React Hook useEffect has a missing dependency: 'fetchIndices'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
 
 Γ£û 6 problems (4 errors, 2 warnings)
-

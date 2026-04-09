@@ -7,15 +7,12 @@ import {
     placeLiveOrder,
     updateLiveSettings,
     getSession,
-    API_BASE_URL
 } from '../services/api';
 import toast from 'react-hot-toast';
 
 const LiveOrdersTab = ({
-    clientId,
     sessionId,
     watchlist,
-    isPaused,
     liveAutoExec,
     setLiveAutoExec,
     liveTradeQty,
@@ -25,33 +22,19 @@ const LiveOrdersTab = ({
 }) => {
     // Internal State
     const [balance, setBalance] = useState(0);
-    // REMOVED internal states (autoExec, tradesQty, tradesCap) in favor of props
-
     const [trades, setTrades] = useState([]);
     const [saveLoading, setSaveLoading] = useState(false);
     const [apiError, setApiError] = useState(null);
-
-    // UI State
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
 
-    // Derived Live State using Watchlist Prices for smooth updates
+    // Derived Live State using Watchlist Prices
     const processedTrades = trades.map(t => {
         const stock = watchlist.find(s => String(s.token) === String(t.token));
         if (!stock) return t;
-
         const currentLtp = parseFloat(stock.ltp);
         const qty = parseInt(t.quantity);
-        let livePnl = 0;
-
-        // Angel PnL in position is snapshot. Recalculate based on live LTP for better UX
-        // Formula: (LTP - AvgPrice) * Qty * (Side == BUY ? 1 : -1)
-        if (t.side === 'BUY') {
-            livePnl = (currentLtp - t.entry_price) * qty;
-        } else {
-            livePnl = (t.entry_price - currentLtp) * qty;
-        }
-
+        const livePnl = t.side === 'BUY' ? (currentLtp - t.entry_price) * qty : (t.entry_price - currentLtp) * qty;
         return { ...t, pnl: livePnl, current_price: currentLtp };
     });
 
@@ -60,7 +43,6 @@ const LiveOrdersTab = ({
     const fetchLiveData = async (showLoader = false) => {
         const sid = sessionId || getSession()?.sessionId;
         if (!sid) return;
-
         if (showLoader) setLoading(true);
         try {
             const [positions, funds] = await Promise.all([
@@ -68,16 +50,10 @@ const LiveOrdersTab = ({
                 getLiveFunds(sid)
             ]);
 
-            // Map Angel Positions to UI Format
-            // Angel returns all positions (including squared off ones with netqty=0)
             const mappedPositions = (positions || []).filter(p => parseInt(p.netqty) !== 0).map(p => {
                 const netQty = parseInt(p.netqty);
                 const isBuy = netQty > 0;
-                // For Net Position, Entry Price is usually BuyAvg for Long, SellAvg for Short?
-                // Angel API provides 'avgnetprice' which is weighted.
-                // Let's use 'avgnetprice' or fallback to buyavg/sellavg
                 const entryPrice = parseFloat(p.avgnetprice || (isBuy ? p.buyavgprice : p.sellavgprice));
-
                 return {
                     id: p.symboltoken,
                     symbol: p.tradingsymbol,
@@ -85,7 +61,7 @@ const LiveOrdersTab = ({
                     side: isBuy ? 'BUY' : 'SELL',
                     quantity: Math.abs(netQty),
                     entry_price: entryPrice,
-                    pnl: parseFloat(p.pnl), // Snapshot PnL
+                    pnl: parseFloat(p.pnl),
                     product: p.producttype,
                     exchange: p.exchange
                 };
@@ -94,21 +70,12 @@ const LiveOrdersTab = ({
             setTrades(mappedPositions);
             setBalance(parseFloat(funds?.net || 0));
             
-            if (funds?.error || (Array.isArray(positions) && positions.length === 0 && funds?.net === 0)) {
-                // If backend explicitly says session expired
-                if (funds?.code === 'AG8001' || funds?.error === 'Session Expired') {
-                    setApiError('SESSION_EXPIRED');
-                } else if (funds?.error) {
-                    setApiError(funds.error);
-                } else {
-                    setApiError(null);
-                }
+            if (funds?.code === 'AG8001' || funds?.error === 'Session Expired') {
+                setApiError('SESSION_EXPIRED');
             } else {
                 setApiError(null);
             }
-
         } catch (err) {
-            console.error('Failed to fetch live data:', err);
             setApiError('CONNECTION_ERROR');
         } finally {
             setLoading(false);
@@ -123,47 +90,35 @@ const LiveOrdersTab = ({
 
     const handleToggleAuto = async () => {
         if (!liveAutoExec && !confirm("⚠️ DANGER: Enable REAL MONEY Auto-Trading?")) return;
-
         try {
             const newState = !liveAutoExec;
             setLiveAutoExec(newState);
-            // We assume toggleLiveTrading returns updated status
             await toggleLiveTrading(sessionId, newState);
-            toast.success(`LIVE Auto-Trading ${newState ? 'ENABLED' : 'DISABLED'}`);
+            toast.success(`Execution Control: ${newState ? 'ACTIVE' : 'IDLE'}`);
         } catch (err) {
-            toast.error('Failed to toggle live trading');
-            setLiveAutoExec(!liveAutoExec); // Revert on failure
+            toast.error('Failed to update execution state');
+            setLiveAutoExec(!liveAutoExec);
         }
     };
 
     const handleSaveSettings = async () => {
         setSaveLoading(true);
         try {
-            // Validate inputs
             const q = parseInt(liveTradeQty);
             const c = parseFloat(liveTradeCap);
             if (isNaN(q) || q < 1) { toast.error("Quantity must be at least 1"); return; }
-            if (isNaN(c) || c < 0) { toast.error("Capital cannot be negative"); return; }
-
-            const res = await updateLiveSettings(sessionId, {
-                trade_quantity: q,
-                trade_capital: c
-            });
-
-            toast.success("Settings Saved!");
+            await updateLiveSettings(sessionId, { trade_quantity: q, trade_capital: c });
+            toast.success("Settings Synchronized");
         } catch (e) {
-            toast.error("Failed to save settings");
-            console.error(e);
+            toast.error("Sync Failed");
         } finally {
             setSaveLoading(false);
         }
     };
 
     const handleClosePosition = async (trade) => {
-        if (!confirm(`Exiting ${trade.symbol}. Confirm?`)) return;
-
+        if (!confirm(`Immediate Market Exit for ${trade.symbol}?`)) return;
         try {
-            // Place Counter Order
             const order = {
                 symbol: trade.symbol,
                 token: trade.token,
@@ -174,196 +129,254 @@ const LiveOrdersTab = ({
                 order_type: "MARKET",
                 price: 0
             };
-
             await placeLiveOrder(sessionId, order);
-            toast.success('Exit Order Placed');
-            // Optimistic update or wait for refresh
+            toast.success('Exit Order Transmitted');
             setTimeout(fetchLiveData, 1000);
         } catch (e) {
-            toast.error('Exit Failed: ' + e.message);
+            toast.error('Exit Refused: ' + e.message);
         }
     };
 
     if (loading && trades.length === 0) {
-        return <div className="p-10 text-center text-red-500 animate-pulse font-bold">Connecting to Exchange...</div>;
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="w-12 h-12 border-4 border-red-500/20 border-t-red-600 rounded-full animate-spin"></div>
+                <p className="text-gray-400 font-medium animate-pulse">Establishing Broker Uplink...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="w-full space-y-4 pb-24 px-4 overflow-x-hidden border-t-4 border-red-600 bg-red-950/10 min-h-screen">
-            <div className="bg-red-600/20 border border-red-500/50 p-2 text-center rounded-b-xl mb-4">
-                <h2 className="text-red-500 font-black tracking-widest uppercase text-xs animate-pulse">🔴 LIVE TRADING ENVIRONMENT - REAL MONEY</h2>
-            </div>
+        <div className="w-full max-w-4xl mx-auto space-y-6 pb-32 px-4">
             
-            {/* API ERROR ALERT */}
+            {/* 1. PREMIUM HEADER SECTION */}
+            <div className="flex justify-between items-end mt-4 px-1">
+                <div>
+                    <h1 className="text-2xl font-black text-white tracking-tight">Market Exposure</h1>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Institutional Grade Execution</p>
+                </div>
+                <div className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-full backdrop-blur-md">
+                    <div className={`w-2 h-2 rounded-full ${liveAutoExec ? 'bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-gray-600'}`}></div>
+                    <span className="text-[10px] font-black text-white uppercase tracking-wider">
+                        {liveAutoExec ? 'Live Engine Active' : 'System Idle'}
+                    </span>
+                </div>
+            </div>
+
+            {/* 2. OVERVIEW CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* BALANCE CARD */}
+                <div className="glass-card p-6 rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent relative group overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-red-600/5 blur-[50px] rounded-full -mr-10 -mt-10 group-hover:bg-red-600/10 transition-all duration-700"></div>
+                    <h3 className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-4">Available Liquidity</h3>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-xl text-gray-400 font-light">₹</span>
+                        <span className="text-4xl font-black text-white tabular-nums tracking-tight">{(balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="mt-4 flex items-center gap-2">
+                        <span className="text-[9px] font-bold text-gray-500 uppercase tracking-tighter bg-white/5 px-2 py-0.5 rounded">Broker: Angel One</span>
+                    </div>
+                </div>
+
+                {/* PNL CARD */}
+                <div className="glass-card p-6 rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.03] to-transparent">
+                    <h3 className="text-[10px] text-gray-400 uppercase font-bold tracking-widest mb-4">Unrealized Performance</h3>
+                    <div className={`text-4xl font-black tabular-nums tracking-tight ${liveTotalPnl >= 0 ? 'text-green-400' : 'text-red-500'}`}>
+                        {liveTotalPnl >= 0 ? '+' : ''}{liveTotalPnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[10px] text-gray-500 mt-4 font-bold uppercase">Real-time valuation</p>
+                </div>
+            </div>
+
+            {/* 3. SESSION ERROR ALERT */}
             <AnimatePresence>
                 {apiError === 'SESSION_EXPIRED' && (
                     <motion.div 
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        className="bg-red-600 text-white p-4 rounded-xl shadow-lg border-2 border-white/20 mb-4 overflow-hidden"
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-red-950/40 border border-red-500/50 p-4 rounded-xl flex items-center justify-between gap-4 backdrop-blur-xl"
                     >
                         <div className="flex items-center gap-4">
-                            <span className="text-3xl">⚠️</span>
-                            <div className="flex-1">
-                                <h4 className="font-black text-sm uppercase">Angel One Session Expired</h4>
-                                <p className="text-[10px] font-bold opacity-90">Your broker connection has timed out. Automated trades will NOT execute until you re-login.</p>
+                            <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-xl shadow-[0_0_20px_rgba(220,38,38,0.4)]">⚠️</div>
+                            <div>
+                                <h4 className="text-white text-sm font-black uppercase tracking-wider">Authentication Required</h4>
+                                <p className="text-[10px] text-red-300 font-bold uppercase opacity-80">Your secure session has expired. Action needed.</p>
                             </div>
-                            <button 
-                                onClick={() => window.location.reload()}
-                                className="bg-white text-red-600 px-4 py-2 rounded-lg font-black text-[10px] uppercase shadow-md active:scale-95 transition-all"
-                            >
-                                Re-Login Now
-                            </button>
                         </div>
+                        <button 
+                            onClick={() => window.location.reload()}
+                            className="bg-white text-black px-4 py-2 rounded-lg font-black text-[10px] uppercase hover:bg-gray-200 transition-all shadow-xl"
+                        >
+                            Reconnect
+                        </button>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* 1. FUNDS & PNL */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="glass-card p-5 rounded-xl border border-red-500/30 shadow-[0_0_30px_rgba(220,38,38,0.1)] relative overflow-hidden">
-                    <div className="relative z-10 flex justify-between items-center">
-                        <div>
-                            <h3 className="text-[10px] text-red-400 uppercase font-bold tracking-widest mb-1">Real Funds</h3>
-                            <div className="text-white flex items-baseline gap-1">
-                                <span className="text-lg">₹</span>
-                                <span className="text-4xl font-black tabular-nums">{(balance || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                            </div>
-                        </div>
-                    </div>
+            {/* 4. EXECUTION CONTROL PANEL */}
+            <div className="glass-card rounded-2xl border border-white/5 overflow-hidden">
+                <div className="p-4 border-b border-white/5 bg-white/[0.02]">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Execution Control</h3>
                 </div>
-
-                <div className="glass-card p-5 rounded-xl border border-red-500/30 flex items-center justify-around">
-                    <div className="text-center">
-                        <div className="text-[10px] text-red-400 uppercase mb-1">Real PnL</div>
-                        <div className={`text-2xl font-black ${liveTotalPnl >= 0 ? 'text-green-400' : 'text-red-500'}`}>
-                            {liveTotalPnl >= 0 ? '+' : ''}{liveTotalPnl.toFixed(2)}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 2. LIVE SETTINGS & CONTROLS */}
-            <h3 className="text-xs font-bold text-red-400 uppercase px-1 mt-4 tracking-widest">Execution Settings</h3>
-            <div className="glass-card p-4 rounded-xl border border-red-500/30 mb-4 space-y-4">
-
-                {/* SETTINGS FORM */}
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Fixed Quantity</label>
-                        <input
-                            type="number"
-                            className="w-full bg-black/30 border border-gray-700 rounded p-2 text-white text-sm font-bold disabled:opacity-50"
-                            value={liveTradeQty}
-                            onChange={(e) => setLiveTradeQty(e.target.value)}
-                            disabled={liveTradeCap > 0}
-                            placeholder="100"
-                        />
-                        {liveTradeCap > 0 && <p className="text-[9px] text-yellow-500 mt-1">Disabled (Using Capital)</p>}
-                    </div>
-                    <div>
-                        <label className="text-[10px] text-gray-400 uppercase font-bold block mb-1">Max Capital (₹) <span className="text-[9px] text-green-500">Auto-Calc Qty</span></label>
-                        <input
-                            type="number"
-                            className="w-full bg-black/30 border border-gray-700 rounded p-2 text-white text-sm font-bold"
-                            value={liveTradeCap}
-                            onChange={(e) => setLiveTradeCap(e.target.value)}
-                            placeholder="0 (Disabled)"
-                        />
-                    </div>
-                </div>
-
-                <button
-                    onClick={handleSaveSettings}
-                    disabled={saveLoading}
-                    className="w-full py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs font-bold text-gray-300 transition-all border border-gray-700"
-                >
-                    {saveLoading ? 'Saving...' : 'SAVE SETTINGS'}
-                </button>
-
-                <div className="h-px bg-red-500/20 my-2"></div>
-
-                {/* MASTER SWITCH */}
-                <div className="flex justify-between items-center gap-4">
-                    <div className="flex-1">
-                        <h3 className="text-xs font-bold text-white mb-1">Master Kill Switch</h3>
-                        <p className="text-[10px] text-gray-400">Controls all automated live execution</p>
-                    </div>
-                    <button
-                        onClick={handleToggleAuto}
-                        className={`px-8 py-3 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg ${liveAutoExec ? 'bg-red-600 text-white animate-pulse' : 'bg-gray-800 text-gray-500 border border-gray-700'}`}
-                    >
-                        {liveAutoExec ? '🔴 LIVE EXECUTION ON' : 'STOPPED'}
-                    </button>
-                </div>
-            </div>
-
-            {/* 3. POSITIONS */}
-            <h3 className="text-xs font-bold text-red-400 uppercase px-1 mt-6 tracking-widest">Open Market Positions</h3>
-            <div className="space-y-3">
-                {processedTrades.length === 0 ? (
-                    <div className="py-12 text-center border-2 border-dashed border-red-500/20 rounded-2xl text-red-400/50 text-sm font-bold">
-                        NO OPEN POSITIONS
-                    </div>
-                ) : (
-                    processedTrades.map(trade => (
-                        <div key={trade.id} onClick={() => setSelectedOrder(trade)} className="bg-black/40 backdrop-blur-md p-4 rounded-xl border-l-4 border-l-red-500 border border-white/5 shadow-lg cursor-pointer">
-                            <div className="flex justify-between items-center">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-black text-lg text-white">{trade.symbol}</span>
-                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${trade.side === 'BUY' ? 'bg-green-900 text-green-400' : 'bg-red-900 text-red-400'}`}>{trade.side}</span>
-                                        <span className="text-[9px] font-bold text-gray-500 border border-gray-700 px-1 rounded">{trade.product}</span>
+                <div className="p-6 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2 tracking-widest">Trade Allocation</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="relative group">
+                                        <input
+                                            type="number"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm font-black focus:outline-none focus:border-red-500/50 transition-all disabled:opacity-30"
+                                            value={liveTradeQty}
+                                            onChange={(e) => setLiveTradeQty(e.target.value)}
+                                            disabled={liveTradeCap > 0}
+                                            placeholder="QTY"
+                                        />
+                                        <span className="absolute right-3 top-3.5 text-[8px] font-black text-gray-600 uppercase">Qty</span>
                                     </div>
-                                    <div className="text-[11px] text-gray-400">
-                                        {trade.quantity} Qty @ {trade.entry_price.toFixed(2)} → {trade.current_price?.toFixed(2)}
+                                    <div className="relative group">
+                                        <input
+                                            type="number"
+                                            className="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-white text-sm font-black focus:outline-none focus:border-red-500/50 transition-all"
+                                            value={liveTradeCap}
+                                            onChange={(e) => setLiveTradeCap(e.target.value)}
+                                            placeholder="CAPITAL"
+                                        />
+                                        <span className="absolute right-3 top-3.5 text-[8px] font-black text-gray-600 uppercase">INR</span>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className={`text-xl font-black tabular-nums ${trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                                    </div>
-                                </div>
+                                {liveTradeCap > 0 && <p className="text-[9px] text-yellow-500/70 mt-2 font-bold uppercase italic">Dynamic quantity based on capital allocation</p>}
                             </div>
+                            <button
+                                onClick={handleSaveSettings}
+                                disabled={saveLoading}
+                                className="w-full py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all border border-white/10 active:scale-95"
+                            >
+                                {saveLoading ? 'Synchronizing...' : 'Sychronize Configuration'}
+                            </button>
                         </div>
-                    ))
-                )}
+
+                        <div className="flex flex-col justify-between bg-black/40 p-5 rounded-2xl border border-white/5">
+                            <div>
+                                <h4 className="text-white text-xs font-black uppercase mb-1 tracking-wider">Master Execution Switch</h4>
+                                <p className="text-[10px] text-gray-500 font-medium">When active, the system will execute real market orders based on strategy signals.</p>
+                            </div>
+                            <button
+                                onClick={handleToggleAuto}
+                                className={`w-full mt-4 py-4 rounded-xl font-black text-xs uppercase tracking-[0.2em] transition-all relative overflow-hidden group ${liveAutoExec ? 'bg-red-600 text-white shadow-[0_10px_30px_rgba(220,38,38,0.3)]' : 'bg-gray-800 text-gray-500'}`}
+                            >
+                                <span className="relative z-10">{liveAutoExec ? 'Live Trading Active' : 'Go Live'}</span>
+                                {liveAutoExec && (
+                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]"></div>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* MODAL */}
+            {/* 5. POSITIONS LIST */}
+            <div>
+                <div className="flex items-center justify-between px-1 mb-4">
+                    <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Open Market Exposure</h3>
+                    <span className="text-[10px] font-bold text-gray-600 uppercase">{processedTrades.length} Positions</span>
+                </div>
+                
+                <div className="space-y-3">
+                    {processedTrades.length === 0 ? (
+                        <div className="py-20 text-center border border-white/5 rounded-3xl bg-black/20 flex flex-col items-center justify-center gap-2">
+                            <div className="text-4xl opacity-10">📉</div>
+                            <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest">No Active Market Exposure</p>
+                        </div>
+                    ) : (
+                        processedTrades.map(trade => (
+                            <motion.div 
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                key={trade.id} 
+                                onClick={() => setSelectedOrder(trade)} 
+                                className="glass-card p-5 rounded-2xl border border-white/5 hover:border-white/10 bg-black/40 cursor-pointer group"
+                            >
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-xs ${trade.side === 'BUY' ? 'bg-green-950/40 text-green-500 border border-green-500/20' : 'bg-red-950/40 text-red-500 border border-red-500/20'}`}>
+                                            {trade.side === 'BUY' ? 'LONG' : 'SHRT'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-black text-lg text-white leading-none mb-1">{trade.symbol}</h4>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[11px] text-gray-400 font-bold tabular-nums">
+                                                    {trade.quantity} @ ₹{trade.entry_price.toFixed(2)}
+                                                </span>
+                                                <span className="w-1 h-1 bg-gray-700 rounded-full"></span>
+                                                <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{trade.product}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className={`text-2xl font-black tabular-nums tracking-tighter ${trade.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                                        </div>
+                                        <div className="text-[10px] font-bold text-gray-500 uppercase">Live PnL</div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))
+                    )}
+                </div>
+            </div>
+
+            {/* 6. MODAL OVERLAY */}
             <AnimatePresence>
                 {selectedOrder && (
-                    <div className="fixed inset-0 bg-black/95 flex items-center justify-center p-4 z-[100] backdrop-blur-sm" onClick={() => setSelectedOrder(null)}>
+                    <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-[100] backdrop-blur-md" onClick={() => setSelectedOrder(null)}>
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            className="bg-gray-900 w-full max-w-sm rounded-3xl p-6 border border-red-500/30 shadow-[0_0_50px_rgba(220,38,38,0.2)]"
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="bg-zinc-900 w-full max-w-sm rounded-[2rem] p-8 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
                             onClick={e => e.stopPropagation()}
                         >
-                            <h2 className="text-2xl font-black text-white mb-2">{selectedOrder.symbol}</h2>
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Entry</span>
-                                    <span className="font-bold text-white">₹{selectedOrder.entry_price.toFixed(2)}</span>
+                            <div className="flex flex-col items-center text-center mb-8">
+                                <div className={`px-4 py-1 rounded-full text-[9px] font-black uppercase mb-3 ${selectedOrder.side === 'BUY' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                                    {selectedOrder.side === 'BUY' ? 'Long Position' : 'Short Position'}
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-gray-400">Current</span>
-                                    <span className="font-bold text-white">₹{selectedOrder.current_price?.toFixed(2)}</span>
+                                <h2 className="text-4xl font-black text-white tracking-tighter">{selectedOrder.symbol}</h2>
+                                <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.2em] mt-2">Active Execution</p>
+                            </div>
+
+                            <div className="space-y-4 bg-black/40 p-6 rounded-2xl border border-white/5">
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-500 font-bold uppercase tracking-wider">Entry Avg</span>
+                                    <span className="font-black text-white tabular-nums">₹{selectedOrder.entry_price.toFixed(2)}</span>
                                 </div>
-                                <div className="flex justify-between text-lg border-t border-white/10 pt-2">
-                                    <span className="text-gray-400 font-bold">PnL</span>
-                                    <span className={`font-black ${selectedOrder.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                        {selectedOrder.pnl >= 0 ? '+' : ''}{selectedOrder.pnl.toFixed(2)}
+                                <div className="flex justify-between items-center text-xs">
+                                    <span className="text-gray-500 font-bold uppercase tracking-wider">Last Price</span>
+                                    <span className="font-black text-white tabular-nums">₹{selectedOrder.current_price?.toFixed(2)}</span>
+                                </div>
+                                <div className="h-px bg-white/5"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-500 font-black uppercase text-[10px] tracking-widest">Net Realization</span>
+                                    <span className={`text-2xl font-black tabular-nums tracking-tighter ${selectedOrder.pnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                        {selectedOrder.pnl >= 0 ? '+' : ''}{selectedOrder.pnl.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                                     </span>
                                 </div>
-
-                                <button
-                                    onClick={() => { handleClosePosition(selectedOrder); setSelectedOrder(null); }}
-                                    className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase text-sm mt-4 shadow-lg shadow-red-600/30"
-                                >
-                                    SQUARE OFF (MARKET)
-                                </button>
                             </div>
+
+                            <button
+                                onClick={() => { handleClosePosition(selectedOrder); setSelectedOrder(null); }}
+                                className="w-full py-5 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] mt-8 shadow-[0_10px_30px_rgba(220,38,38,0.3)] transition-all active:scale-95"
+                            >
+                                Liquidate Position
+                            </button>
+                            
+                            <button 
+                                onClick={() => setSelectedOrder(null)}
+                                className="w-full mt-4 py-3 text-gray-500 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
+                            >
+                                Dismiss
+                            </button>
                         </motion.div>
                     </div>
                 )}

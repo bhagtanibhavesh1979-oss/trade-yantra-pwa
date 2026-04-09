@@ -1,0 +1,91 @@
+Session: fe856cec
+Found 0 Havells alerts.
+Session: 5e63c927
+Found 0 Havells alerts.
+Session: e89b7208
+Found 0 Havells alerts.
+Session: e3085fdb
+Found 0 Havells alerts.
+Session: 057a06b9
+Found 0 Havells alerts.
+Session: 2e94802c
+Found 0 Havells alerts.
+Session: d0614869
+Found 0 Havells alerts.
+Session: ffe2d438
+Found 0 Havells alerts.
+Session: 3007bb84
+Found 0 Havells alerts.
+Session: 7fc01b2b
+Found 0 Havells alerts.
+Session: 3d9a28b9
+Found 0 Havells alerts.
+Session: 9611fc3f
+Found 0 Havells alerts.
+Session: d9e94f8d
+Found 0 Havells alerts.
+Session: 33c87081
+Found 0 Havells alerts.
+Session: e2bc9b70
+Found 0 Havells alerts.
+Session: f1610de1
+Found 0 Havells alerts.
+Session: d034b8e4
+Found 0 Havells alerts.
+Session: dd2619a8
+Found 0 Havells alerts.
+Session: a135b8b3
+Found 0 Havells alerts.
+Session: 8b0c6c49
+Found 0 Havells alerts.
+Session: 71f4d114
+Found 0 Havells alerts.
+Session: d5b28848
+Found 0 Havells alerts.
+Session: eeee1db0
+Found 0 Havells alerts.
+Session: 0373dfc2
+Found 0 Havells alerts.
+Session: c21ffd1b
+Found 0 Havells alerts.
+Session: ff6b8ccd
+Found 0 Havells alerts.
+Session: 36eba1be
+Found 0 Havells alerts.
+Session: fdbd7d3e
+Found 0 Havells alerts.
+Session: 1edfa734
+Found 0 Havells alerts.
+Session: 26dcde48
+Found 0 Havells alerts.
+Session: 8783bde4
+Found 0 Havells alerts.
+Session: 86801c97
+Found 0 Havells alerts.
+Session: c2cbc452
+Found 0 Havells alerts.
+Session: c045da5a
+Found 0 Havells alerts.
+Session: 302bd237
+Found 0 Havells alerts.
+Session: 145ca979
+Found 0 Havells alerts.
+Session: 9abfb551
+Found 0 Havells alerts.
+Session: dbbcc9b4
+Found 15 Havells alerts.
+Type: AUTO_TGT_L6, Price: 1184.0, Condition: BELOW, Active: True
+Type: AUTO_TGT_L5, Price: 1208.95, Condition: BELOW, Active: True
+Type: AUTO_TGT_L4, Price: 1233.9, Condition: BELOW, Active: True
+Type: AUTO_TGT_L3, Price: 1258.85, Condition: BELOW, Active: True
+Type: AUTO_TGT_L2, Price: 1283.8, Condition: BELOW, Active: True
+Type: AUTO_TGT_L1, Price: 1308.75, Condition: BELOW, Active: True
+Type: AUTO_RANGE_LOW, Price: 1333.7, Condition: BELOW, Active: True
+Type: AUTO_MIDPOINT, Price: 1358.65, Condition: ABOVE, Active: True
+Type: AUTO_RANGE_HIGH, Price: 1383.6, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H1, Price: 1408.55, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H2, Price: 1433.5, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H3, Price: 1458.45, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H4, Price: 1483.4, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H5, Price: 1508.35, Condition: ABOVE, Active: True
+Type: AUTO_TGT_H6, Price: 1533.3, Condition: ABOVE, Active: True

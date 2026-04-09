@@ -6,6 +6,7 @@ import uuid
 from typing import Dict, Optional
 from datetime import datetime
 import threading
+import time
 from services.persistence_service import persistence_service
 
 class Session:
@@ -182,15 +183,18 @@ class SessionManager:
                                     
                                     if self.refresh_session_tokens(session_id):
                                         print(f"[OK] [BOOT] Tokens refreshed for {session.client_id}")
+                                        self.sessions[session_id] = session
                                     else:
-                                        print(f"[ERR] [BOOT] Refresh failed for {session.client_id}. Re-login required.")
+                                        print(f"[ERR] [BOOT] Refresh failed for {session.client_id}. Removing dead session.")
+                                        # Do NOT add to self.sessions
                             except Exception as api_err:
                                 err_msg = str(api_err)
                                 print(f"[WARN] [BOOT] Token check error for {session.client_id}: {err_msg}. Trying refresh...")
                                 if self.refresh_session_tokens(session_id):
                                     print(f"[OK] [BOOT] Recovered {session.client_id} via refresh.")
+                                    self.sessions[session_id] = session
                                 else:
-                                    print(f"[ERR] [BOOT] Could not recover {session.client_id}.")
+                                    print(f"[ERR] [BOOT] Could not recover {session.client_id}. Removing.")
                             
                     except Exception as e:
                         print(f"[ERR] [BOOT] Failed to load session {session_id[:8]}: {e}")
@@ -225,11 +229,25 @@ class SessionManager:
                     print(f"[WARN] [BOOT] History sync error (non-fatal): {sync_err}")
                 # -----------------------------------------------
                 
+            # -----------------------------------------------
+                
                 # Restore Live Trading Master Switch if ANY session has it enabled
                 from services.live_service import live_service
-                if any(getattr(s, 'auto_live_trade', False) for s in self.sessions.values()):
-                    live_service.toggle_live_trading(True)
-                    print("[WARN] [BOOT] Live Trading Master Switch RESTORED to ON")
+                from services.websocket_manager import ws_manager
+                
+                has_active_auto = False
+                for s in self.sessions.values():
+                    if getattr(s, 'auto_live_trade', False):
+                        live_service.toggle_live_trading(True)
+                        print("[WARN] [BOOT] Live Trading Master Switch RESTORED to ON")
+                    
+                    if getattr(s, 'auto_live_trade', False) or getattr(s, 'auto_paper_trade', False):
+                        has_active_auto = True
+                
+                # If any active session exists, kickstart the heartbeat for background strategy
+                if has_active_auto:
+                    print("[BOOT] Active auto-trading sessions found. Kickstarting Strategy Heartbeat...")
+                    ws_manager.ensure_heartbeat()
             else:
                 print("[INFO] [BOOT] No sessions found on disk.")
         except Exception as e:
@@ -259,7 +277,8 @@ class SessionManager:
             existing_sids = [sid for sid, s in self.sessions.items() if s.client_id == client_id]
         
         for old_sid in existing_sids:
-            print(f" [SESSION] Cleaning up old session {old_sid[:8]} for client {client_id}")
+            print(f" [SESSION] [PURGE] Wiping old Zombie session {old_sid[:8]} for client {client_id}")
+            self.stop_session_automation(old_sid) # NEW: Explicitly stop threads
             self.delete_session(old_sid)
 
         existing_data = persistence_service.get_session_by_client(client_id)
@@ -378,6 +397,19 @@ class SessionManager:
                 except Exception as e:
                     print(f"[ERROR] Failed to re-initialize SmartAPI: {e}")
 
+            # --- CRITICAL RECOVERY: Restart WebSocket Stream ---
+            # If we recovered from disk, the background data flow is dead.
+            # We must restart it immediately so strategy doesn't skip this session.
+            # We add a small delay to let any previous process release its socket.
+            from services.websocket_manager import ws_manager
+            try:
+                print(f"[RECOVERY] [OK] Delaying 3s for connection stability...")
+                time.sleep(3)
+                print(f"[RECOVERY] [OK] Triggering background WebSocket restart for {session.client_id}...")
+                ws_manager.start_websocket(session)
+            except Exception as wse:
+                print(f"[ERR] [RECOVERY] Failed to restart WebSocket for {session.client_id}: {wse}")
+
             return session
         
         return None
@@ -421,18 +453,22 @@ class SessionManager:
             
         return False
 
+    def stop_session_automation(self, session_id: str):
+        """Explicitly stop background tasks for a session without deleting data"""
+        from services.websocket_manager import ws_manager
+        ws_manager.stop_websocket(session_id)
+        print(f" [SESSION] [AUTO-STOP] Stopped automation for {session_id[:8]}")
+
     def delete_session(self, session_id: str) -> bool:
         """Delete a session - Clears all background tasks"""
-        from services.websocket_manager import ws_manager
-        
         # Ensure WebSocket is closed before deleting session
         # This prevents 429 "Connection Limit Exceeded" errors
-        ws_manager.stop_websocket(session_id)
+        self.stop_session_automation(session_id)
         
         with self.lock:
             if session_id in self.sessions:
                 del self.sessions[session_id]
-                print(f" [SESSION] Deleted and WebSocket stopped for {session_id[:8]}")
+                print(f" [SESSION] Deleted and memory cleared for {session_id[:8]}")
                 return True
             return False
 
