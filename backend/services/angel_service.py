@@ -392,27 +392,8 @@ class AngelService:
                 print(f"[OK] {len(self.scrips)} symbols loaded from local file (including cores).")
                 return
 
-            # 2. Try GCS if local missing
-            bucket_name = os.getenv("GCS_BUCKET_NAME")
-            if bucket_name:
-                try:
-                    from google.cloud import storage
-                    client = storage.Client()
-                    bucket = client.bucket(bucket_name)
-                    blob = bucket.blob("scripmaster.json")
-                    if blob.exists():
-                        print("[INFO] Downloading Scrip Master from GCS...")
-                        blob.download_to_filename(SCRIPMASTER_FILE)
-                        with open(SCRIPMASTER_FILE, 'r', encoding='utf-8') as f:
-                            self.scrips = json.load(f)
-                        self.master_loaded = True
-                        print(f"[OK] Loaded {len(self.scrips)} symbols from GCS.")
-                        return
-                except Exception as ge:
-                    print(f"[WARN] GCS Scrip Master check failed: {ge}")
-
-            # 3. Remote Download if both missing
-            print("[INFO] Local and GCS cache missing, downloading from Angel One...")
+            # 2. Remote Download if local missing
+            print("[INFO] Local cache missing, downloading from Angel One...")
             r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=15)
             data = r.json()
             
@@ -436,14 +417,6 @@ class AngelService:
             with open(SCRIPMASTER_FILE, 'w', encoding='utf-8') as f:
                 json.dump(self.scrips, f)
             
-            # Sync to GCS
-            if bucket_name:
-                try:
-                    blob.upload_from_filename(SCRIPMASTER_FILE)
-                    print(f"[INFO] Synced Scrip Master to GCS bucket: {bucket_name}")
-                except Exception as ue:
-                    print(f"[ERROR] GCS Scrip Upload failed: {ue}")
-
             self.master_loaded = True
             print(f"[OK] Downloaded and cached {len(self.scrips)} symbols.")
             
@@ -505,70 +478,66 @@ class AngelService:
             # Ensure quantity is integer
             if 'quantity' in order_params:
                 order_params['quantity'] = str(int(float(order_params['quantity'])))
-                
-            print(f"[EXEC] [LIVE] Placing Order with params: {order_params}")
             
-            # CRITICAL FIX: The variety (NORMAL/STOPLOSS) must be passed as the first argument
-            # to the smart_api.placeOrder method to form the correct request URL.
-            variety = order_params.pop("variety", "NORMAL")
-            response = smart_api.placeOrder(variety, order_params)
-            
-            print(f"DEBUG: [ANGEL] Raw placeOrder Response: {response} (Type: {type(response)})")
-            
-            # Handle standard "orderid" string return
+            # SDK v1.5.5 FIX: placeOrder(self, orderparams) takes ONE argument only.
+            # 'variety' must remain INSIDE the params dict — do NOT pop it as a separate arg.
+            if "variety" not in order_params:
+                order_params["variety"] = "NORMAL"
+
+            print(f"[EXEC] [LIVE] Placing Order: {order_params.get('tradingsymbol')} | {order_params.get('transactiontype')} x {order_params.get('quantity')} | {order_params.get('ordertype')} @ {order_params.get('price')} | variety={order_params.get('variety')}")
+
+            response = smart_api.placeOrder(order_params)
+
+            print(f"DEBUG: [ANGEL] Raw placeOrder Response: {response!r} (Type: {type(response).__name__})")
+
+            # SDK returns the order ID string directly on success
             if isinstance(response, str) and len(response) > 0:
-                print(f"[OK] [LIVE] Order Placed: {response}")
+                print(f"[OK] [LIVE] Order Placed Successfully: OrderID={response}")
                 return response
 
-            # Handle Dictionary Return (common in error cases or some versions)
+            # Handle Dictionary Return (some SDK versions / error paths)
             if isinstance(response, dict):
-                # Check for explicit False status
                 if response.get('status') is False:
                     msg = response.get('message', 'Unknown Error')
                     code = response.get('errorcode', '')
+                    print(f"[ERR] [ANGEL] placeOrder rejected: {msg} (code={code})")
                     if code in ["AG8001", "AG8002", "AB1012"]:
-                        print(f"[WARN] [ANGEL] Token Expired in place_order: {code}")
                         raise TokenExpiredException(f"Token expired: {code}")
-                    raise Exception(f"{msg} ({code})")
-                
-                # Check for Success Data
+                    raise Exception(f"{msg} (code={code})")
+
                 if response.get('data') and 'orderid' in response['data']:
                     oid = response['data']['orderid']
-                    print(f"[OK] [LIVE] Order Placed (from dict): {oid}")
+                    print(f"[OK] [LIVE] Order Placed (dict path): OrderID={oid}")
                     return oid
-                
-                # Check for 'orderid' at root (some variations)
+
                 if 'orderid' in response:
                     return response['orderid']
 
-            # If we got here and response is not None, it's ambiguous
             if response:
-                print(f"[WARN] [LIVE] Ambiguous Response: {response}")
+                print(f"[WARN] [LIVE] Ambiguous placeOrder Response: {response!r}")
                 return str(response)
-                
-            # --- DEEP DIAGNOSTIC ON EMPTY RESPONSE ---
-            print("🛑 [CRITICAL] BROKER RETURNED EMPTY RESPONSE")
-            print(f"DEBUG: Symbol: {order_params.get('tradingsymbol')} [{order_params.get('symboltoken')}]")
-            print(f"DEBUG: Params: {json.dumps(order_params, indent=2)}")
-            # Attempt to probe the SDK instance state
-            try:
-                print(f"DEBUG: SDK State: User={getattr(smart_api, 'userId', 'None')}")
-            except: pass
-            
-            raise Exception("Broker returned empty response")
+
+            # SDK returned None — means the API call failed internally
+            print("[CRITICAL] Broker returned None/empty response.")
+            print(f"[DEBUG] Order params sent: {json.dumps(order_params, indent=2)}")
+            print(f"[DEBUG] SDK User: {getattr(smart_api, 'userId', 'UNKNOWN')}")
+            raise Exception("Broker returned empty response — check VPS static IP whitelist and session validity")
 
         except Exception as e:
-            print(f"[ERR] [LIVE] Place Order Error: {e}")
-            raise e # Re-raise to let live_service log the specific error
+            print(f"[ERR] [LIVE] Place Order Exception: {e}")
+            raise e
 
     def modify_order(self, smart_api: SmartConnect, order_params: Dict) -> Optional[Dict]:
         """
         Modify a pending order
+        SDK v1.5.5: modifyOrder(self, orderparams) — variety stays inside the dict.
         """
         try:
-            variety = order_params.pop("variety", "NORMAL")
-            print(f" [LIVE] Modifying {variety} Order: {order_params}")
-            response = smart_api.modifyOrder(variety, order_params)
+            if "variety" not in order_params:
+                order_params["variety"] = "NORMAL"
+            print(f"[LIVE] Modifying Order: {order_params.get('orderid')} variety={order_params.get('variety')}")
+            response = smart_api.modifyOrder(order_params)
+            print(f"DEBUG: modifyOrder Response: {response!r}")
             return response
         except Exception as e:
             print(f"[ERR] [LIVE] Modify Order Error: {e}")

@@ -63,6 +63,10 @@ def login(req: LoginRequest):
     )
     session.refresh_token = tokens['refresh_token']
     session.smart_api = smart_api
+    # Store credentials in-memory ONLY (never written to disk) for auto daily re-login at 9 AM IST
+    session._password = req.password
+    session._totp_secret = req.totp_secret
+    print(f"[OK] Credentials cached in-memory for {req.client_id} — auto re-login enabled.")
     
     create_time = time.time() - create_start
     print(f"==> Session creation took {create_time:.2f}s")

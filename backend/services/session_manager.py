@@ -4,7 +4,7 @@ Sessions are cleared on server restart
 """
 import uuid
 from typing import Dict, Optional
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import threading
 import time
 from services.persistence_service import persistence_service
@@ -19,6 +19,10 @@ class Session:
         self.data_api_key = data_api_key or api_key # Fallback to main key
         self.refresh_token = None
         self.smart_api = None  # Authenticated SmartConnect instance
+        # --- CREDENTIALS FOR AUTO DAILY RE-LOGIN ---
+        # Stored so the backend can self-heal every morning at 9 AM IST
+        self._password = None       # PIN/password
+        self._totp_secret = None    # TOTP base32 secret
         self.watchlist = []  # List of {symbol, token, exch_seg, ltp, wc}
         self.alerts = []  # List of {id, symbol, token, condition, price, active}
         self.logs = []  # List of {time, symbol, msg}
@@ -62,6 +66,36 @@ class SessionManager:
         self._active_saves = set()
         self._pending_saves = set()
         self._load_from_disk()
+        self._start_daily_scheduler()
+
+    def _start_daily_scheduler(self):
+        """Start background thread that re-logs in all sessions at 9:00 AM IST daily.
+        Uses only built-in Python modules (threading + datetime) — no extra packages needed.
+        """
+        def _seconds_until_next_9am_ist():
+            """Calculate seconds until the next 9:00 AM IST (UTC+5:30)."""
+            ist_offset = timedelta(hours=5, minutes=30)
+            now_ist = datetime.now(timezone.utc) + ist_offset
+            target = now_ist.replace(hour=9, minute=0, second=0, microsecond=0)
+            if now_ist >= target:
+                # Already past 9 AM today — schedule for tomorrow
+                target += timedelta(days=1)
+            return (target - now_ist).total_seconds()
+
+        def _run_scheduler():
+            print("[SCHEDULER] Daily re-login scheduler started. Fires at 09:00 AM IST every day.")
+            while True:
+                wait_secs = _seconds_until_next_9am_ist()
+                hrs = int(wait_secs // 3600)
+                mins = int((wait_secs % 3600) // 60)
+                print(f"[SCHEDULER] Next auto re-login in {hrs}h {mins}m (at 09:00 AM IST).")
+                time.sleep(wait_secs)
+                self.daily_relogin_all()
+
+        t = threading.Thread(target=_run_scheduler, daemon=True, name="DailyReloginScheduler")
+        t.start()
+        print("[SCHEDULER] Background scheduler thread started.")
+
 
     def _load_from_disk(self):
         """Load all sessions from disk into memory on startup"""
@@ -415,43 +449,85 @@ class SessionManager:
         return None
 
     def refresh_session_tokens(self, session_id: str) -> bool:
-        """Attempt to refresh tokens for a session using its refresh token"""
+        """Attempt to refresh tokens. Falls back to full re-login if refresh fails."""
         session = self.get_session(session_id)
-        if not session or not session.refresh_token:
+        if not session:
             return False
-            
-        print(f"[REFRESH] [REFRESH] Attempting token refresh for {session.client_id}...")
+
         from services.angel_service import angel_service
         from SmartApi import SmartConnect
-        
-        try:
-            # We need a SmartConnect instance to call renewAccessToken
-            # If the session doesn't have one, create a temporary one
-            api = session.smart_api
-            if not api:
-                api = SmartConnect(api_key=session.api_key)
-                # VERY IMPORTANT: Angel API requirements for token renewal:
-                # 1. Authorization header MUST contain the EXPIRED jwt_token
-                # 2. Body MUST contain the valid refresh_token
-                api.setAccessToken(session.jwt_token)
-                api.setRefreshToken(session.refresh_token)
-                
-            new_tokens = angel_service.refresh_access_token(api, session.refresh_token)
-            if new_tokens:
-                session.update_tokens(
-                    jwt_token=new_tokens['jwt_token'],
-                    feed_token=new_tokens['feed_token'],
-                    refresh_token=new_tokens['refresh_token']
+
+        # --- STEP 1: Try token refresh (fast path) ---
+        if session.refresh_token:
+            print(f"[REFRESH] Attempting token refresh for {session.client_id}...")
+            try:
+                api = session.smart_api
+                if not api:
+                    api = SmartConnect(api_key=session.api_key)
+                    api.setAccessToken(session.jwt_token)
+                    api.setRefreshToken(session.refresh_token)
+
+                new_tokens = angel_service.refresh_access_token(api, session.refresh_token)
+                if new_tokens:
+                    session.update_tokens(
+                        jwt_token=new_tokens['jwt_token'],
+                        feed_token=new_tokens['feed_token'],
+                        refresh_token=new_tokens['refresh_token']
+                    )
+                    self.save_session(session_id)
+                    print(f"[OK] [REFRESH] Tokens renewed for {session.client_id}")
+                    return True
+                else:
+                    print(f"[WARN] [REFRESH] Token refresh returned empty for {session.client_id}. Trying full re-login...")
+            except Exception as e:
+                print(f"[WARN] [REFRESH] Refresh error for {session.client_id}: {e}. Trying full re-login...")
+
+        # --- STEP 2: Full re-login using stored credentials (safe fallback) ---
+        if session._password and session._totp_secret:
+            print(f"[REFRESH] [RELOGIN] Attempting full re-login for {session.client_id}...")
+            try:
+                success, message, smart_api, tokens = angel_service.login(
+                    session.api_key,
+                    session.client_id,
+                    session._password,
+                    session._totp_secret
                 )
-                self.save_session(session_id)
-                print(f"[OK] [REFRESH] Tokens renewed successfully for {session.client_id}")
-                return True
-            else:
-                print(f"[ERR] [REFRESH] Token renewal failed for {session.client_id}")
-        except Exception as e:
-            print(f"[ERR] [REFRESH] Error during refresh: {e}")
-            
+                if success and tokens:
+                    session.smart_api = smart_api
+                    session.update_tokens(
+                        jwt_token=tokens['jwt_token'],
+                        feed_token=tokens['feed_token'],
+                        refresh_token=tokens['refresh_token']
+                    )
+                    self.save_session(session_id)
+                    print(f"[OK] [RELOGIN] Full re-login successful for {session.client_id}")
+                    return True
+                else:
+                    print(f"[ERR] [RELOGIN] Re-login failed for {session.client_id}: {message}")
+            except Exception as e:
+                print(f"[ERR] [RELOGIN] Re-login crashed for {session.client_id}: {e}")
+        else:
+            print(f"[ERR] [REFRESH] No credentials stored for {session.client_id}. Cannot auto re-login. User must log in manually.")
+
         return False
+
+    def daily_relogin_all(self):
+        """Called automatically at 9:00 AM IST to refresh all sessions before market opens."""
+        print("[SCHEDULER] [DAILY] 9:00 AM IST - Running daily re-login for all sessions...")
+        sessions_copy = self.get_all_sessions()
+        success_count = 0
+        for session_id, session in sessions_copy.items():
+            if session._password and session._totp_secret:
+                print(f"[SCHEDULER] Re-logging in {session.client_id}...")
+                ok = self.refresh_session_tokens(session_id)
+                if ok:
+                    success_count += 1
+                    print(f"[SCHEDULER] [OK] {session.client_id} re-logged in successfully.")
+                else:
+                    print(f"[SCHEDULER] [ERR] {session.client_id} re-login failed. Manual login required.")
+            else:
+                print(f"[SCHEDULER] [SKIP] {session.client_id} — no stored credentials (login once manually to enable auto re-login).")
+        print(f"[SCHEDULER] [DAILY] Done. {success_count}/{len(sessions_copy)} sessions refreshed.")
 
     def stop_session_automation(self, session_id: str):
         """Explicitly stop background tasks for a session without deleting data"""
