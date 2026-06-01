@@ -1,16 +1,34 @@
 const getWebSocketUrl = () => {
     // 1. Detective work based on location (Highest priority for local dev)
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const hostname = window.location.hostname;
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
     if (isLocal) return 'ws://127.0.0.1:8002';
 
-    // 2. Prioritize environment variable for cloud/custom deployments
+    // 2. Detect local network IPs (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x) for local mobile testing
+    const isLocalIp = hostname.startsWith('192.168.') || 
+                      hostname.startsWith('10.') || 
+                      (hostname.startsWith('172.') && (() => {
+                          const parts = hostname.split('.');
+                          if (parts.length >= 2) {
+                              const sec = parseInt(parts[1], 10);
+                              return sec >= 16 && sec <= 31;
+                          }
+                          return false;
+                      })());
+                      
+    if (isLocalIp) {
+        return `ws://${hostname}:8002`;
+    }
+
+    // 3. Prioritize environment variable for cloud/custom deployments
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) {
         return envUrl.replace(/^https:/, 'wss:').replace(/^http:/, 'ws:');
     }
 
-    // Default Fallback (VPS Node)
-    return 'ws://5.231.93.235:8002';
+    // 4. Default Fallback: Unified secure WebSocket path via Caddy (wss://tradeyantra.co.in)
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProtocol}//${window.location.host}`;
 };
 
 const WS_BASE_URL = getWebSocketUrl();
