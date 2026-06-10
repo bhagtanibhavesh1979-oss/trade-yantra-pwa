@@ -7,11 +7,21 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
 
-    // Initialize state, checking localStorage for blueprint_date
+    // Blueprint date range stored in localStorage
+    const savedBpStart = localStorage.getItem('bp_start_date') || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const savedBpEnd   = localStorage.getItem('bp_end_date')   || savedBpStart;
+
     const [params, setParams] = useState({
         token: '',
         symbol: '',
-        blueprint_date: localStorage.getItem('blueprint_date') || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Use saved date or default to yesterday
+        // Blueprint date range (new)
+        blueprint_start_date: savedBpStart,
+        blueprint_end_date:   savedBpEnd,
+        blueprint_start_time: '09:15',
+        blueprint_end_time:   '15:30',
+        // Legacy single-date (kept for backward compat)
+        blueprint_date: savedBpStart,
+        // Simulation range
         start_date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         end_date: new Date().toISOString().split('T')[0],
         interval: 'FIFTEEN_MINUTE',
@@ -117,22 +127,58 @@ const BacktestTab = ({ clientId, sessionId, watchlist }) => {
                     
                     <div className="space-y-6 pt-4 animate-in fade-in duration-300">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Blueprint Date */ }
-                    <div className="bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/20">
-                        <label className="text-[10px] uppercase font-bold text-indigo-400 mb-2 block flex items-center gap-1">
-                            <span>📅 Blueprint Reference Date</span>
-                            <span className="text-[8px] bg-indigo-500/20 px-1 rounded text-indigo-300">SYSTEM USES H/L OF THIS DAY</span>
+                            {/* Blueprint Date Range */}
+                    <div className="md:col-span-2 bg-indigo-500/5 p-4 rounded-xl border border-indigo-500/20">
+                        <label className="text-[10px] uppercase font-bold text-indigo-400 mb-3 flex items-center gap-2">
+                            <span>📅 Blueprint Reference Range</span>
+                            <span className="text-[8px] bg-indigo-500/20 px-1.5 py-0.5 rounded text-indigo-300">SYSTEM USES H/L OF THIS RANGE</span>
                         </label>
-                        <input
-                            type="date"
-                            className="w-full bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 text-sm"
-                            value={params.blueprint_date}
-                            onChange={(e) => {
-                                const newDate = e.target.value;
-                                localStorage.setItem('blueprint_date', newDate);
-                                setParams(prev => ({ ...prev, blueprint_date: newDate }));
-                            }}
-                        />
+                        <div className="grid grid-cols-2 gap-3">
+                            {/* Start */}
+                            <div>
+                                <p className="text-[9px] font-bold text-indigo-300/60 uppercase mb-1">Start Date &amp; Time</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="date"
+                                        className="flex-1 bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 text-xs"
+                                        value={params.blueprint_start_date}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            localStorage.setItem('bp_start_date', v);
+                                            setParams(prev => ({ ...prev, blueprint_start_date: v, blueprint_date: v }));
+                                        }}
+                                    />
+                                    <input
+                                        type="time"
+                                        className="w-24 bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-2 py-2 outline-none focus:border-indigo-500 text-xs"
+                                        value={params.blueprint_start_time}
+                                        onChange={(e) => setParams(prev => ({ ...prev, blueprint_start_time: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                            {/* End */}
+                            <div>
+                                <p className="text-[9px] font-bold text-indigo-300/60 uppercase mb-1">End Date &amp; Time</p>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="date"
+                                        className="flex-1 bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-3 py-2 outline-none focus:border-indigo-500 text-xs"
+                                        value={params.blueprint_end_date}
+                                        onChange={(e) => {
+                                            const v = e.target.value;
+                                            localStorage.setItem('bp_end_date', v);
+                                            setParams(prev => ({ ...prev, blueprint_end_date: v }));
+                                        }}
+                                    />
+                                    <input
+                                        type="time"
+                                        className="w-24 bg-[var(--bg-secondary)] border border-indigo-500/30 rounded-xl px-2 py-2 outline-none focus:border-indigo-500 text-xs"
+                                        value={params.blueprint_end_time}
+                                        onChange={(e) => setParams(prev => ({ ...prev, blueprint_end_time: e.target.value }))}
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Simulation Range */}

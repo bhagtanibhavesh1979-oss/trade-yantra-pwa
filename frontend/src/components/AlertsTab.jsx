@@ -22,8 +22,8 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
             if (saved) {
                 const settings = JSON.parse(saved);
                 return {
-                    date: settings.date || new Date().toISOString().split('T')[0],
-                    isCustomRange: settings.isCustomRange || false,
+                    startDate: settings.startDate || new Date().toISOString().split('T')[0],
+                    endDate: settings.endDate || new Date().toISOString().split('T')[0],
                     startTime: settings.startTime || '09:15',
                     endTime: settings.endTime || '15:30',
                     selectedLevels: settings.selectedLevels || ['High', 'Low', 'M', 'R1', 'S1']
@@ -32,9 +32,10 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
         } catch (e) {
             console.error('Failed to load saved settings:', e);
         }
+        const todayStr = new Date().toISOString().split('T')[0];
         return {
-            date: new Date().toISOString().split('T')[0],
-            isCustomRange: false,
+            startDate: todayStr,
+            endDate: todayStr,
             startTime: '09:15',
             endTime: '15:30',
             selectedLevels: ['High', 'Low', 'M', 'R1', 'S1']
@@ -60,22 +61,31 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
         }
     }, [preSelectedSymbol]);
 
-    const [isCustomRange, setIsCustomRange] = useState(savedSettings.isCustomRange);
+    const [startDate, setStartDate] = useState(savedSettings.startDate || referenceDate);
+    const [endDate, setEndDate] = useState(savedSettings.endDate || referenceDate);
     const [startTime, setStartTime] = useState(savedSettings.startTime);
     const [endTime, setEndTime] = useState(savedSettings.endTime);
     const [selectedLevels, setSelectedLevels] = useState(savedSettings.selectedLevels);
 
+    // Sync from global referenceDate if it changes
+    useEffect(() => {
+        if (referenceDate) {
+            setStartDate(referenceDate);
+            setEndDate(referenceDate);
+        }
+    }, [referenceDate]);
+
     // Save other settings to localStorage whenever they change
     useEffect(() => {
         const settings = {
-            date: referenceDate,
-            isCustomRange,
+            startDate,
+            endDate,
             startTime,
             endTime,
             selectedLevels
         };
         localStorage.setItem('trade_yantra_alert_settings', JSON.stringify(settings));
-    }, [referenceDate, isCustomRange, startTime, endTime, selectedLevels]);
+    }, [startDate, endDate, startTime, endTime, selectedLevels]);
 
     const handleLevelToggle = (level) => {
         setSelectedLevels(prev =>
@@ -111,10 +121,11 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
 
             const response = await generateAlerts(sessionId, {
                 symbol: selectedSymbol,
-                date: referenceDate,
+                start_date: startDate,
+                end_date: endDate,
                 start_time: startTime,
                 end_time: endTime,
-                is_custom_range: isCustomRange,
+                is_custom_range: true,
                 levels: selectedLevels,
                 token: selectedItem?.token,     // Pass token explicitly
                 exchange: selectedItem?.exch || selectedItem?.exchange || 'NSE', // Pass exchange explicitly
@@ -150,10 +161,11 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
             const mainToast = toast.loading(`Bulk generating for ${safeWatchlist.length} stocks...`);
 
             const response = await generateBulkAlerts(sessionId, {
-                date: referenceDate,
+                start_date: startDate,
+                end_date: endDate,
                 start_time: startTime,
                 end_time: endTime,
-                is_custom_range: isCustomRange,
+                is_custom_range: true,
                 levels: selectedLevels,
                 client_id: clientId
             });
@@ -291,7 +303,7 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Stock & Date Selection */}
+                    {/* Stock & Start Date/Time Selection */}
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Select Stock</label>
@@ -313,18 +325,29 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                                 </optgroup>
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Calculation Date</label>
-                            <input
-                                type="date"
-                                value={referenceDate}
-                                onChange={(e) => setReferenceDate(e.target.value)}
-                                className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
-                            />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Start Date</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Start Time</label>
+                                <input
+                                    type="time"
+                                    value={startTime}
+                                    onChange={(e) => setStartTime(e.target.value)}
+                                    className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Levels & Time Options */}
+                    {/* Levels & End Date/Time Options */}
                     <div className="space-y-4">
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">Alert Levels</label>
@@ -344,33 +367,25 @@ function AlertsTab({ sessionId, clientId, watchlist = [], alerts = [], setAlerts
                             </div>
                         </div>
 
-                        <div className="pt-2">
-                            <label className="flex items-center gap-2 cursor-pointer group">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">End Date</label>
                                 <input
-                                    type="checkbox"
-                                    checked={isCustomRange}
-                                    onChange={(e) => setIsCustomRange(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-300 text-[var(--accent-blue)] focus:ring-[var(--accent-blue)] bg-[var(--bg-secondary)]"
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
                                 />
-                                <span className="text-[var(--text-primary)] text-sm group-hover:text-[var(--text-primary)] transition-colors">Custom Time Range</span>
-                            </label>
-
-                            {isCustomRange && (
-                                <div className="flex gap-2 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <input
-                                        type="time"
-                                        value={startTime}
-                                        onChange={(e) => setStartTime(e.target.value)}
-                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
-                                    />
-                                    <input
-                                        type="time"
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        className="flex-1 bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-1.5 text-sm outline-none [color-scheme:dark]"
-                                    />
-                                </div>
-                            )}
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[var(--text-secondary)] text-xs font-semibold uppercase tracking-wider">End Time</label>
+                                <input
+                                    type="time"
+                                    value={endTime}
+                                    onChange={(e) => setEndTime(e.target.value)}
+                                    className="bg-[var(--bg-secondary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg p-2.5 focus:border-[var(--accent-blue)] outline-none transition-all [color-scheme:dark]"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>

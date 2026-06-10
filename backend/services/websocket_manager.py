@@ -465,14 +465,18 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
                 })
 
 class WebSocketManager:
+    """ Manage multiple WebSocket Connections """
     def __init__(self):
         self.connections: Dict[str, SmartWebSocketV2] = {}
-        self.token_maps: Dict[str, Dict] = {}
+        self.token_maps: Dict[str, Dict] = {}  # session_id -> {token: stock_data} (merged watchlist and chart)
+        self.chart_token_maps: Dict[str, Dict] = {}  # session_id -> {token: stock_data} for chart tokens only
         self.broadcast_callbacks: Dict[str, Callable] = {}
-        self.lock = threading.RLock() # Changed to RLock to prevent deadlocks
-        self.session_locks: Dict[str, threading.Lock] = {} # Per-session execution locks
-        self.heartbeat_thread = None
+        self.lock = threading.RLock()
+        self.running = True
+        self.session_locks: Dict[str, threading.Lock] = {}
         self.last_tick_times: Dict[str, float] = {}
+        self.heartbeat_thread = None
+        self.heartbeat_stop_event = threading.Event()
         self.last_refresh_times: Dict[str, float] = {}
         self.last_stock_trade_times: Dict[str, Dict[str, float]] = {} # {client_id: {token: timestamp}}
         self.last_alert_times: Dict[str, Dict[str, float]] = {} # {client_id: {token_type: timestamp}}
@@ -763,15 +767,27 @@ class WebSocketManager:
 
             sws._on_close = patched_on_close
             sws._on_error = patched_on_error
-            
+             
+            sws._on_close = patched_on_close
+            sws._on_error = patched_on_error
+             
             print(f"[OK] [WS] SmartWebSocketV2 instance created for {session_id}")
             print(f"[KEY] [WS-HANDSHAKE] Using Key: {api_key[:5]}..., ID: {client_id}, JWT: {jwt_token[:5]}..., Feed: {feed_token[:5]}...")
         except Exception as e:
             print(f"[ERR] [WS] Failed to initialize SmartWebSocketV2: {e}")
             return False
-
-        token_map = {str(s['token']): s for s in watchlist}
-        print(f"[WS] Watchlist size: {len(watchlist)} tokens")
+ 
+        # Get session to retrieve watchlist
+        from services.session_manager import session_manager
+        session = session_manager.get_session(session_id, client_id)
+        watchlist = session.watchlist if session else []
+        # Get chart tokens for this session
+        chart_tokens = self.chart_token_maps.get(session_id, {})
+        # Convert watchlist to dict: token -> stock_data
+        watchlist_dict = {str(s['token']): s for s in watchlist}
+        # Merge watchlist and chart tokens (chart tokens take precedence if duplicate)
+        token_map = {**watchlist_dict, **chart_tokens}
+        print(f"[WS] Watchlist size: {len(watchlist)} tokens, Chart tokens: {len(chart_tokens)} tokens")
         with self.lock:
             self.connections[session_id] = sws
             self.token_maps[session_id] = token_map
@@ -959,6 +975,48 @@ class WebSocketManager:
                     except: pass
         return False
 
+    def subscribe_chart_token(self, session_id: str, token: str, stock_data: dict):
+        with self.lock:
+            # Update chart token map
+            if session_id not in self.chart_token_maps:
+                self.chart_token_maps[session_id] = {}
+            self.chart_token_maps[session_id][str(token)] = stock_data
+            # If websocket connection exists, subscribe to Angel One
+            sws = self.connections.get(session_id)
+            if sws:
+                exch = str(stock_data.get('exch_seg', 'NSE')).upper()
+                exch_type = 3 if "BSE" in exch else 1
+                try:
+                    sws.subscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [str(token)]}])
+                    return True
+                except: pass
+        return False
+
+    def unsubscribe_chart_token(self, session_id: str, token: str):
+        with self.lock:
+            # Remove from chart token map and get stock_data for exchType
+            stock_data = None
+            if session_id in self.chart_token_maps and str(token) in self.chart_token_maps[session_id]:
+                stock_data = self.chart_token_maps[session_id][str(token)]
+                del self.chart_token_maps[session_id][str(token)]
+                # If websocket connection exists, consider unsubscribing from Angel One
+                sws = self.connections.get(session_id)
+                if sws and stock_data:
+                    # Check if token is in watchlist (to avoid unsubscribing if still needed for watchlist)
+                    from services.session_manager import session_manager
+                    session = session_manager.get_session(session_id)
+                    is_in_watchlist = False
+                    if session:
+                        is_in_watchlist = any(str(s['token']) == str(token) for s in session.watchlist)
+                    if not is_in_watchlist:
+                        exch = str(stock_data.get('exch_seg', 'NSE')).upper()
+                        exch_type = 3 if "BSE" in exch else 1
+                        try:
+                            sws.unsubscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [str(token)]}])
+                            return True
+                        except: pass
+        return False
+
     def _process_candle_trades(self, session_id: str, ist_time: datetime):
         """
         Executes Strategy Logic mirroring the Backtest Service exactly.
@@ -1004,10 +1062,7 @@ class WebSocketManager:
         is_paper = getattr(session, 'auto_paper_trade', False)
         is_live = getattr(session, 'auto_live_trade', False)
         
-        if (not is_paper and not is_live):
-            # print(f"[DEBUG] [STRATEGY] skipping {session_id[:8]} - auto modes OFF")
-            return
-            
+        # We continue even if auto modes are OFF so that candle close alerts can still be triggered and notified
         if session.is_paused:
             print(f"[DEBUG] [STRATEGY] skipping {session_id[:8]} - session paused")
             return
@@ -1215,8 +1270,53 @@ class WebSocketManager:
                 if is_opening_candle: prev_close_ref = open_p 
                 elif prev_close_ref is None: prev_close_ref = open_p
 
+                # Check for candle-close alert triggers
+                triggered_candle_alerts = []
+                for alert in strategy_alerts:
+                    alert_price = float(alert['price'])
+                    condition = alert.get('condition', 'ABOVE').upper()
+                    
+                    alert_triggered = False
+                    if condition == "ABOVE" and close_p > alert_price and prev_close_ref is not None and prev_close_ref <= alert_price:
+                        alert_triggered = True
+                    elif condition == "BELOW" and close_p < alert_price and prev_close_ref is not None and prev_close_ref >= alert_price:
+                        alert_triggered = True
+                        
+                    if alert_triggered:
+                        # Format label cleanly matching display
+                        label_display = str(alert.get('type', '')).replace('AUTO_', '')
+                        log_entry = {
+                            "time": datetime.utcnow().isoformat() + "Z",
+                            "symbol": symbol,
+                            "msg": f"[15M CLOSE] {symbol} closed {'above' if condition == 'ABOVE' else 'below'} {alert_price} ({label_display}) at {close_p}",
+                            "price": close_p,
+                            "alert_id": alert['id']
+                        }
+                        session.logs.insert(0, log_entry)
+                        # Remove alert from session alerts
+                        session.alerts = [a for a in session.alerts if a['id'] != alert['id']]
+                        triggered_candle_alerts.append({"alert": alert, "log": log_entry})
+                
+                if triggered_candle_alerts:
+                    session_manager.save_session(session_id)
+                    if session_id in self.broadcast_callbacks:
+                        paper_trades_data = getattr(session, 'paper_trades', [])
+                        for item in triggered_candle_alerts:
+                            self.broadcast_callbacks[session_id](session_id, {
+                                "type": "alert_triggered",
+                                "data": {
+                                    "alert": item['alert'],
+                                    "log": item['log'],
+                                    "paper_trades": paper_trades_data
+                                }
+                            })
+
+                # Skip trading logic if auto paper & live are both off
+                if not is_paper and not is_live:
+                    continue
+
                 # --- SIGNAL LOGIC ---
-                levels = sorted([{'p': float(a['price']), 'n': a.get('type',''), 'obj': a} for a in strategy_alerts], key=lambda x: x['p'])
+                levels = sorted([{'p': float(a['price']), 'n': a.get('type',''), 'obj': a} for a in strategy_alerts if a['id'] not in [t['alert']['id'] for t in triggered_candle_alerts]], key=lambda x: x['p'])
                 trigger_mode = getattr(session, 'trigger_mode', 'CANDLE_CLOSE')
                 test_p_up = high_p if trigger_mode == 'INSTANT_TOUCH' else close_p
                 test_p_down = low_p if trigger_mode == 'INSTANT_TOUCH' else close_p
@@ -1331,6 +1431,8 @@ class WebSocketManager:
                 except: pass
                 del self.connections[session_id]
                 del self.token_maps[session_id]
+                if session_id in self.chart_token_maps:
+                    del self.chart_token_maps[session_id]
                 del self.broadcast_callbacks[session_id]
                 if session_id in self.session_locks:
                     del self.session_locks[session_id]
@@ -1340,6 +1442,7 @@ class WebSocketManager:
         with self.lock:
             self.connections.clear()
             self.token_maps.clear()
+            self.chart_token_maps.clear()
             self.broadcast_callbacks.clear()
 
 ws_manager = WebSocketManager()

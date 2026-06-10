@@ -30,4 +30,4 @@ if __name__ == "__main__":
     for line in process.stdout:
         print(line, end='')
         if "Uvicorn running" in line:
-            print("\n✅ SERVER IS UP AND RUNNING!")
+            print("\nSERVER IS UP AND RUNNING!")

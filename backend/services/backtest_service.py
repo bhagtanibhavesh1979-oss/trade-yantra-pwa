@@ -17,31 +17,54 @@ class BacktestService:
         from services.angel_service import angel_service
 
         # 1. Level Calculation (Full Difference Logic)
-        blueprint_date = strategy_config.get('blueprint_date')
+        # Support new date-range blueprint (preferred) and legacy single-date fallback
+        bp_start_date = strategy_config.get('blueprint_start_date') or strategy_config.get('blueprint_date')
+        bp_end_date   = strategy_config.get('blueprint_end_date')   or bp_start_date
+        bp_start_time = strategy_config.get('blueprint_start_time', '09:15')
+        bp_end_time   = strategy_config.get('blueprint_end_time',   '15:30')
+
         high_val = float(strategy_config.get('high', 0))
         low_val = float(strategy_config.get('low', 0))
 
-        if blueprint_date:
+        if bp_start_date and bp_end_date:
             try:
-                req_bp = {"exchange": exch, "symboltoken": str(token), "interval": "ONE_MINUTE", "fromdate": f"{blueprint_date} 09:15", "todate": f"{blueprint_date} 15:30"}
+                req_bp = {
+                    "exchange": exch,
+                    "symboltoken": str(token),
+                    "interval": "ONE_MINUTE",
+                    "fromdate": f"{bp_start_date} {bp_start_time}",
+                    "todate":   f"{bp_end_date}   {bp_end_time}"
+                }
                 bp_data = angel_service.fetch_candle_data(smart_api, req_bp)
                 if bp_data and bp_data.get('data'):
                     valid_candles = []
                     for c in bp_data['data']:
                         ts = c[0]
-                        # Match Date (Ignore Leakage from previous day)
-                        if blueprint_date not in ts: continue
-                        # Match Time (Ignore Opening Noise)
-                        time_val = ts.split(' ')[1] if ' ' in ts else (ts.split('T')[1] if 'T' in ts else "")
-                        if time_val < "09:15": continue
-                        valid_candles.append(c)
-                        
+                        # Filter to only candles within the requested date/time window
+                        try:
+                            if ' ' in ts:
+                                c_date, c_time = ts.split(' ')
+                            elif 'T' in ts:
+                                c_date, c_time = ts.split('T')
+                                c_time = c_time[:5]
+                            else:
+                                continue
+                            if c_date < bp_start_date or c_date > bp_end_date:
+                                continue
+                            if c_date == bp_start_date and c_time < bp_start_time:
+                                continue
+                            if c_date == bp_end_date and c_time > bp_end_time:
+                                continue
+                            valid_candles.append(c)
+                        except Exception:
+                            continue
+
                     if valid_candles:
                         high_val = max(float(c[2]) for c in valid_candles)
-                        low_val = min(float(c[3]) for c in valid_candles)
-                        print(f"[OK] Blueprint loaded from {blueprint_date}: H={high_val} L={low_val}")
-            except Exception as e: 
-                print(f"[WARN] Failed to fetch Blueprint for {blueprint_date}: {e}. Using Watchlist H/L.")
+                        low_val  = min(float(c[3]) for c in valid_candles)
+                        print(f"[OK] Blueprint loaded from {bp_start_date} {bp_start_time} → {bp_end_date} {bp_end_time}: H={high_val} L={low_val}")
+            except Exception as e:
+                print(f"[WARN] Failed to fetch Blueprint range [{bp_start_date}→{bp_end_date}]: {e}. Using Watchlist H/L.")
         
         # Fallback if 0
         if high_val <= 0 or low_val <= 0:
@@ -159,25 +182,28 @@ class BacktestService:
                             elif side == "SELL" and high_p >= (entry_p + sl_val): exit_price, reason = entry_p + sl_val, "STOP_LOSS"
 
                         # C. SAR Logic (Trap/Rejection)
+                        # BUY: scan levels HIGH→LOW so the nearest (entry-level) SL fires first
+                        # SELL: scan levels LOW→HIGH so the nearest (entry-level) SL fires first
                         if not exit_price:
-                            for lv in levels:
+                            scan_order = list(reversed(levels)) if side == "BUY" else levels
+                            for lv in scan_order:
                                 b = lv['p'] * buffer_pct
                                 if side == "BUY":
-                                    # Trap: Price goes below any level it should have held (Prev Close support)
+                                    # Trap: Candle closed below a level that prior close was holding above
                                     if test_p_down < (lv['p'] - b) and prev_c_ref >= (lv['p'] - b):
                                         exit_price, reason = lv['p'] - b, f"TRAP_{lv['n']}"
                                         break
-                                    # Rejection: Hit higher level and failed
+                                    # Rejection: Wick hit the level but closed back below it
                                     elif high_p >= (lv['p'] + b) and close_p < lv['p']:
                                         exit_price, reason = tick_round(close_p), f"REJECTION_{lv['n']}"
                                         break
                                 else:
-                                    # Trap: Price breaks above resistance
+                                    # Trap: Candle closed above a level that prior close was holding below
                                     if test_p_up > (lv['p'] + b) and prev_c_ref <= (lv['p'] + b):
                                         exit_price, reason = lv['p'] + b, f"TRAP_{lv['n']}"
                                         break
-                                    # Rejection: Hit lower level and failed
-                                    elif low_p <= (lv['p'] - b) and close_p > lv['p']: 
+                                    # Rejection: Wick hit the level but closed back above it
+                                    elif low_p <= (lv['p'] - b) and close_p > lv['p']:
                                         exit_price, reason = tick_round(close_p), f"REJECTION_{lv['n']}"
                                         break
 

@@ -79,22 +79,83 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
             # Immediately send status and last prices if possible
             await websocket.send_json({"type": "status", "data": {"status": "CONNECTED"}})
     
-    try:
-        while True:
-            # Keep connection alive and handle incoming messages
-            data = await websocket.receive_text()
-            message = json.loads(data)
-            
-            # Handle different message types
-            if message.get('type') == 'ping':
-                await websocket.send_json({"type": "pong"})
-            
-    except WebSocketDisconnect:
-        # Clean up on disconnect
-        if websocket in session.websocket_clients:
-            session.websocket_clients.remove(websocket)
-        # CRITICAL: Don't stop ws_manager here on Cloud Run/Mobile
-        # We want the Angel One connection to STAY ALIVE even if tab is closed/refreshed
-        print(f"Browser WebSocket disconnected for session {session_id} (Persistent backend WS remains)")
-    except Exception as e:
-        print(f"WebSocket Error: {e}")
+        try:
+            while True:
+                # Keep connection alive and handle incoming messages
+                data = await websocket.receive_text()
+                message = json.loads(data)
+                
+                # Handle different message types
+                if message.get('type') == 'ping':
+                    await websocket.send_json({"type": "pong"})
+                 
+                elif message.get('type') == 'subscribe_token':
+                    token = message.get('token')
+                    if not token:
+                        await websocket.send_json({"type": "error", "message": "Token is required"})
+                        continue
+                    # Get session
+                    session = session_manager.get_session(session_id, client_id=client_id)
+                    if not session:
+                        await websocket.send_json({"type": "error", "message": "Session not found"})
+                        continue
+                    # Try to get stock data from session's watchlist
+                    stock_data = None
+                    for s in session.watchlist:
+                        if s['token'] == token:
+                            stock_data = s
+                            break
+                    # If not in watchlist, try to get from scrip master
+                    if not stock_data:
+                        from services.angel_service import angel_service
+                        # Ensure scrip master is loaded
+                        if not angel_service.master_loaded:
+                            angel_service.load_scrip_master()
+                        for s in angel_service.scrips:
+                            if s['token'] == token:
+                                stock_data = s
+                                break
+                    # If still not found, create a minimal stock_data
+                    if not stock_data:
+                        stock_data = {'symbol': token, 'token': token, 'exch_seg': 'NSE'}
+                    # Subscribe via websocket manager
+                    success = ws_manager.subscribe_chart_token(session_id, token, stock_data)
+                    if success:
+                        await websocket.send_json({"type": "subscription_confirmation", "token": token})
+                    else:
+                        await websocket.send_json({"type": "error", "message": "Failed to subscribe to token"})
+                 
+                elif message.get('type') == 'unsubscribe_token':
+                    token = message.get('token')
+                    if not token:
+                        await websocket.send_json({"type": "error", "message": "Token is required"})
+                        continue
+                    success = ws_manager.unsubscribe_chart_token(session_id, token)
+                    if success:
+                        await websocket.send_json({"type": "unsubscription_confirmation", "token": token})
+                    else:
+                        await websocket.send_json({"type": "error", "message": "Failed to unsubscribe from token"})
+                 
+                elif message.get('type') == 'pong':
+                    # Server responded to our ping
+                    # console.log('Pong received');
+                    break
+                 
+                elif message.get('type') == 'status':
+                    # Status update from server
+                    print('Server status:', data)
+                 
+                elif message.get('type') == 'error':
+                    print('WebSocket error message:', data)
+                 
+                else:
+                    print('Unknown message type:', type, data)
+        except WebSocketDisconnect:
+            # Clean up on disconnect
+            if websocket in session.websocket_clients:
+                session.websocket_clients.remove(websocket)
+            # CRITICAL: Don't stop ws_manager here on Cloud Run/Mobile
+            # We want the Angel One connection to STAY ALIVE even if tab is closed/refreshed
+            print(f"Browser WebSocket disconnected for session {session_id} (Persistent backend WS remains)")
+        except Exception as e:
+            print(f"WebSocket Error: {e}")

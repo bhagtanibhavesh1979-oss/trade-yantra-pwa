@@ -26,6 +26,8 @@ load_dotenv()
 
 # Import routes
 from routes import auth, watchlist, alerts, stream, indices, paper, live
+from routes import chart_router
+from routes.astro import router as astro_router
 
 # Import services
 from services.session_manager import session_manager
@@ -90,6 +92,8 @@ app.include_router(alerts.router)
 app.include_router(indices.router)
 app.include_router(paper.router)
 app.include_router(live.router)
+app.include_router(chart_router)
+app.include_router(astro_router)
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream.router) 
@@ -135,7 +139,8 @@ async def debug_heartbeat():
         "active_connections": len(ws_manager.connections)
     }
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    print('About to start uvicorn')
     # Local/GCP Port Configuration
     port = int(os.environ.get("PORT", 8002))
     

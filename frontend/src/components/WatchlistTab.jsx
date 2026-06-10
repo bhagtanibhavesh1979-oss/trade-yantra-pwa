@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { searchSymbols, addToWatchlist, removeFromWatchlist, refreshWatchlist, getWatchlist, manualTrade } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
-import TradingViewChart from './TradingViewChart';
 
-function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisible = true }) {
+function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisible = true, onOpenInChart }) {
     const sessionId = session?.sessionId || session?.session_id;
     const clientId = session?.clientId || session?.client_id;
 
@@ -23,6 +22,10 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
     const [refreshing, setRefreshing] = useState(false);
     const [selectedStock, setSelectedStock] = useState(null);
     const [manualQty, setManualQty] = useState(100);
+
+    // Sparkline: accumulate last 20 LTP ticks for selected stock
+    const [sparkData, setSparkData] = useState([]);
+    const sparkTokenRef = { current: null };
 
     // Sorting only
     const [sortBy, setSortBy] = useState('none');
@@ -144,6 +147,68 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
     } else if (sortBy === 'price_high') {
         filteredWatchlist.sort((a, b) => b.ltp - a.ltp);
     }
+
+    // Track LTP changes for sparkline when a stock is selected
+    useEffect(() => {
+        if (!selectedStock) { setSparkData([]); return; }
+        const current = watchlist.find(s => s.token === selectedStock.token);
+        if (!current || current.ltp === undefined) return;
+        setSparkData(prev => {
+            const next = [...prev, current.ltp];
+            return next.length > 20 ? next.slice(-20) : next;
+        });
+    }, [watchlist, selectedStock?.token]);
+
+    // Reset sparkline when modal opens for a new stock
+    useEffect(() => {
+        setSparkData([]);
+    }, [selectedStock?.token]);
+
+    // Mini SVG sparkline component
+    const Sparkline = ({ data, width = 320, height = 80 }) => {
+        if (!data || data.length < 2) {
+            return (
+                <div style={{ width, height, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    <span style={{ fontSize:'11px', color:'#555' }}>Waiting for live ticks…</span>
+                </div>
+            );
+        }
+        const min   = Math.min(...data);
+        const max   = Math.max(...data);
+        const range = max - min || 1;
+        const pad   = 6;
+        const w     = width  - pad * 2;
+        const h     = height - pad * 2;
+        const pts   = data.map((v, i) => {
+            const x = pad + (i / (data.length - 1)) * w;
+            const y = pad + (1 - (v - min) / range) * h;
+            return `${x},${y}`;
+        });
+        const polyline = pts.join(' ');
+        const isUp     = data[data.length - 1] >= data[0];
+        const color    = isUp ? '#26a69a' : '#ef5350';
+        const fillColor = isUp ? 'rgba(38,166,154,0.12)' : 'rgba(239,83,80,0.12)';
+        // Closed path for fill: go to bottom-right, bottom-left
+        const lastPt = pts[pts.length - 1].split(',');
+        const firstPt = pts[0].split(',');
+        const fillPath = `M ${polyline.replace(/,/g,' L ').replace(/ /g,' ')} L ${lastPt[0]} ${height - pad} L ${firstPt[0]} ${height - pad} Z`;
+
+        return (
+            <svg width={width} height={height} style={{ display:'block' }}>
+                <defs>
+                    <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+                        <stop offset="100%" stopColor={color} stopOpacity="0.02" />
+                    </linearGradient>
+                </defs>
+                <path d={fillPath} fill="url(#spark-grad)" />
+                <polyline points={polyline} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+                {/* Last price dot */}
+                <circle cx={pts[pts.length-1].split(',')[0]} cy={pts[pts.length-1].split(',')[1]}
+                    r="3" fill={color} />
+            </svg>
+        );
+    };
 
     return (
         <div className="w-full space-y-2">
@@ -298,32 +363,16 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                             </button>
                         </div>
 
-                        {/* Clickable TradingView Chart Area */}
-                        <a
-                            href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace(/-EQ$/, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block w-full h-56 bg-[var(--bg-primary)] rounded-xl overflow-hidden border border-[var(--border-color)] relative group/chart cursor-pointer"
-                            title="Click for FULL Pro Chart"
-                        >
-                            <TradingViewChart
-                                symbol={`NSE:${selectedStock.symbol.replace(/-EQ$/, '')}`}
-                                height="100%"
-                            />
-                            {/* Hover Overlay */}
-                            <div className="absolute inset-0 bg-blue-600/10 opacity-0 group-hover/chart:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                                <span className="bg-[#2D3748]/90 backdrop-blur-sm text-white px-3 py-1.5 rounded-lg text-[10px] font-bold border border-white/10 shadow-2xl flex items-center gap-2">
-                                    <span>🔍</span> OPEN FULL PRO CHART
-                                </span>
+                        {/* Live Sparkline */}
+                        <div className="w-full bg-[var(--bg-primary)] rounded-xl border border-[var(--border-color)] overflow-hidden">
+                            <div className="flex items-center justify-between px-3 pt-2 pb-1">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)]">Live Ticks</span>
+                                <span className="text-[9px] font-bold text-[var(--text-muted)]">{sparkData.length}/20</span>
                             </div>
-
-                            {/* Localhost Indicator */}
-                            <div className="absolute bottom-2 left-0 right-0 flex justify-center pointer-events-none">
-                                <span className="bg-black/40 backdrop-blur-md text-[8px] text-gray-400 px-2 py-0.5 rounded-full border border-white/5 uppercase tracking-widest font-black">
-                                    Full Data on Live Domain
-                                </span>
+                            <div className="px-1 pb-2">
+                                <Sparkline data={sparkData} width={312} height={72} />
                             </div>
-                        </a>
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4 py-2">
                             <div className="bg-[var(--bg-secondary)] p-3 rounded-lg border border-[var(--border-color)]">
@@ -370,17 +419,15 @@ function WatchlistTab({ session, watchlist, setWatchlist, referenceDate, isVisib
                             </div>
 
                             <div className="flex gap-2 h-12 w-full">
-                                <a
-                                    href={`https://www.tradingview.com/chart/?symbol=NSE:${selectedStock.symbol.replace('-EQ', '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-12 bg-[#2D3748] hover:bg-[#4A5568] text-white rounded-lg flex items-center justify-center transition-colors"
-                                    title="Open Chart"
+                                <button
+                                    onClick={() => { if (onOpenInChart) onOpenInChart(selectedStock); setSelectedStock(null); }}
+                                    className="w-12 bg-[#7c6af5] hover:bg-[#6a58e0] text-white rounded-lg flex items-center justify-center transition-colors"
+                                    title="Open in Astro Chart"
                                 >
                                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
                                     </svg>
-                                </a>
+                                </button>
                                 <button
                                     onClick={async () => {
                                         const price = parseFloat(selectedStock.ltp || selectedStock.close || 0);

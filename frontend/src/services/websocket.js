@@ -43,6 +43,7 @@ class WebSocketClient {
         this.pingInterval = null;
         this.lastSeen = Date.now();
         this.watchdogInterval = null;
+        this.tokenCallbacks = new Map();
         this.listeners = {
             price_update: [],
             alert_triggered: [],
@@ -118,8 +119,17 @@ class WebSocketClient {
             case 'price_update':
                 console.log('[WS] Price update received:', data.symbol, data.ltp);
                 this.emit('price_update', data);
+                if (data.token && this.tokenCallbacks.has(data.token)) {
+                    const callback = this.tokenCallbacks.get(data.token);
+                    callback(data);
+                }
                 break;
-
+            case 'subscription_confirmation':
+                console.log('[WS] Subscription confirmed:', data);
+                break;
+            case 'unsubscription_confirmation':
+                console.log('[WS] Unsubscription confirmed:', data);
+                break;
             case 'alert_triggered':
                 console.log('Alert triggered:', data);
                 this.emit('alert_triggered', data);
@@ -242,6 +252,16 @@ class WebSocketClient {
 
     isConnecting() {
         return this.ws && this.ws.readyState === WebSocket.CONNECTING;
+    }
+
+    subscribeToToken(token, callback) {
+        this.tokenCallbacks.set(token, callback);
+        this.send({ type: 'subscribe_token', token });
+    }
+
+    unsubscribeFromToken(token) {
+        this.tokenCallbacks.delete(token);
+        this.send({ type: 'unsubscribe_token', token });
     }
 
     on(event, callback) {

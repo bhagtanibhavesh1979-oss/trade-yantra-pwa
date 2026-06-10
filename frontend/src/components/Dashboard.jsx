@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
 import LogsTab from './LogsTab';
-import BacktestTab from './BacktestTab'; // New
+import BacktestTab from './BacktestTab';
+import AstroChart from './AstroChart';
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
@@ -11,79 +12,48 @@ import LiveOrdersTab from './LiveOrdersTab';
 import toast from 'react-hot-toast';
 
 function Dashboard({
-    session,
-    onLogout,
-    watchlist,
-    setWatchlist,
-    alerts,
-    setAlerts,
-    logs,
-    isPaused,
-    setIsPaused,
-    referenceDate,
-    setReferenceDate,
-    wsStatus,
-    activeTab: propActiveTab, // Receive from parent
-    setActiveTab: propSetActiveTab, // Receive from parent
-    preSelectedAlertSymbol,
-    setPreSelectedAlertSymbol,
-    isLoadingData,
-    isVisible,
-    onRefreshData,
-    paperTrades,
-    setPaperTrades,
-    paperBalance,
-    setPaperBalance,
-    autoExec,
-    setAutoExec,
-    strategyMode,
-    setStrategyMode,
-    bufferPct,
-    liveAutoExec,
-    setLiveAutoExec,
-    liveTradeQty,
-    setLiveTradeQty,
-    liveTradeCap,
-    setLiveTradeCap
+    session, onLogout, watchlist, setWatchlist,
+    alerts, setAlerts, logs, isPaused, setIsPaused,
+    referenceDate, setReferenceDate, wsStatus,
+    activeTab: propActiveTab, setActiveTab: propSetActiveTab,
+    preSelectedAlertSymbol, setPreSelectedAlertSymbol,
+    isLoadingData, isVisible, onRefreshData,
+    paperTrades, setPaperTrades, paperBalance, setPaperBalance,
+    autoExec, setAutoExec, strategyMode, setStrategyMode, bufferPct,
+    liveAutoExec, setLiveAutoExec, liveTradeQty, setLiveTradeQty,
+    liveTradeCap, setLiveTradeCap,
 }) {
-    // If props are provided, use them. Otherwise default to local state (backward compatibility/safety)
     const [localActiveTab, setLocalActiveTab] = useState('watchlist');
-    const activeTab = propActiveTab || localActiveTab;
+    const activeTab    = propActiveTab    || localActiveTab;
     const setActiveTab = propSetActiveTab || setLocalActiveTab;
 
-    // Theme State
+    // Symbol pushed from watchlist → AstroChart
+    const [chartSymbol, setChartSymbol] = useState(null);
+
+    const handleOpenInChart = (stock) => {
+        setChartSymbol({ symbol: stock.symbol, token: stock.token, exch_seg: stock.exch_seg || 'NSE' });
+        setActiveTab('astro_chart');
+    };
+
     const [theme, setTheme] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('trade_yantra_theme') || 'dark';
-        }
+        if (typeof window !== 'undefined') return localStorage.getItem('trade_yantra_theme') || 'dark';
         return 'dark';
     });
 
     useEffect(() => {
         localStorage.setItem('trade_yantra_theme', theme);
-        if (theme === 'light') {
-            document.documentElement.classList.add('light-theme');
-        } else {
-            document.documentElement.classList.remove('light-theme');
-        }
+        if (theme === 'light') document.documentElement.classList.add('light-theme');
+        else document.documentElement.classList.remove('light-theme');
     }, [theme]);
 
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-    };
-
-    const handleLogout = () => {
-        onLogout();
-    };
-
-    const handleIndexAlertClick = (symbol, token, exch) => {
+    const handleIndexAlertClick = (symbol) => {
         setPreSelectedAlertSymbol(symbol);
         setActiveTab('alerts');
     };
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 flex flex-col pb-16 md:pb-0">
-            {/* Premium Top Bar */}
+            {/* Header */}
             <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-2.5 md:px-6 py-4 sticky top-0 z-30 shadow-2xl">
                 <div className="flex items-center justify-between max-w-[1400px] mx-auto">
                     <div className="flex items-center gap-4">
@@ -100,13 +70,9 @@ function Dashboard({
                             </div>
                         </div>
                     </div>
-
                     <div className="flex items-center gap-2">
-                        {/* Theme Toggle */}
-                        <button
-                            onClick={toggleTheme}
-                            className="p-2.5 bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--accent-blue)] rounded-xl transition-all shadow-sm group"
-                        >
+                        <button onClick={() => setTheme(p => p === 'dark' ? 'light' : 'dark')}
+                            className="p-2.5 bg-[var(--bg-primary)] border border-[var(--border-color)] hover:border-[var(--accent-blue)] rounded-xl transition-all shadow-sm group">
                             {theme === 'dark' ? (
                                 <svg className="w-5 h-5 text-yellow-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -117,11 +83,8 @@ function Dashboard({
                                 </svg>
                             )}
                         </button>
-
-                        <button
-                            onClick={handleLogout}
-                            className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all font-bold text-xs"
-                        >
+                        <button onClick={onLogout}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-xl transition-all font-bold text-xs">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
@@ -131,9 +94,8 @@ function Dashboard({
                 </div>
             </header>
 
-            {/* Main Content */}
+            {/* Main content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
-                {/* Market Indices (Sticky at top of content or just below header) */}
                 <div className="px-0 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
                     <MarketOverview
                         sessionId={session.sessionId || session.session_id}
@@ -141,7 +103,6 @@ function Dashboard({
                         onAlertClick={handleIndexAlertClick}
                     />
                 </div>
-
                 <div className="pt-2"></div>
 
                 {activeTab === 'watchlist' && (
@@ -151,6 +112,7 @@ function Dashboard({
                         setWatchlist={setWatchlist}
                         referenceDate={referenceDate}
                         isVisible={isVisible}
+                        onOpenInChart={handleOpenInChart}
                     />
                 )}
                 {activeTab === 'alerts' && (
@@ -169,10 +131,8 @@ function Dashboard({
                         onRefreshData={onRefreshData}
                     />
                 )}
-                {activeTab === 'logs' && (
-                    <LogsTab logs={logs} />
-                )}
-                {activeTab === 'orders' && (
+                {activeTab === 'logs'        && <LogsTab logs={logs} />}
+                {activeTab === 'orders'      && (
                     <OrdersTab
                         clientId={session?.clientId}
                         sessionId={session?.sessionId || session?.session_id}
@@ -186,12 +146,9 @@ function Dashboard({
                         sessionId={session?.sessionId || session?.session_id}
                         watchlist={watchlist}
                         isPaused={isPaused}
-                        liveAutoExec={liveAutoExec}
-                        setLiveAutoExec={setLiveAutoExec}
-                        liveTradeQty={liveTradeQty}
-                        setLiveTradeQty={setLiveTradeQty}
-                        liveTradeCap={liveTradeCap}
-                        setLiveTradeCap={setLiveTradeCap}
+                        liveAutoExec={liveAutoExec}  setLiveAutoExec={setLiveAutoExec}
+                        liveTradeQty={liveTradeQty}  setLiveTradeQty={setLiveTradeQty}
+                        liveTradeCap={liveTradeCap}  setLiveTradeCap={setLiveTradeCap}
                     />
                 )}
                 {activeTab === 'lab' && (
@@ -201,34 +158,34 @@ function Dashboard({
                         watchlist={watchlist}
                     />
                 )}
+                {activeTab === 'astro_chart' && (
+                    <AstroChart
+                        session={session}
+                        watchlist={watchlist}
+                        externalSymbol={chartSymbol}
+                    />
+                )}
             </div>
 
-            {/* Premium Bottom Navigation */}
+            {/* Bottom nav */}
             <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)]/80 backdrop-blur-xl border-t border-[var(--border-color)] z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
                 <div className="flex justify-around items-center h-20 max-w-lg mx-auto">
                     {[
-                        { id: 'watchlist', label: 'Market', icon: '📋' },
-                        { id: 'orders', label: 'Paper', icon: '💰' },
-                        { id: 'live_orders', label: 'LIVE', icon: '🔴' },
-                        { id: 'lab', label: 'Lab', icon: '🧪' },
-                        { id: 'alerts', label: 'Alerts', icon: '🔔' },
-                        { id: 'logs', label: 'Logs', icon: '📝' },
+                        { id: 'watchlist',   label: 'Market', icon: '📋' },
+                        { id: 'orders',      label: 'Paper',  icon: '💰' },
+                        { id: 'live_orders', label: 'LIVE',   icon: '🔴' },
+                        { id: 'lab',         label: 'Lab',    icon: '🧪' },
+                        { id: 'astro_chart', label: 'Astro',  icon: '🔭' },
+                        { id: 'alerts',      label: 'Alerts', icon: '🔔' },
+                        { id: 'logs',        label: 'Logs',   icon: '📝' },
                     ].map((tab) => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${activeTab === tab.id
-                                ? 'text-[var(--accent-blue)] scale-110'
-                                : 'text-gray-500 hover:text-gray-300'
-                                }`}
-                        >
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${activeTab === tab.id ? 'text-[var(--accent-blue)] scale-110' : 'text-gray-500 hover:text-gray-300'}`}>
                             {activeTab === tab.id && (
                                 <span className="absolute top-2 w-1.5 h-1.5 rounded-full bg-[var(--accent-blue)] shadow-[0_0_10px_var(--accent-blue)]" />
                             )}
                             <span className="text-2xl mb-1">{tab.icon}</span>
-                            <span className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'opacity-100' : 'opacity-60'}`}>
-                                {tab.label}
-                            </span>
+                            <span className={`text-[9px] font-black uppercase tracking-widest ${activeTab === tab.id ? 'opacity-100' : 'opacity-60'}`}>{tab.label}</span>
                         </button>
                     ))}
                 </div>

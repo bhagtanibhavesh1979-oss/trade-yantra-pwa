@@ -346,7 +346,11 @@ class BacktestRequest(BaseModel):
     target_type: str = "POINTS" # "POINTS" or "AMOUNT"
     stop_loss: Optional[float] = None
     trailing_sl: Optional[float] = None
-    blueprint_date: Optional[str] = None
+    blueprint_date: Optional[str] = None          # Legacy single-date support
+    blueprint_start_date: Optional[str] = None    # New: start of blueprint range
+    blueprint_end_date: Optional[str] = None      # New: end of blueprint range
+    blueprint_start_time: str = "09:15"           # New: start time of blueprint range
+    blueprint_end_time: str = "15:30"             # New: end time of blueprint range
     interval: str = "TEN_MINUTE"
     trade_type: str = "INTRADAY" # "INTRADAY" or "POSITIONAL"
     buffer: float = 0.1
@@ -361,6 +365,10 @@ async def run_backtest(session_id: str, req: BacktestRequest):
         
     from services.backtest_service import backtest_service
     
+    # Resolve blueprint date range: prefer explicit start/end, fallback to legacy single date
+    bp_start = req.blueprint_start_date or req.blueprint_date
+    bp_end = req.blueprint_end_date or req.blueprint_date
+
     config = {
         "mode": req.mode,
         "high": req.high,
@@ -372,7 +380,11 @@ async def run_backtest(session_id: str, req: BacktestRequest):
         "target_type": req.target_type,
         "stop_loss": req.stop_loss,
         "trailing_sl": req.trailing_sl,
-        "blueprint_date": req.blueprint_date,
+        "blueprint_date": req.blueprint_date,          # Legacy
+        "blueprint_start_date": bp_start,
+        "blueprint_end_date": bp_end,
+        "blueprint_start_time": req.blueprint_start_time,
+        "blueprint_end_time": req.blueprint_end_time,
         "interval": req.interval,
         "trade_type": req.trade_type,
         "buffer": req.buffer,

@@ -1,0 +1,10 @@
+[I 260603 02:05:42 smartConnect:124] in pool
+[I 260603 02:05:42 websocket_manager:45] [INIT] Logging initialized for websocket_manager in IST. Target: C:\Users\bhave\Downloads\trade-yantra\backend\logs\2026-06-03\app.log
+[I 260603 02:05:42 websocket_manager:512] [HEARTBEAT] Heartbeat thread STARTED
+[I 260603 02:05:42 websocket_manager:711] [AUTH] Background Strategy Heartbeat initiated.
+INFO:     Started server process [1368]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
+INFO:     ('127.0.0.1', 53658) - "WebSocket /ws/stream/2b7d820f-1831-4488-bd10-0b8bd632b20f?client_id=B38590" [accepted]
+INFO:     connection open

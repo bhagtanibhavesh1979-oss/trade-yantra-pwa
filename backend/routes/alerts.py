@@ -44,7 +44,9 @@ class GenerateAlertsRequest(BaseModel):
     session_id: str
     client_id: Optional[str] = None
     symbol: str
-    date: str
+    date: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
     start_time: str = "09:15"
     end_time: str = "15:30"
     is_custom_range: bool = False
@@ -65,7 +67,9 @@ class PauseRequest(BaseModel):
 class GenerateBulkAlertsRequest(BaseModel):
     session_id: str
     client_id: Optional[str] = None
-    date: str    # "YYYY-MM-DD"
+    date: Optional[str] = None    # "YYYY-MM-DD"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
     start_time: str = "09:15"
     end_time: str = "15:30"
     is_custom_range: bool = False
@@ -144,14 +148,18 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
     exchange = req.exchange or "NSE"
     
     # 1. Date Validation/Healing
-    gen_date = req.date
+    start_date = req.start_date or req.date
+    end_date = req.end_date or req.date
     today_str = datetime.date.today().strftime("%Y-%m-%d")
     
-    if not gen_date or gen_date < "2026-01-01":
-        print(f"[WARN] Requested date '{gen_date}' is missing or too old. Defaulting to today: {today_str}")
-        gen_date = today_str
+    if not start_date or start_date < "2026-01-01":
+        print(f"[WARN] Requested start date '{start_date}' is missing or too old. Defaulting to today: {today_str}")
+        start_date = today_str
+    if not end_date or end_date < "2026-01-01":
+        print(f"[WARN] Requested end date '{end_date}' is missing or too old. Defaulting to today: {today_str}")
+        end_date = today_str
 
-    print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) on {gen_date}")
+    print(f"DEBUG: Generating H/L Alerts for {req.symbol} ({exchange}) from {start_date} to {end_date}")
     
     # helper for generation with auto-refresh
     async def _safe_generate():
@@ -159,7 +167,8 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
             session.smart_api, 
             req.symbol, 
             token, 
-            gen_date, 
+            start_date,
+            end_date,
             req.start_time, 
             req.end_time, 
             req.is_custom_range,
@@ -358,13 +367,18 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
     print(f"DEBUG: Bulk generating alerts for {len(session.watchlist)} stocks")
     
     # 0. Date Validation
-    gen_date = req.date
+    start_date = req.start_date or req.date
+    end_date = req.end_date or req.date
     today_str = datetime.date.today().strftime("%Y-%m-%d")
-    if not gen_date or gen_date < "2026-01-01":
-        print(f"[WARN] Bulk Gen: Date '{gen_date}' is invalid/old. Healing to today: {today_str}")
-        gen_date = today_str
+    
+    if not start_date or start_date < "2026-01-01":
+        print(f"[WARN] Bulk Gen: Start date '{start_date}' is invalid/old. Healing to today: {today_str}")
+        start_date = today_str
+    if not end_date or end_date < "2026-01-01":
+        print(f"[WARN] Bulk Gen: End date '{end_date}' is invalid/old. Healing to today: {today_str}")
+        end_date = today_str
 
-    print(f"DEBUG: Date={gen_date}, Levels={req.levels}")
+    print(f"DEBUG: StartDate={start_date}, EndDate={end_date}, Levels={req.levels}")
     
     # 1. REPLACE LOGIC: Clear ALL existing AUTO alerts before bulk generation
     # This ensures a clean slate as requested by the user.
@@ -392,7 +406,8 @@ async def generate_bulk_alerts(req: GenerateBulkAlertsRequest):
                     smart_api=session.smart_api,
                     symbol=symbol,
                     token=token,
-                    date=gen_date,
+                    start_date=start_date,
+                    end_date=end_date,
                     start_time=req.start_time,
                     end_time=req.end_time,
                     is_custom=req.is_custom_range,

@@ -8,6 +8,7 @@ from datetime import datetime, timezone, timedelta
 import threading
 import time
 from services.persistence_service import persistence_service
+from SmartApi import SmartConnect
 
 class Session:
     def __init__(self, session_id: str, client_id: str, jwt_token: str, feed_token: str, api_key: str, data_api_key: Optional[str] = None):
@@ -53,7 +54,6 @@ class Session:
             self.smart_api.setAccessToken(jwt_token)
             self.smart_api.setRefreshToken(refresh_token)
         else:
-            from SmartApi import SmartConnect
             self.smart_api = SmartConnect(api_key=self.api_key)
             self.smart_api.setAccessToken(jwt_token)
             self.smart_api.setRefreshToken(refresh_token)
@@ -194,7 +194,6 @@ class SessionManager:
                         
                         # Re-init SmartAPI and VERIFY TOKEN
                         if session.jwt_token and session.api_key:
-                            from SmartApi import SmartConnect
                             from services.angel_service import angel_service
                             
                             try:
@@ -412,7 +411,6 @@ class SessionManager:
             
             # Re-initialize SmartAPI
             if session.jwt_token and session.api_key and not session.smart_api:
-                from SmartApi import SmartConnect
                 from services.angel_service import angel_service
                 try:
                     smart_api = SmartConnect(api_key=session.api_key)
@@ -448,6 +446,12 @@ class SessionManager:
         
         return None
 
+    def get_smart_api(self, session_id: str, client_id: Optional[str] = None) -> Optional[SmartConnect]:
+        session = self.get_session(session_id, client_id)
+        if session:
+            return session.smart_api
+        return None
+
     def refresh_session_tokens(self, session_id: str) -> bool:
         """Attempt to refresh tokens. Falls back to full re-login if refresh fails."""
         session = self.get_session(session_id)
@@ -455,7 +459,6 @@ class SessionManager:
             return False
 
         from services.angel_service import angel_service
-        from SmartApi import SmartConnect
 
         # --- STEP 1: Try token refresh (fast path) ---
         if session.refresh_token:
@@ -560,3 +563,4 @@ class SessionManager:
 
 # Global session manager instance
 session_manager = SessionManager()
+
