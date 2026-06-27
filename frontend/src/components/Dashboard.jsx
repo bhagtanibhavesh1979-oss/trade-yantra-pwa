@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
+import AlertFeedTab from './AlertFeedTab';
 import LogsTab from './LogsTab';
 import BacktestTab from './BacktestTab';
 import AstroChart from './AstroChart';
+import PlanetBacktestTab from './PlanetBacktestTab';
+
+
 import { logout } from '../services/api';
 import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
@@ -13,7 +17,7 @@ import toast from 'react-hot-toast';
 
 function Dashboard({
     session, onLogout, watchlist, setWatchlist,
-    alerts, setAlerts, logs, isPaused, setIsPaused,
+    alerts, setAlerts, logs, candleCloseFeed, isPaused, setIsPaused,
     referenceDate, setReferenceDate, wsStatus,
     activeTab: propActiveTab, setActiveTab: propSetActiveTab,
     preSelectedAlertSymbol, setPreSelectedAlertSymbol,
@@ -131,6 +135,18 @@ function Dashboard({
                         onRefreshData={onRefreshData}
                     />
                 )}
+                {activeTab === 'candle_close_feed' && (
+                    <AlertFeedTab
+                        feed={candleCloseFeed || []}
+                        onSelectSymbol={(symbol) => {
+                            setPreSelectedAlertSymbol(symbol);
+                            setActiveTab('astro_chart');
+                        }}
+                    />
+                )}
+
+
+
                 {activeTab === 'logs'        && <LogsTab logs={logs} />}
                 {activeTab === 'orders'      && (
                     <OrdersTab
@@ -165,6 +181,14 @@ function Dashboard({
                         externalSymbol={chartSymbol}
                     />
                 )}
+
+                {activeTab === 'planet_backtest' && (
+                    <PlanetBacktestTab
+                        clientId={session?.clientId || session?.client_id}
+                        sessionId={session?.sessionId || session?.session_id}
+                    />
+                )}
+
             </div>
 
             {/* Bottom nav */}
@@ -178,7 +202,12 @@ function Dashboard({
                         { id: 'astro_chart', label: 'Astro',  icon: '🔭' },
                         { id: 'alerts',      label: 'Alerts', icon: '🔔' },
                         { id: 'logs',        label: 'Logs',   icon: '📝' },
+                        { id: 'planet_backtest', label: 'Planet Backtest', icon: '🪐' },
+
+
+
                     ].map((tab) => (
+
                         <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                             className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all duration-300 ${activeTab === tab.id ? 'text-[var(--accent-blue)] scale-110' : 'text-gray-500 hover:text-gray-300'}`}>
                             {activeTab === tab.id && (

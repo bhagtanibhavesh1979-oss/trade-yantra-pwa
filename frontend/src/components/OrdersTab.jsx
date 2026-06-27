@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, setTarget, getPaperAnalytics, getSession, setTriggerMode, squareOffPositions, API_BASE_URL } from '../services/api';
+import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, setPaperSarTestMode, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, setTarget, getPaperAnalytics, getSession, setTriggerMode, squareOffPositions, API_BASE_URL } from '../services/api';
 import toast from 'react-hot-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+
 
 const OrdersTab = ({
     clientId,
@@ -18,6 +19,8 @@ const OrdersTab = ({
     const [strategyMode, setInternalStrategyMode] = useState('BOUNCE');
     const [triggerMode, setInternalTriggerMode] = useState('CANDLE_CLOSE');
     const [bufferPct, setInternalBufferPct] = useState(0.25);
+    const [paperSarTestMode, setPaperSarTestModeState] = useState('STANDARD');
+
 
     // UI State
     const [loading, setLoading] = useState(true);
@@ -58,14 +61,17 @@ const OrdersTab = ({
                 getPaperAnalytics(sid).catch(() => null)
             ]);
             if (summaryData) {
+                console.log('[OrdersTab] summaryData.paper_sar_test_mode =', summaryData.paper_sar_test_mode);
                 setBalance(summaryData.virtual_balance);
                 setAutoExec(summaryData.auto_paper_trade);
                 setTrades(summaryData.trades || []);
                 setInternalStrategyMode(summaryData.strategy_mode || 'BOUNCE');
                 setInternalTriggerMode(summaryData.trigger_mode || 'CANDLE_CLOSE');
                 setInternalBufferPct(summaryData.buffer_pct || 0.25);
+                setPaperSarTestModeState(summaryData.paper_sar_test_mode || 'STANDARD');
             }
             if (analyticsData) setAnalytics(analyticsData);
+
         } catch (err) {
             console.error('Failed to fetch orders data:', err);
         } finally {
@@ -271,9 +277,58 @@ const OrdersTab = ({
                 </div>
 
                 <div className="flex gap-2 mt-4">
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                const sid = sessionId;
+                                if (!sid) return;
+
+                                const nextMode = (paperSarTestMode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST')
+                                    ? 'STANDARD'
+                                    : 'SAR_MATCH_NO_CLOSE_AFTER_FIRST';
+
+                                // When SAR TEST is ON, force strategy + trigger away from UI selections
+                                // so there is no conflict.
+                                const nextStrategyMode = nextMode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                    ? 'SAR'
+                                    : 'BOUNCE';
+                                const nextTriggerMode = nextMode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                    ? 'CANDLE_CLOSE'
+                                    : 'CANDLE_CLOSE';
+
+                                await toast.promise(
+                                    Promise.all([
+                                        setStrategyMode(sid, nextStrategyMode, clientId),
+                                        setTriggerMode(sid, nextTriggerMode, clientId),
+                                        setPaperSarTestMode(sid, nextMode, clientId),
+                                    ]),
+                                    {
+                                        loading: 'Updating SAR Test Mode...',
+                                        success: <b>{nextMode === 'STANDARD' ? 'STANDARD' : 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'}</b>,
+                                        error: (err) => <b>{err?.response?.data?.detail || 'Server error'}</b>
+                                    }
+                                );
+
+                                setPaperSarTestModeState(nextMode);
+                                fetchOrdersData();
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }}
+                        className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                            paperSarTestMode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                ? 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+                                : 'bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-muted)]'
+                        }`}
+                    >
+                        SAR TEST: {paperSarTestMode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST' ? 'ON' : 'OFF'}
+                    </button>
+
                     <button onClick={handleSquareOff} className="flex-1 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Square Off All</button>
                     <button onClick={handleExport} className="flex-1 py-3 bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">Export CSV</button>
                 </div>
+
             </div>
 
             <h3 className="text-xs font-bold text-[var(--text-secondary)] uppercase px-1 mt-6 tracking-widest">Open Orders</h3>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, setTarget } from '../services/api';
+import { getPaperSummary, togglePaperTrading, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, setTarget, setPaperSarTestMode } from '../services/api';
 import toast from 'react-hot-toast';
 
 const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: propSetTrades }) => {
@@ -220,6 +220,41 @@ const PaperPositions = ({ sessionId, watchlist, trades: propTrades, setTrades: p
                         </h2>
                         <p className="text-xs text-[var(--text-muted)]">Live execution simulation based on your alerts</p>
                     </div>
+
+                    {/* SAR Test Mode Toggle */}
+                    <button
+                        type="button"
+                        onClick={async () => {
+                            try {
+                                const nextMode = (summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST')
+                                    ? 'STANDARD'
+                                    : 'SAR_MATCH_NO_CLOSE_AFTER_FIRST';
+
+                                await toast.promise(
+                                    setPaperSarTestMode(sessionId, nextMode),
+                                    {
+                                        loading: 'Updating SAR Test Mode...',
+                                        success: <b>Mode set</b>,
+                                        error: (err) => <b>{err?.response?.data?.detail || 'Server error'}</b>
+                                    }
+                                );
+
+                                fetchSummary();
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                            summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                ? 'bg-orange-500 text-white shadow-[0_0_15px_rgba(234,88,12,0.35)]'
+                                : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                        }`}
+                    >
+                        {summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                            ? 'SAR TEST: ON'
+                            : 'SAR TEST: OFF'}
+                    </button>
+
                     <button
                         onClick={handleToggle}
                         disabled={toggling}

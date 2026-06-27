@@ -39,7 +39,28 @@ class Session:
         self.global_target = None
         self.global_stop_loss = None
         self.selected_date = None  # User-selected date for High/Low (YYYY-MM-DD)
+        # --- Blueprint metadata for matching Backtest Lab / Telegram Signal Engine ---
+        self.blueprint_start_date = None
+        self.blueprint_end_date = None
+        self.blueprint_start_time = '09:15'
+        self.blueprint_end_time = '15:30'
+        self.blueprint_is_custom_range = False
+        self.blueprint_high = None
+        self.blueprint_low = None
+        self.blueprint_timeframe = 'FIFTEEN_MINUTE'
+        self.blueprint_buffer = None
+        self.blueprint_trigger_mode = 'CANDLE_CLOSE'
+        self.blueprint_target = None
+        self.blueprint_stop_loss = None
+
+        # --- Testing-only paper execution modes (do not break existing logic) ---
+        # STANDARD: current behavior
+        # SAR_MATCH_NO_CLOSE_AFTER_FIRST: new behavior for aligning SAR flips without relying on 15m close timing
+        self.paper_sar_test_mode = 'STANDARD'
+
         self.created_at = datetime.now()
+
+
         self.last_activity = datetime.now()
         self.websocket_clients = []  # List of WebSocket connections
         self.last_auto_square_off = '' # Format: YYYY-MM-DD
@@ -189,8 +210,10 @@ class SessionManager:
                         session.buffer_pct = session_data.get('buffer_pct', 0.45)
                         session.trade_quantity = session_data.get('trade_quantity', 100)
                         session.last_auto_square_off = session_data.get('last_auto_square_off', '')
+                        session.paper_sar_test_mode = session_data.get('paper_sar_test_mode', 'STANDARD')
                         
                         self.sessions[session_id] = session
+
                         
                         # Re-init SmartAPI and VERIFY TOKEN
                         if session.jwt_token and session.api_key:

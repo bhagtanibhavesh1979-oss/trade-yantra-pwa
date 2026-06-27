@@ -216,12 +216,29 @@ async def generate_auto_alerts(req: GenerateAlertsRequest):
             added_alerts.append(alert)
             count += 1
             
+    # Persist blueprint inputs on session for Telegram Signal Engine matching
+    try:
+        session.blueprint_start_date = start_date
+        session.blueprint_end_date = end_date
+        session.blueprint_start_time = req.start_time
+        session.blueprint_end_time = req.end_time
+        session.blueprint_is_custom_range = req.is_custom_range
+        # Timeframe/strategy/buffer/target/SL are part of Session globals where possible
+        session.blueprint_timeframe = 'FIFTEEN_MINUTE'
+        session.blueprint_trigger_mode = getattr(session, 'trigger_mode', 'CANDLE_CLOSE')
+        session.blueprint_buffer = getattr(session, 'buffer_pct', None)
+        session.blueprint_target = getattr(session, 'global_target', None)
+        session.blueprint_stop_loss = getattr(session, 'global_stop_loss', None)
+    except Exception as _bp_e:
+        print(f"[WARN] Failed to persist blueprint metadata for {req.session_id}: {_bp_e}")
+
     # CRITICAL: Save session to database after generating alerts
     if count > 0:
         session_manager.save_session(req.session_id)
         print(f"[OK] Saved {count} new alerts to database for session {req.session_id}")
-            
+
     print(f"DEBUG: Successfully added {count} alerts: {[a['price'] for a in added_alerts]}")
+
     
     # Create log entry
     if count > 0:

@@ -59,8 +59,27 @@ class BufferSettingsRequest(BaseModel):
     buffer: float
     client_id: Optional[str] = None
 
+class PaperSarTestModeRequest(BaseModel):
+    mode: str  # STANDARD | SAR_MATCH_NO_CLOSE_AFTER_FIRST
+    client_id: Optional[str] = None
+
+@router.post("/sar-test-mode/{session_id}")
+async def set_paper_sar_test_mode(session_id: str, req: PaperSarTestModeRequest):
+    session = session_manager.get_session(session_id, client_id=req.client_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    allowed = {"STANDARD", "SAR_MATCH_NO_CLOSE_AFTER_FIRST"}
+    if req.mode not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid mode. Allowed: {sorted(allowed)}")
+
+    session.paper_sar_test_mode = req.mode
+    session_manager.save_session(session_id)
+    return {"status": "success", "paper_sar_test_mode": session.paper_sar_test_mode}
+
 @router.post("/buffer/{session_id}")
 async def set_buffer_pct(session_id: str, req: BufferSettingsRequest):
+
     session = session_manager.get_session(session_id, client_id=req.client_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")

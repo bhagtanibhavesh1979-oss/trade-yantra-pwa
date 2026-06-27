@@ -1270,46 +1270,121 @@ class WebSocketManager:
                 if is_opening_candle: prev_close_ref = open_p 
                 elif prev_close_ref is None: prev_close_ref = open_p
 
-                # Check for candle-close alert triggers
+                # Check for candle-close alert triggers + near-level alerts
                 triggered_candle_alerts = []
+
+                # Near threshold (percent of level). Default uses session.buffer_pct as %.
+                # Example: buffer_pct=0.45 => 0.45% band.
+                near_pct = getattr(session, 'near_level_pct', None)
+                if near_pct is None:
+                    near_pct = getattr(session, 'buffer_pct', 0.45)
+                try:
+                    near_frac = float(near_pct) / 100.0
+                except Exception:
+                    near_frac = 0.0045
+
+                from services.signal_state import signal_state
+
                 for alert in strategy_alerts:
                     alert_price = float(alert['price'])
                     condition = alert.get('condition', 'ABOVE').upper()
-                    
-                    alert_triggered = False
-                    if condition == "ABOVE" and close_p > alert_price and prev_close_ref is not None and prev_close_ref <= alert_price:
-                        alert_triggered = True
-                    elif condition == "BELOW" and close_p < alert_price and prev_close_ref is not None and prev_close_ref >= alert_price:
-                        alert_triggered = True
-                        
-                    if alert_triggered:
-                        # Format label cleanly matching display
-                        label_display = str(alert.get('type', '')).replace('AUTO_', '')
-                        log_entry = {
-                            "time": datetime.utcnow().isoformat() + "Z",
-                            "symbol": symbol,
-                            "msg": f"[15M CLOSE] {symbol} closed {'above' if condition == 'ABOVE' else 'below'} {alert_price} ({label_display}) at {close_p}",
-                            "price": close_p,
-                            "alert_id": alert['id']
-                        }
-                        session.logs.insert(0, log_entry)
-                        # Remove alert from session alerts
-                        session.alerts = [a for a in session.alerts if a['id'] != alert['id']]
-                        triggered_candle_alerts.append({"alert": alert, "log": log_entry})
-                
+                    alert_id = alert.get('id')
+
+                    # --- (A) TRUE 15m CLOSE CROSSING (one-shot; remove alert) ---
+                    crossing_triggered = False
+                    if condition == "ABOVE":
+                        if close_p > alert_price and prev_close_ref is not None and prev_close_ref <= alert_price:
+                            crossing_triggered = True
+                    elif condition == "BELOW":
+                        if close_p < alert_price and prev_close_ref is not None and prev_close_ref >= alert_price:
+                            crossing_triggered = True
+
+                    # --- (B) NEAR-LEVEL on 15m CLOSE ---
+                    near_triggered = False
+                    near_band = abs(alert_price) * near_frac
+                    if near_band <= 0:
+                        near_band = 0.05
+
+                    if condition == "ABOVE":
+                        # near resistance => SELL
+                        near_triggered = abs(close_p - alert_price) <= near_band
+                    elif condition == "BELOW":
+                        # near support => BUY
+                        near_triggered = abs(close_p - alert_price) <= near_band
+
+                    event_type = None
+                    if crossing_triggered:
+                        event_type = 'CROSS'
+                    elif near_triggered:
+                        event_type = 'NEAR'
+
+                    if not event_type:
+                        continue
+
+                    # Side mapping per requirement:
+                    # Cross ABOVE => SELL, Cross BELOW => BUY
+                    # Near resistance (ABOVE) => SELL, Near support (BELOW) => BUY
+                    side_dir = 'SELL' if condition == 'ABOVE' else 'BUY'
+
+                    candle_tag = current_interval_tag
+                    signature = f"{session_id}|{token}|{alert_id}|{candle_tag}|{event_type}|{side_dir}|{round(alert_price,4)}"
+
+                    st = signal_state.get(session_id, token)
+                    if st.last_alert_signature == signature:
+                        continue
+                    signal_state.update_on_alert(
+                        session_id,
+                        token,
+                        side=side_dir,
+                        entry_price=close_p,
+                        signal=event_type,
+                        signature=signature,
+                    )
+
+                    label_display = str(alert.get('type', '')).replace('AUTO_', '')
+                    verb = 'above' if condition == 'ABOVE' else 'below'
+
+                    log_entry = {
+                        "time": datetime.utcnow().isoformat() + "Z",
+                        "symbol": symbol,
+                        "msg": f"[15M {event_type}] {symbol} close {close_p:.4f} is {side_dir} ({verb} level {alert_price}) ({label_display})",
+                        "price": close_p,
+                        "alert_id": alert_id,
+                    }
+
+                    session.logs.insert(0, log_entry)
+
+                    # Remove only on CROSS (one-shot). Keep NEAR alerts for subsequent bands.
+                    if event_type == 'CROSS':
+                        session.alerts = [a for a in session.alerts if a['id'] != alert_id]
+
+                    triggered_candle_alerts.append({"alert": alert, "log": log_entry})
+
                 if triggered_candle_alerts:
                     session_manager.save_session(session_id)
                     if session_id in self.broadcast_callbacks:
                         paper_trades_data = getattr(session, 'paper_trades', [])
+                        from services.telegram_service import telegram_service
                         for item in triggered_candle_alerts:
-                            self.broadcast_callbacks[session_id](session_id, {
+                            payload = {
                                 "type": "alert_triggered",
                                 "data": {
                                     "alert": item['alert'],
                                     "log": item['log'],
                                     "paper_trades": paper_trades_data
                                 }
-                            })
+                            }
+                            self.broadcast_callbacks[session_id](session_id, payload)
+
+                            # Telegram wiring for AlertsTab: send when 15m close crossing/near happens
+                            try:
+                                msg = item['log'].get('msg')
+                                if msg:
+                                    telegram_service.send_text_message(msg)
+                            except Exception as te:
+                                logger.warning(f"[TELEGRAM] failed sending alert_triggered for {symbol}: {te}")
+
+
 
                 # Skip trading logic if auto paper & live are both off
                 if not is_paper and not is_live:
@@ -1328,7 +1403,17 @@ class WebSocketManager:
                 exit_price_fixed = tick_round(close_p)
 
                 # 1. TRAP/REJECTION SAR (Existing Position Only)
-                if mode != 'BOUNCE' and current_side:
+                # Testing mode override:
+                # - STANDARD: existing behavior
+                # - SAR_MATCH_NO_CLOSE_AFTER_FIRST: allow SAR flip evaluation without requiring an immediate close timing alignment.
+                #   For safety, we still only flip on opposite signal when current position exists (no pyramiding).
+                mode_override = getattr(session, 'paper_sar_test_mode', 'STANDARD')
+                effective_mode = mode
+                if mode_override == 'SAR_MATCH_NO_CLOSE_AFTER_FIRST':
+                    effective_mode = 'SAR'
+
+                if effective_mode != 'BOUNCE' and current_side:
+
                     for lv in levels:
                         b = lv['p'] * buffer_pct
                         if current_side == "BUY":

@@ -1,34 +1,26 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-    // 1. Detective work based on location (Highest priority for local dev)
     const hostname = window.location.hostname;
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
     if (isLocal) return 'http://127.0.0.1:8002';
 
-    // 2. Detect local network IPs (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x) for local mobile testing
-    const isLocalIp = hostname.startsWith('192.168.') || 
-                      hostname.startsWith('10.') || 
-                      (hostname.startsWith('172.') && (() => {
-                          const parts = hostname.split('.');
-                          if (parts.length >= 2) {
-                              const sec = parseInt(parts[1], 10);
-                              return sec >= 16 && sec <= 31;
-                          }
-                          return false;
-                      })());
-                      
-    if (isLocalIp) {
-        return `http://${hostname}:8002`;
-    }
+    const isLocalIp = hostname.startsWith('192.168.') ||
+        hostname.startsWith('10.') ||
+        (hostname.startsWith('172.') && (() => {
+            const parts = hostname.split('.');
+            if (parts.length >= 2) {
+                const sec = parseInt(parts[1], 10);
+                return sec >= 16 && sec <= 31;
+            }
+            return false;
+        })());
 
-    // 3. Prioritize environment variable if explicitly configured
+    if (isLocalIp) return `http://${hostname}:8002`;
+
     const envUrl = import.meta.env.VITE_API_URL;
     if (envUrl) return envUrl;
 
-    // 4. Default Fallback for unified VPS reverse proxy deployment via Caddy
-    //    Use empty string so axios uses paths as-is (e.g. /api/auth/login)
-    //    Using '/api' here would cause double-prefix: /api/api/auth/login → 404
     return '';
 };
 
@@ -37,16 +29,14 @@ console.log('🌐 API_BASE_URL:', API_BASE_URL);
 
 const api = axios.create({
     baseURL: API_BASE_URL,
-    timeout: 60000, // 60 seconds to allow for Cloud Run cold starts
+    timeout: 60000,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Session storage keys
 const SESSION_KEY = 'trade_yantra_session';
 
-// Session helpers
 export const getSession = () => {
     const sessionData = localStorage.getItem(SESSION_KEY);
     return sessionData ? JSON.parse(sessionData) : null;
@@ -142,184 +132,23 @@ export const getAlerts = async (sessionId, clientId = null) => {
     return response.data;
 };
 
-// Generate High/Low alerts
-export const generateAlerts = async (sessionId, params) => {
-    // params: { symbol, date, start_time, end_time, is_custom_range, client_id }
-    const response = await api.post('/api/alerts/generate', {
-        session_id: sessionId,
-        ...params
-    });
-    return response.data;
-};
-
-// Generate High/Low alerts for ALL watchlist stocks
-export const generateBulkAlerts = async (sessionId, params) => {
-    // params: { date, start_time, end_time, is_custom_range, levels, client_id }
-    const response = await api.post('/api/alerts/generate-bulk', {
-        session_id: sessionId,
-        ...params
-    });
-    return response.data;
-};
-
-export const deleteAlert = async (sessionId, alertId, clientId = null) => {
-    const response = await api.post('/api/alerts/delete', {
-        session_id: sessionId,
-        client_id: clientId,
-        alert_id: alertId,
-    });
-    return response.data;
-};
-
-export const clearAllAlerts = async (sessionId, clientId = null) => {
-    const response = await api.post('/api/alerts/clear-all', {
-        session_id: sessionId,
-        client_id: clientId,
-    });
-    return response.data;
-};
-
-export const deleteMultipleAlerts = async (sessionId, alertIds, clientId = null) => {
-    // Using POST for delete-multiple to ensure body is handled correctly by all network layers
-    const response = await api.post('/api/alerts/delete-multiple', {
-        session_id: sessionId,
-        client_id: clientId,
-        alert_ids: alertIds,
-    });
-    return response.data;
-};
-
-export const pauseAlerts = async (sessionId, isPaused, clientId = null) => {
-    const response = await api.post('/api/alerts/pause', {
-        session_id: sessionId,
-        client_id: clientId,
-        paused: isPaused,
-    });
-    return response.data;
-};
-
-export const getLogs = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/alerts/logs/${sessionId}?client_id=${clientId}` : `/api/alerts/logs/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
 // Paper Trading APIs
-export const getPaperSummary = async (sessionId, clientId = null) => {
-    const url = clientId ? `/api/paper/summary/${sessionId}?client_id=${clientId}` : `/api/paper/summary/${sessionId}`;
-    const response = await api.get(url);
-    return response.data;
-};
-
-export const togglePaperTrading = async (sessionId, enabled, clientId = null) => {
-    const response = await api.post(`/api/paper/toggle/${sessionId}`, { enabled, client_id: clientId });
-    return response.data;
-};
-
-export const setStrategyMode = async (sessionId, mode, clientId = null) => {
-    const response = await api.post(`/api/paper/strategy/${sessionId}`, { mode, client_id: clientId });
-    return response.data;
-};
-
-export const setTriggerMode = async (sessionId, mode, clientId = null) => {
-    const response = await api.post(`/api/paper/trigger-mode/${sessionId}`, { mode, client_id: clientId });
-    return response.data;
-};
-
-export const setBufferPct = async (sessionId, buffer, clientId = null) => {
-    const response = await api.post(`/api/paper/buffer/${sessionId}`, { buffer, client_id: clientId });
-    return response.data;
-};
-
-
-
-export const closePaperTrade = async (sessionId, tradeId, ltp) => {
-    const response = await api.post(`/api/paper/close/${sessionId}/${tradeId}?ltp=${ltp}`);
-    return response.data;
-};
-
-// ... existing code ...
-export const clearPaperTrades = async (sessionId) => {
-    const response = await api.post(`/api/paper/clear/${sessionId}`);
-    return response.data;
-};
-
-export const setVirtualBalance = async (sessionId, amount, clientId = null) => {
-    const response = await api.post(`/api/paper/balance/${sessionId}`, { amount, client_id: clientId });
-    return response.data;
-};
-
-export const setStopLoss = async (sessionId, tradeId, slPrice) => {
-    const response = await api.post(`/api/paper/stoploss/${sessionId}/${tradeId}`, { sl_price: slPrice });
-    return response.data;
-};
-
-export const setTarget = async (sessionId, tradeId, targetPrice) => {
-    const response = await api.post(`/api/paper/target/${sessionId}/${tradeId}`, { target_price: targetPrice });
-    return response.data;
-};
-
-export const manualTrade = async (sessionId, symbol, token, ltp, side, quantity) => {
-    const response = await api.post(`/api/paper/trade/${sessionId}`, {
-        symbol,
-        token,
-        ltp,
-        side,
-        quantity: parseInt(quantity) || 100
-    });
-    return response.data;
-};
-export const getPaperAnalytics = async (sessionId) => {
-    const response = await api.get(`/api/paper/analytics/${sessionId}`);
-    return response.data;
-};
-
-export const squareOffPositions = async (sessionId) => {
-    const response = await api.post(`/api/paper/square-off/${sessionId}`);
-    return response.data;
-};
-
 export const runBacktest = async (sessionId, params, clientId = null) => {
     const response = await api.post(`/api/paper/backtest/${sessionId}`, { ...params, client_id: clientId });
     return response.data;
 };
 
+// Planet Nakshatra Backtest
+export const runPlanetNakshatraBacktest = async (sessionId, { years }, clientId = null) => {
+    const response = await api.get(`/api/astro/backtest/planet-nakshatra`, {
+        params: {
+            years,
+            session_id: sessionId,
+            client_id: clientId,
+        },
+    });
+    return response.data;
+};
+
 export default api;
 
-// Live Trading APIs
-export const toggleLiveTrading = async (sessionId, enabled) => {
-    const response = await api.post(`/api/live/toggle/${sessionId}`, { enabled });
-    return response.data;
-};
-
-export const placeLiveOrder = async (sessionId, orderDetails) => {
-    // orderDetails: { symbol, token, exch_seg, side, quantity, product_type, order_type, price }
-    const response = await api.post(`/api/live/order/${sessionId}`, orderDetails);
-    return response.data;
-};
-
-export const getLivePositions = async (sessionId) => {
-    const response = await api.get(`/api/live/positions/${sessionId}`);
-    return response.data;
-};
-
-export const getLiveOrders = async (sessionId) => {
-    const response = await api.get(`/api/live/orders/${sessionId}`);
-    return response.data;
-};
-
-export const getLiveFunds = async (sessionId) => {
-    const response = await api.get(`/api/live/funds/${sessionId}`);
-    return response.data;
-};
-
-export const getLiveStatus = async (sessionId) => {
-    const response = await api.get(`/api/live/status/${sessionId}`);
-    return response.data;
-};
-
-export const updateLiveSettings = async (sessionId, settings) => {
-    // settings: { trade_quantity: int, trade_capital: float }
-    const response = await api.post(`/api/live/settings/${sessionId}`, settings);
-    return response.data;
-};

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, getPaperAnalytics, getSession } from '../services/api';
+import { getPaperSummary, togglePaperTrading, setStrategyMode, setBufferPct, setPaperSarTestMode, closePaperTrade, clearPaperTrades, setVirtualBalance, setStopLoss, getPaperAnalytics, getSession } from '../services/api';
 import toast from 'react-hot-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 
 const TradesTab = ({
+
     clientId,
     sessionId,
     watchlist,
@@ -366,6 +367,54 @@ const TradesTab = ({
 
             {/* 3. STRATEGY CONTROL */}
             <div className="glass-card p-4 rounded-2xl border border-[var(--border-color)] space-y-4">
+
+                {/* SAR Test Mode Toggle */}
+                <div className="pt-2">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <div className="text-[10px] text-[var(--text-muted)] uppercase font-bold tracking-widest">SAR Test Mode</div>
+                            <div className="text-[11px] text-[var(--text-secondary)]">Align SAR flip timing without immediate close alignment</div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                try {
+                                    const sid = sessionId;
+                                    const cid = clientId;
+                                    if (!sid) return;
+
+                                    const nextMode = (summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST')
+                                        ? 'STANDARD'
+                                        : 'SAR_MATCH_NO_CLOSE_AFTER_FIRST';
+
+                                    await toast.promise(
+                                        setPaperSarTestMode(sid, nextMode, cid),
+                                        {
+                                            loading: 'Updating SAR Test Mode...',
+                                            success: <b>Mode set to {nextMode === 'STANDARD' ? 'STANDARD' : 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'}</b>,
+                                            error: (err) => <b>Failed: {err.response?.data?.detail || 'Server error'}</b>
+                                        }
+                                    );
+
+                                    fetchSummary();
+                                } catch (e) {
+                                    console.error(e);
+                                }
+                            }}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all ${
+                                summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                    ? 'bg-orange-500 text-white shadow-[0_0_20px_rgba(234,88,12,0.35)]'
+                                    : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                            }`}
+                        >
+                            {summary?.paper_sar_test_mode === 'SAR_MATCH_NO_CLOSE_AFTER_FIRST'
+                                ? 'TEST MODE: ON'
+                                : 'TEST MODE: OFF'}
+                        </button>
+                    </div>
+                </div>
+
+
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="text-sm font-bold text-[var(--text-primary)]">Automated Execution</h2>

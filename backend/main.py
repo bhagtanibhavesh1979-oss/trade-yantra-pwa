@@ -2,6 +2,7 @@
 Trade Yantra - FastAPI Backend (GCP Optimized)
 Final Version - Fixes 404s, Session Loss, and WebSocket Disconnects
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -9,6 +10,15 @@ import uvicorn
 import os
 import sys
 from dotenv import load_dotenv
+
+# Load .env from project root (so BOT_TOKEN / CHAT_ID are available to services)
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+
+
 
 # Diagnostics for Google Cloud Run
 print("--- STARTING TRADE YANTRA BACKEND ---")
@@ -28,6 +38,8 @@ load_dotenv()
 from routes import auth, watchlist, alerts, stream, indices, paper, live
 from routes import chart_router
 from routes.astro import router as astro_router
+from routes.telegram_signals import router as telegram_signals_router
+
 
 # Import services
 from services.session_manager import session_manager
@@ -94,9 +106,11 @@ app.include_router(paper.router)
 app.include_router(live.router)
 app.include_router(chart_router)
 app.include_router(astro_router)
+app.include_router(telegram_signals_router)
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream.router) 
+
 
 @app.get("/")
 @app.get("/health")

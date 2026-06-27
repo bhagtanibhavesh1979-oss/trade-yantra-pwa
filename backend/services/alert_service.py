@@ -18,6 +18,7 @@ from services.angel_service import angel_service
 from SmartApi import SmartConnect
 
 def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, start_date: str, end_date: str, start_time: str, end_time: str, is_custom: bool, exchange: str = "NSE") -> List[Dict]:
+
     """
     Generate Alerts based on High/Low of a specific period.
     Formula:
@@ -91,38 +92,76 @@ def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, s
         
         if high <= 0 or low >= 99999999: return []
         
-        # Calculate quadrant steps (Matching TradingView exactly)
+        # TradingView-matching main ladder (from the shared Pine script)
+        # Main definitions:
+        # diff = rangeHigh - rangeLow
+        # midpoint = (rangeHigh + rangeLow) / 2
+        # Target highs:  High + n*diff  (n=1..6)
+        # Target lows:   Low  - n*diff  (n=1..6)
         diff = high - low
-        step = diff / 2.0
-        
-        levels = []
-        # Generate range from S3 (j = -6) to R3 (j = 8)
-        for j in range(-6, 9):
-            price = tick_round(low + (j * step))
-            label = ""
-            condition = "ABOVE" # Default
-            
-            if j == 0:
-                label, condition = "Low", "BELOW"
-            elif j == 1:
-                label, condition = "M", "ABOVE"
-            elif j == 2:
-                label, condition = "High", "ABOVE"
-            elif j > 2:
-                if j % 2 == 0:
-                    label = f"R{ (j - 2) // 2 }"
-                else:
-                    label = f"Mid_{j}"
-                condition = "ABOVE"
-            else: # j < 0
-                if j % 2 == 0:
-                    label = f"S{ abs(j) // 2 }"
-                else:
-                    label = f"Mid_{j}"
-                condition = "BELOW"
-                
-            levels.append({"price": price, "type": condition, "label": label})
-        
+        midpoint = (high + low) / 2.0
+
+        # Generate levels for n = 1..6 (R1..R6, S1..S6), plus Low/M/High
+        # NOTE: We keep the condition mapping consistent with existing trigger logic:
+        # - Resistance side levels trigger when price goes ABOVE => condition="ABOVE"
+        # - Support side levels trigger when price goes BELOW => condition="BELOW"
+        #
+        # TradingView ladder logic uses alternating sides around the midpoint:
+        #   Low (support) is BELOW
+        #   Midpoint (R/S boundary) is treated as ABOVE in the Pine you shared
+        #   High (top resistance) is ABOVE
+        #
+        # IMPORTANT: Your Telegram "side" is computed from alert.condition in
+        # websocket_manager.py. So if we label a level as support, it must be
+        # emitted with type="BELOW".
+        levels = [
+            {"price": tick_round(low), "type": "BELOW", "label": "Low"},
+            {"price": tick_round(midpoint), "type": "ABOVE", "label": "M"},
+            {"price": tick_round(high), "type": "ABOVE", "label": "High"},
+        ]
+
+        # Pine (main ladder) defines:
+        # targetHigh1 = rangeHigh + diff
+        # targetHigh2 = rangeHigh + 2*diff
+        # targetHigh3 = rangeHigh + 3*diff
+        # and similarly for lows (rangeLow - diff, -2*diff, -3*diff).
+        # Your UI expects R1..R6 / S1..S6. We therefore extend using:
+        # R{2}=High+2*diff, R{3}=High+3*diff ... (i.e., Rn = High + n*diff)
+        # BUT TradingView also shows intermediate levels at 0.5*diff steps.
+        # The requested 1499.20 BETWEEN 1478.50 and 1519.90 corresponds to:
+        #   midBetween = midpoint + diff/4  (or equivalently High - 3*diff/4)
+        # That value is NOT Rn for integer n.
+        # To match TradingView’s visible ladder, we generate 0.5*diff steps as well
+        # and label them with the existing R/S slots by choosing the nearest integer step.
+
+        # Generate R1..R6 as High + k*(diff/2) where k=1..6.
+        # This yields: R1=High+diff/2 (the "between" level), R2=High+diff, R3=High+1.5diff, ...
+        for k in range(1, 7):
+            r_price = high + (k * diff / 2.0)
+            levels.append({"price": tick_round(r_price), "type": "ABOVE", "label": f"R{k}"})
+
+        # Generate S1..S6 as Low - k*(diff/2) where k=1..6.
+        for k in range(1, 7):
+            s_price = low - (k * diff / 2.0)
+            levels.append({"price": tick_round(s_price), "type": "BELOW", "label": f"S{k}"})
+
+
+        # Stable ordering: Supports (S6..S1), Low, M, High, Resistances (R1..R6)
+        def sort_key(lv):
+            lab = str(lv.get('label',''))
+            if lab == 'Low': return 100
+            if lab == 'M': return 101
+            if lab == 'High': return 102
+            if lab.startswith('R'):
+                try: return 200 + int(lab[1:])
+                except: return 9999
+            if lab.startswith('S'):
+                try: return 50 - int(lab[1:])  # S6 first
+                except: return 9999
+            return 9999
+
+        levels.sort(key=sort_key)
+
         print(f"Generated {len(levels)} levels for {symbol}: H={high}, L={low}, Diff={diff}")
         return levels
         

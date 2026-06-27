@@ -32,6 +32,9 @@ function App() {
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
+
+  // 15m candle-close / near-level feed for the dedicated UI tab
+  const [candleCloseFeed, setCandleCloseFeed] = useState([]);
   const [paperTrades, setPaperTrades] = useState([]);
   const [paperBalance, setPaperBalance] = useState(500000);
   const [autoExec, setAutoExec] = useState(false);
@@ -218,11 +221,20 @@ function App() {
     };
 
     const handleAlertTriggered = (data) => {
+      console.log('[15M FEED DEBUG] alert_triggered raw:', data);
       if (!data || !data.alert || !data.log) {
         console.error('Invalid alert_triggered data:', data);
         return;
       }
       const { alert, log, paper_trades } = data;
+      console.log('[15M FEED DEBUG] alert_triggered payload:', {
+        hasAlert: !!alert,
+        alertId: alert?.id,
+        symbol: alert?.symbol,
+        condition: alert?.condition,
+        logMsg: log?.msg,
+        logEventType: log?.event_type || log?.eventType || log?.type,
+      });
 
       // Update paper trades if provided
       if (Array.isArray(paper_trades)) {
@@ -237,6 +249,22 @@ function App() {
 
       // Add to logs
       setLogs((prevLogs) => [log, ...prevLogs]);
+
+      // Feed item for 15m feed tab (candle-close / near)
+      // Expected from backend websocket broadcast:
+      // { alert, log, paper_trades }
+      setCandleCloseFeed((prev) => {
+        const receivedAt = Date.now();
+        const event_type = log?.event_type || log?.eventType || log?.type || 'CROSS';
+        const payload = {
+          id: `${alert.id}|${event_type}|${receivedAt}`,
+          alert,
+          log: { ...log, event_type },
+          receivedAt,
+        };
+        return [payload, ...prev].slice(0, 500);
+      });
+
 
       // Show notification
       const direction = alert.condition === 'ABOVE' ? '↑' : '↓';
