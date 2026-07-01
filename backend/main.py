@@ -34,16 +34,42 @@ sys.stdout.flush()
 # Load environment variables
 load_dotenv()
 
-# Import routes
-from routes import auth, watchlist, alerts, stream, indices, paper, live
-from routes import chart_router
-from routes.astro import router as astro_router
-from routes.telegram_signals import router as telegram_signals_router
+# Import routers
+# Ensure current directory is on sys.path so `backend` package resolves under uvicorn.
+_project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
+
+from backend.routes import (
+    auth_router,
+    watchlist_router,
+    alerts_router,
+    stream_router,
+    indices_router,
+    paper_router,
+    live_router,
+    chart_router,
+    telegram_signals_router,
+)
+from backend.routes.astro import router as astro_router
+from backend.routes.backtest_astro import router as backtest_astro_router
 
 
-# Import services
-from services.session_manager import session_manager
-from services.websocket_manager import ws_manager
+
+
+
+
+
+
+
+# Import services (package-qualified)
+from backend.services.session_manager import session_manager
+from backend.services.websocket_manager import ws_manager
+
 
 # Load environment variables
 load_dotenv()
@@ -58,7 +84,7 @@ async def lifespan(app: FastAPI):
     # Load scrip master in background - Don't let this crash the startup
     try:
         import threading
-        from services.angel_service import angel_service
+        from backend.services.angel_service import angel_service
         print("[INFO] Starting Scrip Master background loader...")
         sys.stdout.flush()
         threading.Thread(target=angel_service.load_scrip_master, daemon=True).start()
@@ -98,21 +124,25 @@ app.add_middleware(
 # FIXED ROUTER PREFIXES
 # We add /api/ prefix here to match exactly what your PWA frontend is calling.
 # This fixes the "404 Not Found" errors.
-app.include_router(auth.router)
-app.include_router(watchlist.router)
-app.include_router(alerts.router)
-app.include_router(indices.router)
-app.include_router(paper.router)
-app.include_router(live.router)
+app.include_router(auth_router)
+app.include_router(watchlist_router)
+app.include_router(alerts_router)
+app.include_router(indices_router)
+app.include_router(paper_router)
+app.include_router(live_router)
 app.include_router(chart_router)
 app.include_router(astro_router)
+app.include_router(backtest_astro_router)
 app.include_router(telegram_signals_router)
 
+
+
 # Stream usually handles its own /ws prefix inside the router
-app.include_router(stream.router) 
+app.include_router(stream_router)
 
 
 @app.get("/")
+
 @app.get("/health")
 async def health_check():
     """
@@ -129,8 +159,9 @@ async def health_check():
 @app.get("/debug/session/{session_id}")
 async def debug_session(session_id: str):
     """ Debug endpoint to check session status """
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     db_data = persistence_service.get_session_by_session_id(session_id)
+
     memory_session = session_manager.get_session(session_id)
     
     return {

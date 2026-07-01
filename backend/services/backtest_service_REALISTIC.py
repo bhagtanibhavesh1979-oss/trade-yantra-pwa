@@ -14,7 +14,7 @@ class BacktestService:
         pass
 
     def run_backtest(self, smart_api, symbol: str, token: str, exch: str, start_date: str, end_date: str, strategy_config: Dict):
-        from services.angel_service import angel_service
+        from backend.services.angel_service import angel_service
 
         # 1. Level Calculation (Full Difference Logic)
         blueprint_date = strategy_config.get('blueprint_date')

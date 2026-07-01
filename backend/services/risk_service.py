@@ -1,4 +1,4 @@
-from services.angel_service import angel_service
+from backend.services.angel_service import angel_service
 from typing import Dict, Optional
 
 class RiskService:
@@ -8,7 +8,7 @@ class RiskService:
         
     def check_safety(self, session_id: str) -> bool:
         """Global Safety Check (Kill Switch)"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session: return False
         
@@ -26,7 +26,7 @@ class RiskService:
             Required = Price * Qty * Margin%
             Available = Net Available Funds
         """
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api: return False
 

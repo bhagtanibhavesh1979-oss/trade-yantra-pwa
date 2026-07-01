@@ -62,6 +62,7 @@ export const login = async (apiKey, clientId, password, totpSecret, dataApiKey =
     return response.data;
 };
 
+
 export const logout = async (sessionId) => {
     const response = await api.post('/api/auth/logout', {
         session_id: sessionId,
@@ -132,17 +133,92 @@ export const getAlerts = async (sessionId, clientId = null) => {
     return response.data;
 };
 
+// Generate High/Low alerts
+export const generateAlerts = async (sessionId, params) => {
+    const response = await api.post('/api/alerts/generate', {
+        session_id: sessionId,
+        ...params,
+    });
+    return response.data;
+};
+
+// Generate High/Low alerts for ALL watchlist stocks
+export const generateBulkAlerts = async (sessionId, params) => {
+    const response = await api.post('/api/alerts/generate-bulk', {
+        session_id: sessionId,
+        ...params,
+    });
+    return response.data;
+};
+
+export const deleteAlert = async (sessionId, alertId, clientId = null) => {
+    const response = await api.post('/api/alerts/delete', {
+        session_id: sessionId,
+        client_id: clientId,
+        alert_id: alertId,
+    });
+    return response.data;
+};
+
+export const pauseAlerts = async (sessionId, paused, clientId = null) => {
+    const response = await api.post('/api/alerts/pause', {
+        session_id: sessionId,
+        client_id: clientId,
+        paused,
+    });
+    return response.data;
+};
+
+export const clearAllAlerts = async (sessionId, clientId = null) => {
+    const response = await api.post('/api/alerts/clear-all', {
+        session_id: sessionId,
+        client_id: clientId,
+    });
+    return response.data;
+};
+
+export const deleteMultipleAlerts = async (sessionId, alertIds, clientId = null) => {
+    const response = await api.post('/api/alerts/delete-multiple', {
+        session_id: sessionId,
+        client_id: clientId,
+        alert_ids: alertIds,
+    });
+    return response.data;
+};
+
+// Logs APIs
+export const getLogs = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/alerts/logs/${sessionId}?client_id=${clientId}` : `/api/alerts/logs/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
 // Paper Trading APIs
+
 export const runBacktest = async (sessionId, params, clientId = null) => {
     const response = await api.post(`/api/paper/backtest/${sessionId}`, { ...params, client_id: clientId });
     return response.data;
 };
 
-// Planet Nakshatra Backtest
-export const runPlanetNakshatraBacktest = async (sessionId, { years }, clientId = null) => {
+// NOTE: keep existing exports used by other tabs.
+// WatchlistTab imports manualTrade
+export const manualTrade = async (sessionId, symbol, token, ltp, side, quantity) => {
+    const response = await api.post(`/api/paper/trade/${sessionId}`, {
+        symbol,
+        token,
+        ltp,
+        side,
+        quantity: parseInt(quantity) || 100,
+    });
+    return response.data;
+};
+
+// Planet Nakshatra/Pada Backtest
+export const runPlanetNakshatraBacktest = async (sessionId, { years, planets } = {}, clientId = null) => {
     const response = await api.get(`/api/astro/backtest/planet-nakshatra`, {
         params: {
             years,
+            planets, // optional: array of planet strings
             session_id: sessionId,
             client_id: clientId,
         },
@@ -150,5 +226,117 @@ export const runPlanetNakshatraBacktest = async (sessionId, { years }, clientId 
     return response.data;
 };
 
+
+// Paper / Orders APIs (required by OrdersTab.jsx)
+export const getPaperSummary = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/paper/summary/${sessionId}?client_id=${clientId}` : `/api/paper/summary/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const getPaperAnalytics = async (sessionId) => {
+    const response = await api.get(`/api/paper/analytics/${sessionId}`);
+    return response.data;
+};
+
+export const togglePaperTrading = async (sessionId, paused, clientId = null) => {
+    const response = await api.post(`/api/paper/toggle/${sessionId}`, { paused, client_id: clientId });
+    return response.data;
+};
+
+export const setStrategyMode = async (sessionId, mode, clientId = null) => {
+    const response = await api.post(`/api/paper/strategy-mode/${sessionId}`, { strategy_mode: mode, client_id: clientId });
+    return response.data;
+};
+
+export const setTriggerMode = async (sessionId, mode, clientId = null) => {
+    const response = await api.post(`/api/paper/trigger-mode/${sessionId}`, { trigger_mode: mode, client_id: clientId });
+    return response.data;
+};
+
+export const setBufferPct = async (sessionId, bufferPct, clientId = null) => {
+    const response = await api.post(`/api/paper/buffer/${sessionId}`, { buffer_pct: bufferPct, client_id: clientId });
+    return response.data;
+};
+
+export const setPaperSarTestMode = async (sessionId, mode, clientId = null) => {
+    const response = await api.post(`/api/paper/sar-test-mode/${sessionId}`, { paper_sar_test_mode: mode, client_id: clientId });
+    return response.data;
+};
+
+export const closePaperTrade = async (sessionId, tradeId, ltp, clientId = null) => {
+    const response = await api.post(`/api/paper/close/${sessionId}`, { trade_id: tradeId, ltp, client_id: clientId });
+    return response.data;
+};
+
+export const clearPaperTrades = async (sessionId, clientId = null) => {
+    const response = await api.post(`/api/paper/clear-trades/${sessionId}`, { client_id: clientId });
+    return response.data;
+};
+
+export const setVirtualBalance = async (sessionId, amount, clientId = null) => {
+    const response = await api.post(`/api/paper/balance/${sessionId}`, { amount, client_id: clientId });
+    return response.data;
+};
+
+export const setStopLoss = async (sessionId, tradeId, stopLoss, clientId = null) => {
+    const response = await api.post(`/api/paper/stop-loss/${sessionId}`, { trade_id: tradeId, stop_loss: stopLoss, client_id: clientId });
+    return response.data;
+};
+
+export const setTarget = async (sessionId, tradeId, target, clientId = null) => {
+    const response = await api.post(`/api/paper/target/${sessionId}`, { trade_id: tradeId, target, client_id: clientId });
+    return response.data;
+};
+
+export const squareOffPositions = async (sessionId, clientId = null) => {
+    const response = await api.post(`/api/paper/square-off/${sessionId}`, { client_id: clientId });
+    return response.data;
+};
+
+// Live Orders APIs (required by LiveOrdersTab.jsx)
+export const getLivePositions = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/positions/${sessionId}?client_id=${clientId}` : `/api/live/positions/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const getLiveFunds = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/funds/${sessionId}?client_id=${clientId}` : `/api/live/funds/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
+export const toggleLiveTrading = async (sessionId, paused, clientId = null) => {
+    const response = await api.post(`/api/live/toggle/${sessionId}`, { paused, client_id: clientId });
+    return response.data;
+};
+
+export const updateLiveSettings = async (sessionId, settings, clientId = null) => {
+    const response = await api.post(`/api/live/settings/${sessionId}`, { ...settings, client_id: clientId });
+    return response.data;
+};
+
+export const placeLiveOrder = async (sessionId, order, clientId = null) => {
+    const response = await api.post(`/api/live/order/${sessionId}`, { ...order, client_id: clientId });
+    return response.data;
+};
+
+export const getLiveStatus = async (sessionId, clientId = null) => {
+    const url = clientId ? `/api/live/status/${sessionId}?client_id=${clientId}` : `/api/live/status/${sessionId}`;
+    const response = await api.get(url);
+    return response.data;
+};
+
 export default api;
+
+
+
+
+
+
+
+
+
+
 

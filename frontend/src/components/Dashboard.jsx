@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
-import AlertFeedTab from './AlertFeedTab';
+
 import LogsTab from './LogsTab';
 import BacktestTab from './BacktestTab';
 import AstroChart from './AstroChart';
@@ -135,15 +135,7 @@ function Dashboard({
                         onRefreshData={onRefreshData}
                     />
                 )}
-                {activeTab === 'candle_close_feed' && (
-                    <AlertFeedTab
-                        feed={candleCloseFeed || []}
-                        onSelectSymbol={(symbol) => {
-                            setPreSelectedAlertSymbol(symbol);
-                            setActiveTab('astro_chart');
-                        }}
-                    />
-                )}
+
 
 
 

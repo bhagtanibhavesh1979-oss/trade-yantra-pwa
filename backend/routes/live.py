@@ -1,10 +1,10 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from services.session_manager import session_manager
-from services.live_service import live_service
-from services.risk_service import risk_service
-from services.angel_service import angel_service
+from backend.services.session_manager import session_manager
+from backend.services.live_service import live_service
+from backend.services.risk_service import risk_service
+from backend.services.angel_service import angel_service
 
 router = APIRouter(prefix="/api/live", tags=["Live Trading"])
 

@@ -84,9 +84,28 @@ class PlanetNakPada:
 
 
 class AstroBacktestEngine:
-    def __init__(self):
-        # Lahiri sidereal mode
-        swe.set_sid_mode(swe.SIDM_LAHIRI)
+    def __init__(self, sidereal_mode: str = "lahiri"):
+        """Create an astrology engine.
+
+        sidereal_mode:
+          - "lahiri" (SIDM_LAHIRI)
+          - "chitra" (Drik-style Chitra Paksha; we map to Swiss Ephemeris SIDM_SS_CITRA by default)
+          - "ss_citra" (alias for SIDM_SS_CITRA)
+          - "true_citra" (SIDM_TRUE_CITRA)
+        """
+
+        mode_map = {
+            "lahiri": swe.SIDM_LAHIRI,
+            "chitra": swe.SIDM_SS_CITRA,
+            "ss_citra": swe.SIDM_SS_CITRA,
+            "true_citra": swe.SIDM_TRUE_CITRA,
+        }
+
+        if sidereal_mode not in mode_map:
+            raise ValueError(f"Unsupported sidereal_mode: {sidereal_mode}")
+
+        swe.set_sid_mode(mode_map[sidereal_mode])
+
 
     @staticmethod
     def _utc_datetime_from_ist_date(date_str: str, hour_ist: int = 0) -> datetime:
@@ -114,7 +133,7 @@ class AstroBacktestEngine:
         # Calculate ecliptic longitude
         # Use flags for speed + sidereal (Swiss Ephemeris applies sidereal settings internally with set_sid_mode)
         # We'll request apparent position; for nakshatra/pada level mapping, precision is sufficient.
-        lon, lat, dist, speed_lon = swe.calc_ut(jd_ut, swe_id, swe.FLG_SWIEPH | swe.FLG_SPEED)[0]
+        lon, lat, dist, speed_lon = swe.calc_ut(jd_ut, swe_id, swe.FLG_SWIEPH | swe.FLG_SPEED)[0][:4]
 
         lon_sid = self._wrap_360(float(lon))
         if planet == "Ketu":
@@ -122,12 +141,27 @@ class AstroBacktestEngine:
         return lon_sid
 
     def _nakshatra_pada_from_lon(self, lon_sid: float) -> Tuple[str, int, int, float]:
-        nak_idx = int(lon_sid / NAK_SPAN) % 27
-        deg_in_nak = lon_sid - nak_idx * NAK_SPAN
+        """Map sidereal longitude to nakshatra and pada.
+
+        Uses a small epsilon to make boundary cases numerically stable, so that
+        values extremely close to the end of a pada/nakshatra don't flip to the next
+        bucket due to floating point rounding.
+        """
+
+        eps = 1e-9  # degrees
+        # Shift slightly backwards so an exact boundary doesn't round into the next bucket.
+        lon_adj = (float(lon_sid) - eps) % 360.0
+
+        nak_idx = int(lon_adj / NAK_SPAN) % 27
+        deg_in_nak = lon_adj - nak_idx * NAK_SPAN
+        # Clamp to [0, NAK_SPAN) to avoid deg_in_nak == NAK_SPAN due to rounding.
+        deg_in_nak = min(max(deg_in_nak, 0.0), NAK_SPAN - eps)
+
         pada = int(deg_in_nak / PADA_SPAN) + 1
         pada = min(max(pada, 1), 4)
         nak_name = NAKSHATRAS[nak_idx]
         return nak_name, nak_idx, pada, float(deg_in_nak)
+
 
     def compute_planet_transitions(
         self,
@@ -135,90 +169,113 @@ class AstroBacktestEngine:
         end_date: str,
         planets: Sequence[str],
         event_types: Sequence[str],
+        step_minutes: int = 10,
     ) -> List[Dict]:
-        """Compute daily transitions between consecutive days.
+        """Compute Nakshatra/Pada transitions by scanning in time.
 
-        Returns rows for each transition day (where nakshatra or pada differs from previous day).
-        Each row:
-        {
-          date: YYYY-MM-DD (IST)
-          planet: str
-          event_type: "NakshatraChange" | "PadaChange"
-          entered_nakshatra: str
-          entered_pada: int
-          prev_nakshatra: str
-          prev_pada: int
-          lon_deg: float
-        }
+        The previous implementation sampled only at 00:00 IST for each calendar day.
+        That can shift transition dates/padas vs. instant transit times (e.g., Drik Panchang).
+
+        This implementation scans from (start_date 00:00 IST) up to (end_date 23:59 IST)
+        with `step_minutes` resolution, and emits events when either:
+        - Nakshatra boundary is crossed, or
+        - Pada boundary is crossed.
+
+        Event `date` remains the IST calendar day of the detected crossing instant.
         """
 
         want_nak = "NakshatraChange" in set(event_types)
         want_pada = "PadaChange" in set(event_types)
+
+        if step_minutes <= 0:
+            raise ValueError("step_minutes must be > 0")
 
         d0 = datetime.strptime(start_date, "%Y-%m-%d").date()
         d1 = datetime.strptime(end_date, "%Y-%m-%d").date()
         if d0 > d1:
             raise ValueError("start_date must be <= end_date")
 
-        # We need previous day info; start at start_date - 1
-        prev_date = d0 - timedelta(days=1)
+        ist_tz = timezone(timedelta(hours=5, minutes=30))
+        t_start_ist = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=ist_tz)
+        t_end_ist = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=ist_tz) + timedelta(hours=23, minutes=59)
 
-        def info_for(date_obj) -> Dict[str, Tuple[str, int, int]]:
-            date_str = date_obj.strftime("%Y-%m-%d")
-            jd_ut = self._jd_from_utc(self._utc_datetime_from_ist_date(date_str, hour_ist=0))
+        results: List[Dict] = []
 
-            out: Dict[str, Tuple[str, int, int]] = {}
+        # Store previous state per planet at previous scan timestamp.
+        prev_state: Dict[str, Tuple[str, int, int]] = {}
+
+        def state_at(dt_ist: datetime) -> Dict[str, Tuple[str, int, int, float]]:
+            """Return per-planet: (nak_name, nak_idx, pada, lon_sid) at given IST datetime."""
+            dt_utc = dt_ist.astimezone(timezone.utc)
+            jd_ut = self._jd_from_utc(dt_utc)
+            out: Dict[str, Tuple[str, int, int, float]] = {}
             for p in planets:
                 lon_sid = self._sidereal_longitude(p, jd_ut)
                 nak_name, nak_idx, pada, _deg_in_nak = self._nakshatra_pada_from_lon(lon_sid)
-                out[p] = (nak_name, nak_idx, pada)
+                out[p] = (nak_name, nak_idx, pada, lon_sid)
             return out
 
-        prev_info = info_for(prev_date)
+        # Initialize previous state at start timestamp.
+        current = state_at(t_start_ist)
+        for p in planets:
+            nak_name, nak_idx, pada, _lon_sid = current[p]
+            prev_state[p] = (nak_name, nak_idx, pada)
 
-        results: List[Dict] = []
-        for i in range((d1 - d0).days + 1):
-            curr_date = d0 + timedelta(days=i)
-            date_str = curr_date.strftime("%Y-%m-%d")
+        # Scan forward
+        step = timedelta(minutes=step_minutes)
+        t = t_start_ist + step
 
-            jd_ut = self._jd_from_utc(self._utc_datetime_from_ist_date(date_str, hour_ist=0))
+        # To avoid duplicates, track last-emitted signature per planet for each event day.
+        # Signature includes whether we were in a given entered nakshatra/pada.
+        last_emitted: Dict[Tuple[str, str, str, int], str] = {}
+
+        while t <= t_end_ist:
+            current = state_at(t)
+            date_str = t.astimezone(ist_tz).strftime("%Y-%m-%d")
 
             for p in planets:
-                lon_sid = self._sidereal_longitude(p, jd_ut)
-                nak_name, nak_idx, pada, deg_in_nak = self._nakshatra_pada_from_lon(lon_sid)
+                prev_nak, _prev_nak_idx, prev_pada = prev_state[p]
+                nak_name, nak_idx, pada, lon_sid = current[p]
 
-                prev_nak, _prev_nak_idx, prev_pada = prev_info[p]
 
                 if want_nak and nak_name != prev_nak:
-                    results.append(
-                        {
-                            "date": date_str,
-                            "planet": p,
-                            "event_type": "NakshatraChange",
-                            "entered_nakshatra": nak_name,
-                            "entered_pada": pada,
-                            "prev_nakshatra": prev_nak,
-                            "prev_pada": prev_pada,
-                            "lon_deg": float(lon_sid),
-                        }
-                    )
+                    key = (p, "NakshatraChange", nak_name, pada)
+                    if last_emitted.get(key) != date_str:
+                        results.append(
+                            {
+                                "date": date_str,
+                                "planet": p,
+                                "event_type": "NakshatraChange",
+                                "entered_nakshatra": nak_name,
+                                "entered_pada": pada,
+                                "prev_nakshatra": prev_nak,
+                                "prev_pada": prev_pada,
+                                "lon_deg": float(lon_sid),
+                            }
+                        )
+                        last_emitted[key] = date_str
 
                 if want_pada and pada != prev_pada:
-                    results.append(
-                        {
-                            "date": date_str,
-                            "planet": p,
-                            "event_type": "PadaChange",
-                            "entered_nakshatra": nak_name,
-                            "entered_pada": pada,
-                            "prev_nakshatra": prev_nak,
-                            "prev_pada": prev_pada,
-                            "lon_deg": float(lon_sid),
-                        }
-                    )
+                    key = (p, "PadaChange", nak_name, pada)
+                    if last_emitted.get(key) != date_str:
+                        results.append(
+                            {
+                                "date": date_str,
+                                "planet": p,
+                                "event_type": "PadaChange",
+                                "entered_nakshatra": nak_name,
+                                "entered_pada": pada,
+                                "prev_nakshatra": prev_nak,
+                                "prev_pada": prev_pada,
+                                "lon_deg": float(lon_sid),
+                            }
+                        )
+                        last_emitted[key] = date_str
 
-                # update prev_info for this planet
-                prev_info[p] = (nak_name, nak_idx, pada)
+                prev_state[p] = (nak_name, nak_idx, pada)
+
+            t += step
 
         return results
+
 

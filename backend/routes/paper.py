@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Dict
-from services.session_manager import session_manager
-from services.paper_service import paper_service
+from backend.services.session_manager import session_manager
+from backend.services.paper_service import paper_service
 from datetime import datetime, timedelta
 
 import logging
@@ -95,7 +95,7 @@ async def get_paper_summary(session_id: str, client_id: Optional[str] = None):
         raise HTTPException(status_code=404, detail="Session not found")
     
     # Merge historical trades from permanent storage
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     historical_trades = persistence_service.get_trade_history(session.client_id) or []
     
     # Use a dictionary to avoid duplicates
@@ -161,7 +161,7 @@ async def close_trade(session_id: str, trade_id: str, ltp: float, client_id: Opt
     paper_service.close_virtual_trade(session_id, trade_id, ltp, reason="MANUAL_CLOSE")
     
     # CRITICAL: Also update in permanent trade history so merged view shows CLOSED
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     closed_trade = next((t for t in session.paper_trades if t['id'] == trade_id), None)
     if closed_trade:
         persistence_service.add_to_trade_history(session.client_id, closed_trade)
@@ -179,7 +179,7 @@ async def clear_trades(session_id: str):
     session.paper_trades = open_trades
     
     # 2. Clear Permanent Store but PRESERVE OPEN trades
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     # Fetch historical trades to see if any are OPEN (should be synced with memory but safety first)
     history = persistence_service.get_trade_history(session.client_id) or []
     historical_open = [t for t in history if t.get('status') == 'OPEN']
@@ -259,7 +259,7 @@ async def export_trades(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
         
     # Combine active session trades with historical ones
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     historical_trades = persistence_service.get_trade_history(session.client_id)
     
     # Merge logic: use trade ID to avoid duplicates
@@ -344,7 +344,7 @@ async def get_analytics(session_id: str):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
         
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     bal = getattr(session, 'virtual_balance', 100000.0)
     extra_trades = getattr(session, 'paper_trades', [])
     return persistence_service.get_performance_stats(session.client_id, bal, extra_trades)
@@ -382,7 +382,8 @@ async def run_backtest(session_id: str, req: BacktestRequest):
     if not session or not session.smart_api:
         raise HTTPException(status_code=401, detail="Angel API session inactive. Please re-login.")
         
-    from services.backtest_service import backtest_service
+    from backend.services.backtest_service import backtest_service
+    
     
     # Resolve blueprint date range: prefer explicit start/end, fallback to legacy single date
     bp_start = req.blueprint_start_date or req.blueprint_date

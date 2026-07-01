@@ -54,8 +54,9 @@ def tick_round(price):
         return float(price)
 
 def check_and_trigger_alerts(session_id: str, stock: dict):
-    from services.session_manager import session_manager
-    from services.alert_service import check_alert_trigger, create_alert_log
+    from backend.services.session_manager import session_manager
+    from backend.services.alert_service import check_alert_trigger, create_alert_log
+
     
     session = session_manager.get_session(session_id)
     if not session or session.is_paused:
@@ -114,7 +115,7 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
                 
     # --- SAME-TYPE ALERT FILTER (Prevent multi-trigger on same candle spike) ---
     if triggered_alerts:
-        from services.websocket_manager import ws_manager
+        from backend.services.websocket_manager import ws_manager
         client_id = session.client_id
         if client_id not in ws_manager.last_alert_times:
             ws_manager.last_alert_times[client_id] = {}
@@ -138,7 +139,7 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
     # --- SMART SL / TRAP MONITORING (Match Backtest Logic) ---
     # This ensures we don't exit on random wicks unless the structure (Prev Close) supports the Trap
     if session.paper_trades and trigger_mode != 'CANDLE_CLOSE':
-        from services.websocket_manager import ws_manager
+        from backend.services.websocket_manager import ws_manager
         
         # --- TRADE COOLDOWN & CANDLE LOCK (Prevent Flapping) ---
         # 1. Standard Cooldown (60s) - PER CLIENT
@@ -225,9 +226,9 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
                              trades_to_close.append((trade, lv['p'], f"REJECTION_{lv['n']}"))
                              break
         if trades_to_close:
-            from services.paper_service import paper_service
-            from services.live_service import live_service
-            from services.risk_service import risk_service
+            from backend.services.paper_service import paper_service
+            from backend.services.live_service import live_service
+            from backend.services.risk_service import risk_service
             
             for t, price, reason in trades_to_close:
                 print(f"[STOP] [SMART-SL] Closing {t['symbol']} @ {price}. Trap Confirmed (Level touch limit).")
@@ -275,10 +276,10 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
                             )
                 
     if triggered_alerts:
-        from services.websocket_manager import ws_manager
-        from services.paper_service import paper_service
-        from services.live_service import live_service
-        from services.risk_service import risk_service
+        from backend.services.websocket_manager import ws_manager
+        from backend.services.paper_service import paper_service
+        from backend.services.live_service import live_service
+        from backend.services.risk_service import risk_service
         
         # Determine if we should trade (Paper OR Live)
         is_paper = getattr(session, 'auto_paper_trade', False)
@@ -601,7 +602,7 @@ class WebSocketManager:
                                     logger.info(f"[CATCH-UP] [STRATEGY] Late start detected at {ist_now.strftime('%H:%M:%S')}. Processing {tag} candle.")
                                 
                                 self._last_strategy_tick = tag
-                                from services.session_manager import session_manager
+                                from backend.services.session_manager import session_manager
                                 all_sessions = session_manager.get_all_sessions()
                                 
                                 for sid, session in all_sessions.items():
@@ -626,7 +627,7 @@ class WebSocketManager:
 
                 if session_tokens_copy:
                     try:
-                        from services.paper_service import paper_service
+                        from backend.services.paper_service import paper_service
                         for sid, tokens in session_tokens_copy.items():
                             if tokens:
                                 # Serialize EOD check with session lock
@@ -647,7 +648,7 @@ class WebSocketManager:
 
     def _recover_session(self, session_id: str):
         """Refreshes tokens and restarts WebSocket for a session"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         
         # 1. Decide if we need to refresh tokens
         last_ref = self.last_refresh_times.get(session_id, 0)
@@ -778,7 +779,7 @@ class WebSocketManager:
             return False
  
         # Get session to retrieve watchlist
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id, client_id)
         watchlist = session.watchlist if session else []
         # Get chart tokens for this session
@@ -800,11 +801,11 @@ class WebSocketManager:
                 return self.broadcast_callbacks.get(session_id)
 
         def _broadcast_price(callback, token_id, symbol, current_ltp):
-            from services.session_manager import session_manager
+            from backend.services.session_manager import session_manager
             session = session_manager.get_session(session_id)
             paper_trades_data = []
             if session and getattr(session, 'paper_trades', []):
-                from services.paper_service import paper_service
+                from backend.services.paper_service import paper_service
                 paper_service.update_live_pnl(session_id, token_map)
                 paper_trades_data = session.paper_trades
                 
@@ -818,7 +819,7 @@ class WebSocketManager:
         def on_data(wsapp, message):
             try:
                 # print(f"DEBUG: RAW MESSAGE RX for {session_id[:8]}")
-                from services.session_manager import session_manager
+                from backend.services.session_manager import session_manager
                 callback = _get_callback()
                 if not callback: return
 
@@ -1003,7 +1004,7 @@ class WebSocketManager:
                 sws = self.connections.get(session_id)
                 if sws and stock_data:
                     # Check if token is in watchlist (to avoid unsubscribing if still needed for watchlist)
-                    from services.session_manager import session_manager
+                    from backend.services.session_manager import session_manager
                     session = session_manager.get_session(session_id)
                     is_in_watchlist = False
                     if session:
@@ -1033,10 +1034,10 @@ class WebSocketManager:
 
     def _process_candle_trades_inner(self, session_id: str, ist_time: datetime):
         """Inner implementation with full error visibility and session locking"""
-        from services.session_manager import session_manager
-        from services.paper_service import paper_service
-        from services.live_service import live_service
-        from services.risk_service import risk_service
+        from backend.services.session_manager import session_manager
+        from backend.services.paper_service import paper_service
+        from backend.services.live_service import live_service
+        from backend.services.risk_service import risk_service
         
         # Lock acquisition for strategy processing
         with self.lock:
@@ -1094,7 +1095,7 @@ class WebSocketManager:
         # --- 2. Track Crossovers & Fetch Candle Data ---
         # OPTIMIZATION: Create one API instance for the entire session loop
         from SmartApi import SmartConnect
-        from services.angel_service import angel_service
+        from backend.services.angel_service import angel_service
         
         api_key_to_use = session.data_api_key if (session.data_api_key and session.data_api_key.strip()) else session.api_key
         api_instance = SmartConnect(api_key=api_key_to_use)
@@ -1283,7 +1284,7 @@ class WebSocketManager:
                 except Exception:
                     near_frac = 0.0045
 
-                from services.signal_state import signal_state
+                from backend.services.signal_state import signal_state
 
                 for alert in strategy_alerts:
                     alert_price = float(alert['price'])
@@ -1364,7 +1365,7 @@ class WebSocketManager:
                     session_manager.save_session(session_id)
                     if session_id in self.broadcast_callbacks:
                         paper_trades_data = getattr(session, 'paper_trades', [])
-                        from services.telegram_service import telegram_service
+                        from backend.services.telegram_service import telegram_service
                         for item in triggered_candle_alerts:
                             payload = {
                                 "type": "alert_triggered",

@@ -14,7 +14,7 @@ def tick_round(price, tick=0.05):
     except:
         return float(price)
 
-from services.angel_service import angel_service
+from backend.services.angel_service import angel_service
 from SmartApi import SmartConnect
 
 def generate_high_low_alerts(smart_api: SmartConnect, symbol: str, token: str, start_date: str, end_date: str, start_time: str, end_time: str, is_custom: bool, exchange: str = "NSE") -> List[Dict]:

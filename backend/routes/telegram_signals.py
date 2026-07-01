@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from services.live_signal_service import telegram_signal_engine
+from backend.services.live_signal_service import telegram_signal_engine
 
 router = APIRouter(prefix="/api/signals/telegram", tags=["Telegram Signals"])
 

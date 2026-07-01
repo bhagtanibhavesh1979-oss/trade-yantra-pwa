@@ -114,6 +114,8 @@ class WebSocketClient {
         switch (type) {
             case 'connected':
                 console.log('WebSocket session established:', data);
+                // Also emit to update UI status (covers race conditions where onopen fired before listeners attached)
+                this.emit('connected', data);
                 break;
 
             case 'price_update':
@@ -124,12 +126,15 @@ class WebSocketClient {
                     callback(data);
                 }
                 break;
+
             case 'subscription_confirmation':
                 console.log('[WS] Subscription confirmed:', data);
                 break;
+
             case 'unsubscription_confirmation':
                 console.log('[WS] Unsubscription confirmed:', data);
                 break;
+
             case 'alert_triggered':
                 console.log('Alert triggered:', data);
                 this.emit('alert_triggered', data);

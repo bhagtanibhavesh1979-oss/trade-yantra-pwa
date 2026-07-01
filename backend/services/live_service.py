@@ -1,7 +1,7 @@
 from typing import Optional, Dict, List
 import threading
 from datetime import datetime, timezone
-from services.angel_service import angel_service, TokenExpiredException
+from backend.services.angel_service import angel_service, TokenExpiredException
 
 
 class LiveService:
@@ -17,7 +17,7 @@ class LiveService:
                          quantity: int, product_type: str = "INTRADAY", 
                          price: float = 0.0, order_type: str = "MARKET",
                          tag: str = "MANUAL"):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
 
         
         # 1. Check Safety Switches
@@ -134,7 +134,7 @@ class LiveService:
             return {"status": "error", "message": err_msg}
 
     def get_live_positions(self, session_id: str):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api: return []
         
@@ -150,7 +150,7 @@ class LiveService:
                 return []
 
     def get_live_orders(self, session_id: str):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api: return []
         
@@ -164,7 +164,7 @@ class LiveService:
                 return []
         
     def get_funds(self, session_id: str):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api:
             print(f"[DEBUG] get_funds: No session or API for {session_id}")
@@ -198,7 +198,7 @@ class LiveService:
 
     def close_all_live_positions(self, session_id: str):
         """Fetches and squares off all open intraday positions at the broker"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session or not session.smart_api: 
             print(f"❌ [LIVE-SQ] No session for {session_id[:8]}")

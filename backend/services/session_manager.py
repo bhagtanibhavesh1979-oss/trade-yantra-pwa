@@ -7,7 +7,8 @@ from typing import Dict, Optional
 from datetime import datetime, timezone, timedelta
 import threading
 import time
-from services.persistence_service import persistence_service
+from backend.services.persistence_service import persistence_service
+
 from SmartApi import SmartConnect
 
 class Session:
@@ -217,7 +218,7 @@ class SessionManager:
                         
                         # Re-init SmartAPI and VERIFY TOKEN
                         if session.jwt_token and session.api_key:
-                            from services.angel_service import angel_service
+                            from backend.services.angel_service import angel_service
                             
                             try:
                                 print(f" [BOOT] Verifying token for {session.client_id}...")
@@ -288,9 +289,11 @@ class SessionManager:
             # -----------------------------------------------
                 
                 # Restore Live Trading Master Switch if ANY session has it enabled
-                from services.live_service import live_service
-                from services.websocket_manager import ws_manager
-                
+                from backend.services.live_service import live_service
+
+
+                from backend.services.websocket_manager import ws_manager
+
                 has_active_auto = False
                 for s in self.sessions.values():
                     if getattr(s, 'auto_live_trade', False):
@@ -434,7 +437,7 @@ class SessionManager:
             
             # Re-initialize SmartAPI
             if session.jwt_token and session.api_key and not session.smart_api:
-                from services.angel_service import angel_service
+                from backend.services.angel_service import angel_service
                 try:
                     smart_api = SmartConnect(api_key=session.api_key)
                     smart_api.setAccessToken(session.jwt_token)
@@ -456,7 +459,7 @@ class SessionManager:
             # If we recovered from disk, the background data flow is dead.
             # We must restart it immediately so strategy doesn't skip this session.
             # We add a small delay to let any previous process release its socket.
-            from services.websocket_manager import ws_manager
+            from backend.services.websocket_manager import ws_manager
             try:
                 print(f"[RECOVERY] [OK] Delaying 3s for connection stability...")
                 time.sleep(3)
@@ -481,7 +484,7 @@ class SessionManager:
         if not session:
             return False
 
-        from services.angel_service import angel_service
+        from backend.services.angel_service import angel_service
 
         # --- STEP 1: Try token refresh (fast path) ---
         if session.refresh_token:
@@ -557,7 +560,7 @@ class SessionManager:
 
     def stop_session_automation(self, session_id: str):
         """Explicitly stop background tasks for a session without deleting data"""
-        from services.websocket_manager import ws_manager
+        from backend.services.websocket_manager import ws_manager
         ws_manager.stop_websocket(session_id)
         print(f" [SESSION] [AUTO-STOP] Stopped automation for {session_id[:8]}")
 

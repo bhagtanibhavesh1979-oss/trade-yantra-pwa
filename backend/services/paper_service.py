@@ -3,7 +3,7 @@ from typing import Optional
 import threading
 import logging
 import os
-from services.persistence_service import persistence_service
+from backend.services.persistence_service import persistence_service
 
 # Setup Logger
 logger = logging.getLogger("paper_service")
@@ -39,7 +39,7 @@ class PaperService:
         self.MARGIN_MULTIPLIER = 0.05  # 5% margin (20x leverage) for paper trading
 
     def create_virtual_trade(self, session_id: str, stock: dict, side: str, alert_name: str, quantity: int = 100, target_price: Optional[float] = None, stop_loss: Optional[float] = None, strategy_mode: str = "SAR", smart_sl: bool = False, entry_price: Optional[float] = None):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session:
             return
@@ -181,7 +181,7 @@ class PaperService:
             self.logger.info(f"[TRADE] PAPER TRADE OPENED for client {session.client_id}: {side} {stock['symbol']} at {stock['ltp']}. Bal: {session.virtual_balance:.2f}")
 
     def close_virtual_trade(self, session_id: str, trade_id: str, exit_price: float, reason: str = "MANUAL"):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session:
             return
@@ -238,7 +238,7 @@ class PaperService:
 
     def update_live_pnl(self, session_id: str, token_map: dict):
         """Calculates floating PNL for all open virtual positions"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session:
             return
@@ -280,7 +280,7 @@ class PaperService:
             self.close_virtual_trade(session_id, t_id, price, close_reason)
 
     def set_virtual_balance(self, session_id: str, amount: float, client_id: Optional[str] = None):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id, client_id=client_id)
         if not session:
             return
@@ -295,7 +295,7 @@ class PaperService:
             self.logger.info(f"[BALANCE] Updated: {old_balance:.2f} -> {amount:.2f}")
 
     def set_stop_loss(self, session_id: str, trade_id: str, sl_price: float):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session:
             return
@@ -309,7 +309,7 @@ class PaperService:
                     break
 
     def set_target(self, session_id: str, trade_id: str, target_price: float):
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session:
             return
@@ -324,7 +324,7 @@ class PaperService:
 
     def close_all_open_trades(self, session_id: str, reason: str = "AUTO_SQUARE_OFF"):
         """Closes all open positions (Generic)"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session: return
         
@@ -333,7 +333,7 @@ class PaperService:
 
     def check_and_square_off(self, session_id: str, token_map: dict):
         # Checks time and closes all positions if > 15:15 IST
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session: return
 
@@ -366,7 +366,7 @@ class PaperService:
         # --- LIVE SQUARE-OFF ---
         if is_l:
             try:
-                from services.live_service import live_service
+                from backend.services.live_service import live_service
                 live_service.close_all_live_positions(session_id)
                 performed_sq = True
             except Exception as e:
@@ -389,7 +389,7 @@ class PaperService:
 
     def close_all_open_trades_with_prices(self, session_id: str, token_map: dict, reason: str = "EOD_SQUARE_OFF"):
         """Closes all open trades using the provided price map"""
-        from services.session_manager import session_manager
+        from backend.services.session_manager import session_manager
         session = session_manager.get_session(session_id)
         if not session: return
         

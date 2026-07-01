@@ -6,10 +6,11 @@ import pytz
 from typing import Dict
 
 
-from services.session_manager import session_manager
-from services.backtest_service import backtest_service
-from services.telegram_service import telegram_service
-from services.signal_state import signal_state
+from backend.services.session_manager import session_manager
+from backend.services.backtest_service import backtest_service
+from backend.services.telegram_service import telegram_service
+from backend.services.signal_state import signal_state
+
 
 logger = logging.getLogger("live_signal_service")
 

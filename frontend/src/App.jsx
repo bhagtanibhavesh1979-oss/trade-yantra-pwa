@@ -198,6 +198,12 @@ function App() {
 
     const handleConnected = () => setWsStatus('connected');
     const handleDisconnected = () => setWsStatus('disconnected');
+
+    // Fix race condition: if WS already connected before this effect ran (e.g. page load
+    // with saved session calls connectWebSocket before listeners are attached), sync status now.
+    if (wsClient.isConnected()) {
+      setWsStatus('connected');
+    }
     const handlePriceUpdate = (data) => {
       setWsStatus('connected');
       setWatchlist((prevWatchlist) =>

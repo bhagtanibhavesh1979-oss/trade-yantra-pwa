@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.session_manager import session_manager
-from services.angel_service import angel_service
+from backend.services.session_manager import session_manager
+from backend.services.angel_service import angel_service
+
 from typing import Optional
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -73,7 +74,7 @@ def login(req: LoginRequest):
     
     # 3. CRITICAL: Verify session was saved to database
     # Optimized: Single retry with short delay for better UX
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     max_retries = 1  # Reduced from 3 for faster login
     retry_delay = 0.2  # Reduced from 0.5 seconds
     
@@ -140,7 +141,7 @@ def verify_session(session_id: str, client_id: Optional[str] = None):
     if not session:
         # One last desperate attempt to heal from persistence directly
         if client_id:
-             from services.persistence_service import persistence_service
+             from backend.services.persistence_service import persistence_service
              restored = persistence_service.get_latest_session_by_client_id(client_id)
              if restored:
                  # Manually trigger healing logic if session_manager missed it

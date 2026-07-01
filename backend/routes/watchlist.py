@@ -5,9 +5,10 @@ CRUD operations for stock watchlist
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
-from services.session_manager import session_manager
-from services.angel_service import angel_service
-from services.websocket_manager import ws_manager
+from backend.services.session_manager import session_manager
+from backend.services.angel_service import angel_service
+from backend.services.websocket_manager import ws_manager
+
 import threading
 import time
 

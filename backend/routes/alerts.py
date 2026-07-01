@@ -5,8 +5,9 @@ API endpoints for alert management and High/Low level generation
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
-from services.session_manager import session_manager
-from services.alert_service import create_alert
+from backend.services.session_manager import session_manager
+from backend.services.alert_service import create_alert
+
 import uuid
 import datetime
 import time
@@ -130,7 +131,8 @@ async def create_manual_alert(req: CreateAlertRequest):
         "alert": alert
     }
 
-from services.alert_service import generate_high_low_alerts
+from backend.services.alert_service import generate_high_low_alerts
+
 
 @router.post("/generate")
 async def generate_auto_alerts(req: GenerateAlertsRequest):
@@ -329,7 +331,7 @@ async def clear_all_alerts(req: ClearAllAlertsRequest):
     
     # CRITICAL: Also clear in persistence directly to prevent "Ghost Healing"
     # where the session manager might pick up an old record with alerts.
-    from services.persistence_service import persistence_service
+    from backend.services.persistence_service import persistence_service
     all_data = persistence_service.load_sessions()
     if req.session_id in all_data:
         all_data[req.session_id]['alerts'] = []

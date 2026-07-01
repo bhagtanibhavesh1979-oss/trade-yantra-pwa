@@ -24,8 +24,9 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from services.angel_service import angel_service
-from services.astro_backtest_engine import AstroBacktestEngine
+from backend.services.angel_service import angel_service
+from backend.services.astro_backtest_engine import AstroBacktestEngine
+
 
 
 @dataclass(frozen=True)
@@ -37,7 +38,11 @@ class MarketSpec:
 
 class PlanetNakshatraBacktestService:
     def __init__(self):
-        self.astro_engine = AstroBacktestEngine()
+        # Default to Lahiri to preserve existing behavior.
+        # Note: sidereal_mode can be overridden per request (handled in run()).
+        self.astro_engine = AstroBacktestEngine(sidereal_mode="lahiri")
+
+
 
         # Market specs
         self.nifty = MarketSpec(name="NIFTY", token="99926037", exch="NSE")
@@ -185,7 +190,9 @@ class PlanetNakshatraBacktestService:
         planets: List[str],
         include_event_types: List[str],
         horizons: List[int],
+        sidereal_mode: str = "lahiri",
     ) -> Dict:
+
         # Date range: from years back to today (UTC)
         start_dt_utc = self._years_ago_midnight_ist(years)
         end_dt_utc = datetime.now(timezone.utc)
@@ -262,6 +269,8 @@ class PlanetNakshatraBacktestService:
             planets=planets,
             event_types=include_event_types,
         )
+
+
         # astro_events: list of dicts with date + planet + event_type + entered_nakshatra/pada
 
         events_df = pd.DataFrame(astro_events)
@@ -328,6 +337,28 @@ class PlanetNakshatraBacktestService:
             sort_key = summary_df.get("nifty_avg_ret_20d", 0) + summary_df.get("bn_avg_ret_20d", 0)
             summary_df = summary_df.assign(_sort=sort_key).sort_values("_sort", ascending=False).drop(columns=["_sort"], errors="ignore")
 
+        # Prepare detailed transitions list sorted by date descending
+        # Ensure we convert numpy objects / floats cleanly to standard types
+        aligned_sorted = aligned.sort_values("date", ascending=False)
+        events_list = []
+        for _, row in aligned_sorted.iterrows():
+            item = {
+                "date": str(row["date"]),
+                "planet": str(row["planet"]),
+                "event_type": str(row["event_type"]),
+                "entered_nakshatra": str(row["entered_nakshatra"]),
+                "entered_pada": int(row["entered_pada"]) if not pd.isna(row["entered_pada"]) else None,
+                "prev_nakshatra": str(row["prev_nakshatra"]) if not pd.isna(row["prev_nakshatra"]) else None,
+                "prev_pada": int(row["prev_pada"]) if not pd.isna(row["prev_pada"]) else None,
+            }
+            # Add horizons
+            for h in horizons:
+                item[f"nifty_ret_{h}d"] = float(row[f"nifty_ret_{h}d"]) if not pd.isna(row[f"nifty_ret_{h}d"]) else None
+                item[f"bn_ret_{h}d"] = float(row[f"bn_ret_{h}d"]) if not pd.isna(row[f"bn_ret_{h}d"]) else None
+                item[f"nifty_dd_{h}d"] = float(row[f"nifty_dd_{h}d"]) if not pd.isna(row[f"nifty_dd_{h}d"]) else None
+                item[f"bn_dd_{h}d"] = float(row[f"bn_dd_{h}d"]) if not pd.isna(row[f"bn_dd_{h}d"]) else None
+            events_list.append(item)
+
         return {
             "meta": {
                 "start_date": start_str,
@@ -339,6 +370,7 @@ class PlanetNakshatraBacktestService:
                 "markets": ["NIFTY", "BANKNIFTY"],
             },
             "summary": summary_df.to_dict(orient="records"),
+            "events": events_list,
         }
 
 

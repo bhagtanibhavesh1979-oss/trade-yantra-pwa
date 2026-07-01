@@ -4,8 +4,8 @@ Handles real-time price updates via WebSocket
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from typing import Optional
-from services.session_manager import session_manager
-from services.websocket_manager import ws_manager
+from backend.services.session_manager import session_manager
+from backend.services.websocket_manager import ws_manager
 import json
 import asyncio
 
@@ -75,9 +75,12 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                 broadcast_callback
             )
             print(f"[WS-INIT] WebSocket start result: {success}")
+            if success:
+                # Notify frontend that connection was established
+                await websocket.send_json({"type": "connected", "data": {"session_id": session_id, "status": "started"}})
         else:
-            # Immediately send status and last prices if possible
-            await websocket.send_json({"type": "status", "data": {"status": "CONNECTED"}})
+            # Immediately send connected message so frontend light turns green
+            await websocket.send_json({"type": "connected", "data": {"session_id": session_id, "status": "reused"}})
     
         try:
             while True:
@@ -107,7 +110,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                             break
                     # If not in watchlist, try to get from scrip master
                     if not stock_data:
-                        from services.angel_service import angel_service
+                        from backend.services.angel_service import angel_service
                         # Ensure scrip master is loaded
                         if not angel_service.master_loaded:
                             angel_service.load_scrip_master()

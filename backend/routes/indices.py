@@ -3,8 +3,8 @@ Indices Routes
 Fetch live data for major NSE indices
 """
 from fastapi import APIRouter, HTTPException
-from services.session_manager import session_manager
-from services.angel_service import angel_service
+from backend.services.session_manager import session_manager
+from backend.services.angel_service import angel_service
 from typing import Optional
 import datetime
 import traceback

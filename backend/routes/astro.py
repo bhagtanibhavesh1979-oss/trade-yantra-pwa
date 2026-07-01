@@ -6,8 +6,8 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 import datetime
 
-from services.session_manager import session_manager
-from services.astro_engine import (
+from backend.services.session_manager import session_manager
+from backend.services.astro_engine import (
     find_nakshatra_transitions,
     get_nakshatra_for_timestamps,
     get_nakshatra_info,

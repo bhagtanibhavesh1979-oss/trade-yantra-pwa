@@ -4,8 +4,9 @@ Historical data for charts
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
-from services.session_manager import session_manager
-from services.angel_service import angel_service
+from backend.services.session_manager import session_manager
+from backend.services.angel_service import angel_service
+
 import datetime
 
 router = APIRouter(prefix="/api/chart", tags=["Chart"])
