@@ -118,6 +118,17 @@ class SessionManager:
         t.start()
         print("[SCHEDULER] Background scheduler thread started.")
 
+    def _update_last_activity(self, session_id: str):
+        """Bump last_activity from a background context to prevent inactivity-based logic."""
+        try:
+            with self.lock:
+                s = self.sessions.get(session_id)
+                if s:
+                    s.last_activity = datetime.now()
+        except Exception:
+            pass
+
+
 
     def _load_from_disk(self):
         """Load all sessions from disk into memory on startup"""

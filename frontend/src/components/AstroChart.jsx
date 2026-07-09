@@ -20,7 +20,7 @@ const loadDateRange = () => {
   try { const r = localStorage.getItem(DATE_RANGE_KEY); return r ? JSON.parse(r) : { start: '', end: '' }; } catch (_) { return { start: '', end: '' }; }
 };
 
-const AstroChart = ({ session, watchlist, externalSymbol }) => {
+const AstroChart = ({ session, watchlist, externalSymbol, theme = 'dark', compact = false }) => {
   const chartRef         = useRef(null);
   const containerRef     = useRef(null);
   const chartInstanceRef = useRef(null);
@@ -29,6 +29,7 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
   const rawCandlesRef    = useRef([]);
   const priceLineRefs    = useRef([]);
   const hLineRefs        = useRef([]);   // [{pl, price, id}]
+  const vLineRefs        = useRef([]);   // [{id, time, element}]
 
   const [symbol,        setSymbol]        = useState('NIFTY 50');
   const [token,         setToken]         = useState('99926000');
@@ -45,7 +46,13 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
   const [ohlc,          setOhlc]          = useState(null);
   const [nakshatra,     setNakshatra]     = useState(null);  // current Moon nakshatra
   const [drawMode,      setDrawMode]      = useState(false);
+  const [lineType,      setLineType]      = useState('horizontal'); // 'horizontal' or 'vertical'
+  const [lineValue,     setLineValue]     = useState('');
+  const [lineLabel,     setLineLabel]     = useState('');
   const drawModeRef     = useRef(false);
+  const lineTypeRef     = useRef('horizontal');
+  const lineLabelRef    = useRef('');
+  const overlayRef      = useRef(null);
 
   const symbolRef    = useRef(symbol);
   const tokenRef     = useRef(token);
@@ -66,8 +73,8 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
     tokenRef.current     = token;
     exchangeRef.current  = exchange;
     timeframeRef.current = timeframe;
-    drawModeRef.current  = drawMode;
-  });
+    drawModeRef.current  = drawMode;    lineTypeRef.current  = lineType;
+    lineLabelRef.current = lineLabel;  });
 
   // ── Persist date range whenever it changes ───────────────────────────────────
   useEffect(() => {
@@ -78,53 +85,90 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
   useEffect(() => {
     if (!chartRef.current) return;
 
-    const chartInstance = createChart(chartRef.current, {
+    lineTypeRef.current = lineType;
+    lineLabelRef.current = lineLabel;
+
+    const isLight = (theme === 'light') || document.documentElement.classList.contains('light-theme');
+    const chartOpts = isLight ? {
+      autoSize: true,
+      layout: { background: { color: '#ffffff' }, textColor: '#1f2937' },
+      grid: { vertLines: { color: '#e6e6e6' }, horzLines: { color: '#e6e6e6' } },
+      crosshair: { mode: 1 },
+      rightPriceScale: { borderColor: '#e6e6e6' },
+      timeScale: { borderColor: '#e6e6e6', visible: true, secondsVisible: false, timeVisible: true },
+    } : {
       autoSize: true,
       layout: { background: { color: '#0d0d1a' }, textColor: '#c3c3d9' },
       grid: { vertLines: { color: '#1a1a2e' }, horzLines: { color: '#1a1a2e' } },
       crosshair: { mode: 1 },
       rightPriceScale: { borderColor: '#2a2a4a' },
       timeScale: { borderColor: '#2a2a4a', visible: true, secondsVisible: false, timeVisible: true },
-    });
+    };
 
-    const candleSeries = chartInstance.addSeries(CandlestickSeries, {
-      upColor: '#26a69a', downColor: '#ef5350',
-      borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350',
-    });
-
-    chartInstanceRef.current = chartInstance;
-    candleSeriesRef.current  = candleSeries;
-
-    chartInstance.subscribeCrosshairMove((param) => {
-      if (!param.time || !param.seriesData) { setOhlc(null); return; }
-      const bar = param.seriesData.get(candleSeries);
-      if (bar) setOhlc({ open: bar.open, high: bar.high, low: bar.low, close: bar.close });
-      else setOhlc(null);
-    });
-
-    // H-Line: use LWC subscribeClick — gives pixel coords that we convert to price
-    chartInstance.subscribeClick((param) => {
-      if (!drawModeRef.current || !param.point) return;
-      const price = chartInstance.priceScale('right').coordinateToPrice(param.point.y);
-      if (price == null || isNaN(price)) return;
-      const id = Date.now();
-      const pl = candleSeries.createPriceLine({
-        price,
-        color: '#f0b429',
-        lineWidth: 1,
-        lineStyle: 0,
-        axisLabelVisible: true,
-        title: '─',
-        draggable: true,
+    let chartInstance;
+    try {
+      chartInstance = createChart(chartRef.current, chartOpts);
+      const candleSeries = chartInstance.addSeries(CandlestickSeries, isLight ? {
+        upColor: '#16a34a', downColor: '#ef4444', borderVisible: false, wickUpColor: '#16a34a', wickDownColor: '#ef4444',
+      } : {
+        upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350',
       });
-      hLineRefs.current.push({ pl, price, id });
-      // Save to localStorage (symbol is read via ref to avoid stale closure)
-      try {
-        const key = `astro_hlines_${symbolRef.current.replace(/\s+/g,'_')}`;
-        localStorage.setItem(key, JSON.stringify(hLineRefs.current.map(h => ({ price: h.price, id: h.id }))));
-      } catch(_) {}
-      setDrawMode(false);
-    });
+
+      chartInstanceRef.current = chartInstance;
+      candleSeriesRef.current  = candleSeries;
+
+      chartInstance.subscribeCrosshairMove((param) => {
+        if (!param.time || !param.seriesData) { setOhlc(null); return; }
+        const bar = param.seriesData.get(candleSeries);
+        if (bar) setOhlc({ open: bar.open, high: bar.high, low: bar.low, close: bar.close });
+        else setOhlc(null);
+      });
+
+      // H-Line: use LWC subscribeClick — gives pixel coords that we convert to price
+      chartInstance.subscribeClick((param) => {
+        if (!drawModeRef.current || !param.point) return;
+        const currentLineType = lineTypeRef.current;
+        const currentLabel = lineLabelRef.current;
+        if (currentLineType === 'horizontal') {
+          const price = chartInstance.priceScale('right')?.coordinateToPrice(param.point.y);
+          if (price == null || isNaN(price)) return;
+          const id = Date.now();
+          const pl = candleSeries.createPriceLine({
+            price,
+            color: '#f0b429',
+            lineWidth: 1,
+            lineStyle: 0,
+            axisLabelVisible: true,
+            title: currentLabel || '─',
+            draggable: true,
+          });
+          hLineRefs.current.push({ pl, price, id, label: currentLabel });
+          try {
+            const key = `astro_hlines_${symbolRef.current.replace(/\s+/g,'_')}`;
+            localStorage.setItem(key, JSON.stringify(hLineRefs.current.map(h => ({ price: h.price, id: h.id, label: h.label }))));
+          } catch(_) {}
+        } else {
+          const time = param.time;
+          if (time == null) return;
+          const id = Date.now();
+          const entry = { id, time, label: currentLabel || '│', element: null };
+          vLineRefs.current.push(entry);
+          saveVLines(symbolRef.current);
+          renderVLines();
+        }
+        setDrawMode(false);
+        setLineValue('');
+        setLineLabel('');
+      });
+
+      if (typeof chartInstance.timeScale().subscribeVisibleTimeRangeChange === 'function') {
+        chartInstance.timeScale().subscribeVisibleTimeRangeChange(renderVLines);
+      }
+    } catch (err) {
+      console.error('[AstroChart] chart init failed:', err);
+      setError('Chart initialization failed. See console for details.');
+      return undefined;
+    }
 
     return () => {
       if (chartInstanceRef.current) {
@@ -133,7 +177,7 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
         candleSeriesRef.current  = null;
       }
     };
-  }, []);
+  }, [theme]);
 
   // ── Restore H-Lines from localStorage for a symbol ────────────────────────────
   const restoreHLines = useCallback((sym) => {
@@ -144,15 +188,151 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
       const key = `astro_hlines_${sym.replace(/\s+/g,'_')}`;
       const raw = localStorage.getItem(key);
       if (!raw) return;
-      JSON.parse(raw).forEach(({ price, id }) => {
+      JSON.parse(raw).forEach(({ price, id, label }) => {
         const pl = candleSeriesRef.current.createPriceLine({
           price, color: '#f0b429', lineWidth: 1, lineStyle: 0,
-          axisLabelVisible: true, title: '─', draggable: true,
+          axisLabelVisible: true, title: label || '─', draggable: true,
         });
-        hLineRefs.current.push({ pl, price, id });
+        hLineRefs.current.push({ pl, price, id, label });
       });
     } catch(_) {}
   }, []);
+
+  const renderVLines = useCallback(() => {
+    if (!chartInstanceRef.current || !overlayRef.current) return;
+    const overlay = overlayRef.current;
+    const timeScale = chartInstanceRef.current.timeScale();
+    vLineRefs.current.forEach((item) => {
+      const x = timeScale.timeToCoordinate(item.time);
+      if (x == null || isNaN(x)) {
+        if (item.element) item.element.style.display = 'none';
+        return;
+      }
+      if (!item.element) {
+        const line = document.createElement('div');
+        line.style.position = 'absolute';
+        line.style.width = '2px';
+        line.style.background = '#f0b429';
+        line.style.top = '0';
+        line.style.bottom = '0';
+        line.style.pointerEvents = 'none';
+        line.style.zIndex = '10';
+        const label = document.createElement('div');
+        label.style.position = 'absolute';
+        label.style.top = '8px';
+        label.style.left = '4px';
+        label.style.padding = '2px 5px';
+        label.style.background = 'rgba(240,180,41,0.9)';
+        label.style.color = '#000';
+        label.style.fontSize = '10px';
+        label.style.fontWeight = '700';
+        label.style.whiteSpace = 'nowrap';
+        label.style.pointerEvents = 'none';
+        label.textContent = item.label || '│';
+        line.appendChild(label);
+        overlay.appendChild(line);
+        item.element = line;
+      }
+      item.element.style.display = 'block';
+      item.element.style.left = `${Math.round(x)}px`;
+    });
+  }, []);
+
+  const saveVLines = useCallback((sym) => {
+    try {
+      const key = `astro_vlines_${sym.replace(/\s+/g,'_')}`;
+      localStorage.setItem(key, JSON.stringify(vLineRefs.current.map(({ time, label }) => ({ time, label }))));
+    } catch(_) {}
+  }, []);
+
+  const restoreVLines = useCallback((sym) => {
+    if (!overlayRef.current) return;
+    vLineRefs.current.forEach(item => { if (item.element) item.element.remove(); });
+    vLineRefs.current = [];
+    try {
+      const key = `astro_vlines_${sym.replace(/\s+/g,'_')}`;
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      JSON.parse(raw).forEach(({ time, label }) => {
+        vLineRefs.current.push({ id: Date.now() + Math.random(), time, label, element: null });
+      });
+      setTimeout(() => renderVLines(), 100);
+    } catch(_) {}
+  }, [renderVLines]);
+
+  const clearAllVLines = useCallback(() => {
+    vLineRefs.current.forEach(item => { if (item.element) item.element.remove(); });
+    vLineRefs.current = [];
+    try {
+      const key = `astro_vlines_${symbolRef.current.replace(/\s+/g,'_')}`;
+      localStorage.removeItem(key);
+    } catch(_) {}
+  }, []);
+
+  const addHorizontalLine = useCallback((price, label = '') => {
+    if (!candleSeriesRef.current || price == null || isNaN(price)) return;
+    const id = Date.now();
+    const pl = candleSeriesRef.current.createPriceLine({
+      price,
+      color: '#f0b429',
+      lineWidth: 1,
+      lineStyle: 0,
+      axisLabelVisible: true,
+      title: label || '─',
+      draggable: true,
+    });
+    hLineRefs.current.push({ pl, price, id, label });
+    try {
+      const key = `astro_hlines_${symbolRef.current.replace(/\s+/g,'_')}`;
+      localStorage.setItem(key, JSON.stringify(hLineRefs.current.map(h => ({ price: h.price, id: h.id, label: h.label }))));
+    } catch(_) {}
+  }, []);
+
+  const addVerticalLine = useCallback((time, label = '') => {
+    if (!overlayRef.current || time == null) return;
+    const entry = { id: Date.now(), time, label: label || '│', element: null };
+    vLineRefs.current.push(entry);
+    saveVLines(symbolRef.current);
+    renderVLines();
+  }, [renderVLines, saveVLines]);
+
+  const parseLineTime = useCallback((value) => {
+    if (!value) return null;
+    const text = value.trim();
+    if (/^\d+$/.test(text)) return Number(text);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+    const dt = new Date(text);
+    if (!isNaN(dt)) return Math.floor(dt.getTime() / 1000);
+    return null;
+  }, []);
+
+  const handleAddLine = useCallback(() => {
+    if (!lineValue) return;
+    if (lineType === 'horizontal') {
+      const price = parseFloat(lineValue);
+      if (!isNaN(price)) addHorizontalLine(price, lineLabel);
+    } else {
+      const time = parseLineTime(lineValue);
+      if (time != null) addVerticalLine(time, lineLabel);
+    }
+    setLineValue('');
+    setLineLabel('');
+  }, [lineType, lineValue, lineLabel, addHorizontalLine, addVerticalLine, parseLineTime]);
+
+  // ── Clear all H-Lines ───────────────────────────────────────────────────────────
+  const clearAllHLines = useCallback(() => {
+    hLineRefs.current.forEach(h => { try { candleSeriesRef.current.removePriceLine(h.pl); } catch(_) {} });
+    hLineRefs.current = [];
+    try {
+      const key = `astro_hlines_${symbolRef.current.replace(/\s+/g,'_')}`;
+      localStorage.removeItem(key);
+    } catch(_) {}
+  }, []);
+
+  const clearAllLines = useCallback(() => {
+    clearAllHLines();
+    clearAllVLines();
+  }, [clearAllHLines, clearAllVLines]);
 
   // ── Draw Pine Script levels ──────────────────────────────────────────────────
   const drawLevels = useCallback((start, end) => {
@@ -188,9 +368,9 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
       { price: rangeHigh,              color: '#1CB11C', title: 'Resistance'    },
       { price: rangeLow,               color: '#FF0000', title: 'Support'       },
       { price: mid,                    color: '#800080', title: 'Midpoint'      },
-      { price: rangeHigh + diff,       color: '#c3c3d9', title: 'Target High 1' },
-      { price: rangeHigh + 2 * diff,   color: '#c3c3d9', title: 'Target High 2' },
-      { price: rangeHigh + 3 * diff,   color: '#c3c3d9', title: 'Target High 3' },
+      { price: rangeHigh + diff,       color: '#f97316', title: 'Target High 1' },
+      { price: rangeHigh + 2 * diff,   color: '#fb8c00', title: 'Target High 2' },
+      { price: rangeHigh + 3 * diff,   color: '#ea580c', title: 'Target High 3' },
       { price: rangeLow  - diff,       color: '#1CB11C', title: 'Target Low 1'  },
       { price: rangeLow  - 2 * diff,   color: '#1CB11C', title: 'Target Low 2'  },
       { price: rangeLow  - 3 * diff,   color: '#1CB11C', title: 'Target Low 3'  },
@@ -204,7 +384,7 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
 
     defs.forEach(({ price, color, title }) => {
       const pl = candleSeriesRef.current.createPriceLine({
-        price, color, title, lineWidth: 1, lineStyle: 2, axisLabelVisible: true,
+        price, color, title, lineWidth: 1, lineStyle: 0, axisLabelVisible: true,
       });
       priceLineRefs.current.push(pl);
     });
@@ -219,16 +399,6 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
     priceLineRefs.current = [];
     setLevelsDrawn(false);
     saveToStorage(symbolRef.current, null);
-  }, []);
-
-  // ── Clear all H-Lines ───────────────────────────────────────────────────────────
-  const clearAllHLines = useCallback(() => {
-    hLineRefs.current.forEach(h => { try { candleSeriesRef.current.removePriceLine(h.pl); } catch(_) {} });
-    hLineRefs.current = [];
-    try {
-      const key = `astro_hlines_${symbolRef.current.replace(/\s+/g,'_')}`;
-      localStorage.removeItem(key);
-    } catch(_) {}
   }, []);
 
   // ── Fetch Nakshatra transitions and set chart markers ────────────────────────
@@ -313,6 +483,39 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
   }, [session]);
 
   // ── Load historical data ─────────────────────────────────────────────────────
+  const zoomToRecentRange = useCallback(() => {
+    if (!chartInstanceRef.current || !rawCandlesRef.current || rawCandlesRef.current.length === 0) return;
+    const candles = rawCandlesRef.current;
+    const last = candles[candles.length - 1];
+    let endTime = last.time;
+    let startTime = null;
+
+    if (typeof endTime === 'string') {
+      const endDate = new Date(`${endTime}T00:00:00Z`);
+      const threshold = new Date(endDate.getTime() - 2 * 86400 * 1000);
+      for (let i = candles.length - 1; i >= 0; i -= 1) {
+        const current = new Date(`${candles[i][0]}T00:00:00Z`);
+        if (current >= threshold) startTime = candles[i][0];
+        else break;
+      }
+      if (!startTime) startTime = candles[Math.max(0, candles.length - 2)][0];
+    } else {
+      endTime = Number(endTime);
+      const threshold = endTime - 2 * 86400;
+      for (let i = candles.length - 1; i >= 0; i -= 1) {
+        const current = Number(candles[i][0]);
+        if (current >= threshold) startTime = current;
+        else break;
+      }
+      if (!startTime) startTime = candles[Math.max(0, candles.length - 2)][0];
+    }
+
+    const timeScale = chartInstanceRef.current.timeScale();
+    if (typeof timeScale.setVisibleRange === 'function') {
+      timeScale.setVisibleRange({ from: startTime, to: endTime });
+    }
+  }, []);
+
   const loadHistoricalData = useCallback(async (sym, tok, exch, tf) => {
     const sessionId = session?.sessionId || session?.session_id;
     const clientId  = session?.clientId  || session?.client_id;
@@ -367,9 +570,11 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
       candleSeriesRef.current.setData(formattedData);
       lastCandleRef.current = formattedData[formattedData.length - 1];
       chartInstanceRef.current.timeScale().fitContent();
+      setTimeout(() => zoomToRecentRange(), 100);
 
       // Restore H-Lines for this symbol
       restoreHLines(sym);
+      restoreVLines(sym);
 
       // Fetch and render nakshatra markers
       fetchNakshatras(rawCandlesRef.current);
@@ -382,6 +587,8 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
         setTimeout(() => drawLevels(saved.levels.start, saved.levels.end), 50);
       }
 
+      restoreVLines(sym);
+      setTimeout(() => renderVLines(), 100);
       console.log(`[AstroChart] ${formattedData.length} candles for ${sym} @ ${tf}`);
     } catch (err) {
       setError(`Failed: ${err?.response?.data?.detail || err.message}`);
@@ -398,7 +605,7 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
         loadHistoricalData(symbol, token, exchange, timeframe);
     }, 50);
     return () => clearTimeout(t);
-  }, [symbol, token, exchange, timeframe, loadHistoricalData]);
+  }, [symbol, token, exchange, timeframe, loadHistoricalData, theme]);
 
   // ── External symbol from watchlist ───────────────────────────────────────────
   useEffect(() => {
@@ -417,7 +624,12 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
 
   const handlePriceUpdate = useCallback((data) => {
     const ltp = data.ltp;
+    // Debug: confirm WS tick delivery + ltp existence
+    // (safe to keep; remove if too noisy)
     if (ltp === undefined || !candleSeriesRef.current) return;
+    // eslint-disable-next-line no-console
+    console.log('[AstroChart] tick', { symbol: data.symbol, token: data.token, ltp, tf: timeframeRef.current });
+
 
     const tf       = timeframeRef.current;
     const last     = lastCandleRef.current;
@@ -452,9 +664,17 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
   }, []);
 
   useEffect(() => {
-    if (token) wsClient.subscribeToToken(token, handlePriceUpdate);
-    return () => { if (token) wsClient.unsubscribeFromToken(token); };
+    if (!token) return;
+
+    // Keep token subscription alive even when this chart unmounts.
+    // This avoids starving other widgets (e.g., indices cards) due to WS
+    // subscription churn triggered by tab navigation.
+    wsClient.subscribeToToken(token, handlePriceUpdate);
+    return () => {
+      // Intentionally NOT unsubscribing here.
+    };
   }, [token, handlePriceUpdate]);
+
 
   // ── Symbol search ────────────────────────────────────────────────────────────
   const handleSearchInput = async (e) => {
@@ -482,41 +702,53 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
     else document.exitFullscreen();
   };
 
+  const isLight = (theme === 'light') || document.documentElement.classList.contains('light-theme');
+  const panelBackground = isLight ? '#ffffff' : '#0d0d1a';
+  const toolbarBackground = isLight ? '#f8fafc' : '#0d0d1a';
+  const borderColor = isLight ? '#e6e6e6' : '#2a2a4a';
+  const cardBackground = isLight ? '#f8fafc' : '#1a1a2e';
+  const textPrimary = isLight ? '#1f2937' : '#c3c3d9';
+  const textSecondary = isLight ? '#4b5563' : '#888';
   const inputStyle = {
-    padding: '5px 8px', background: '#1a1a2e', border: '1px solid #2a2a4a',
-    borderRadius: '6px', color: '#c3c3d9', fontSize: '12px', outline: 'none', cursor: 'pointer',
+    padding: '5px 8px',
+    background: isLight ? '#ffffff' : '#1a1a2e',
+    border: `1px solid ${borderColor}`,
+    borderRadius: '6px', color: textPrimary, fontSize: '12px', outline: 'none', cursor: 'pointer',
   };
+  const chartHeight = compact ? '100%' : (document.fullscreenElement ? '100vh' : 'calc(100vh - 240px)');
 
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div ref={containerRef} style={{
-      height: document.fullscreenElement ? '100vh' : 'calc(100vh - 240px)',
-      display: 'flex', flexDirection: 'column', background: '#0d0d1a', color: '#c3c3d9',
+      height: chartHeight,
+      minHeight: compact ? '0' : chartHeight,
+      display: 'flex', flexDirection: 'column', background: panelBackground, color: textPrimary,
     }}>
 
       {/* ── Toolbar ── */}
+      {!compact && (
       <div style={{ padding: '8px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap',
-        alignItems: 'center', borderBottom: '1px solid #1a1a2e', background: '#0d0d1a', flexShrink: 0 }}>
+        alignItems: 'center', borderBottom: `1px solid ${borderColor}`, background: toolbarBackground, flexShrink: 0 }}>
 
         {/* Symbol search */}
         <div style={{ position: 'relative' }}>
           <input type="text" placeholder="Search symbol…" value={searchQuery}
             onChange={handleSearchInput}
-            style={{ padding: '6px 10px', width: '160px', background: '#1a1a2e',
-              border: '1px solid #2a2a4a', borderRadius: '6px', color: '#c3c3d9',
+            style={{ padding: '6px 10px', width: '160px', background: isLight ? '#ffffff' : '#1a1a2e',
+              border: `1px solid ${borderColor}`, borderRadius: '6px', color: textPrimary,
               fontSize: '13px', outline: 'none' }} />
           {isSearching && <span style={{ position:'absolute', right:'8px', top:'7px', fontSize:'11px', color:'#888' }}>…</span>}
           {searchResults.length > 0 && (
-            <div style={{ position:'absolute', top:'100%', left:0, zIndex:99, background:'#1a1a2e',
-              border:'1px solid #2a2a4a', borderRadius:'6px', marginTop:'4px', minWidth:'220px',
-              maxHeight:'220px', overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,0.5)' }}>
+            <div style={{ position:'absolute', top:'100%', left:0, zIndex:99, background: cardBackground,
+              border:`1px solid ${borderColor}`, borderRadius:'6px', marginTop:'4px', minWidth:'220px',
+              maxHeight:'220px', overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,0.15)' }}>
               {searchResults.map((r, i) => (
                 <div key={i} onClick={() => handleSelectSymbol(r)}
-                  style={{ padding:'8px 12px', cursor:'pointer', fontSize:'13px', borderBottom:'1px solid #2a2a4a' }}
-                  onMouseEnter={e => e.currentTarget.style.background = '#2a2a4a'}
+                  style={{ padding:'8px 12px', cursor:'pointer', fontSize:'13px', borderBottom:`1px solid ${borderColor}` }}
+                  onMouseEnter={e => e.currentTarget.style.background = isLight ? '#f1f5f9' : '#2a2a4a'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <strong>{r.symbol}</strong>
-                  <span style={{ marginLeft:'8px', color:'#888', fontSize:'11px' }}>{r.exchSeg || r.exch_seg}</span>
+                  <span style={{ marginLeft:'8px', color: textSecondary, fontSize:'11px' }}>{r.exchSeg || r.exch_seg}</span>
                 </div>
               ))}
             </div>
@@ -524,7 +756,7 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
         </div>
 
         {/* Symbol badge */}
-        <span style={{ padding:'4px 10px', background:'#1a1a2e', border:'1px solid #2a2a4a',
+        <span style={{ padding:'4px 10px', background: cardBackground, border:`1px solid ${borderColor}`,
           borderRadius:'6px', fontSize:'13px', fontWeight:700, color:'#7c6af5', letterSpacing:'0.5px' }}>
           {symbol}
         </span>
@@ -535,44 +767,72 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
             <button key={tf.value} onClick={() => setTimeframe(tf.value)} style={{
               padding:'4px 8px', fontSize:'11px', fontWeight:700, border:'1px solid',
               borderRadius:'5px', cursor:'pointer', transition:'all 0.15s',
-              borderColor: timeframe === tf.value ? '#7c6af5' : '#2a2a4a',
+              borderColor: timeframe === tf.value ? '#7c6af5' : borderColor,
               background:  timeframe === tf.value ? '#7c6af5' : 'transparent',
-              color:       timeframe === tf.value ? '#fff'    : '#888',
+              color:       timeframe === tf.value ? '#fff'    : textSecondary,
             }}>{tf.label}</button>
           ))}
         </div>
 
-        <div style={{ width:'1px', height:'24px', background:'#2a2a4a', flexShrink:0 }} />
+        <div style={{ width:'1px', height:'24px', background: borderColor, flexShrink:0 }} />
 
         {/* ── Draw tools ── */}
-        <span style={{ fontSize:'11px', color:'#666', fontWeight:600, letterSpacing:'0.5px', whiteSpace:'nowrap' }}>DRAW</span>
+        <span style={{ fontSize:'11px', color: textSecondary, fontWeight:600, letterSpacing:'0.5px', whiteSpace:'nowrap' }}>DRAW</span>
 
         <button
           onClick={() => setDrawMode(d => !d)}
-          title={drawMode ? 'Click anywhere on chart to place line' : 'Draw horizontal line'}
+          title={drawMode ? 'Click chart to add a line' : 'Enable click-to-draw mode'}
           style={{
             padding:'5px 10px', fontSize:'12px', fontWeight:600, borderRadius:'6px',
             cursor:'pointer', transition:'all 0.15s', whiteSpace:'nowrap',
-            border: `1px solid ${drawMode ? '#f0b429' : '#2a2a4a'}`,
+            border: `1px solid ${drawMode ? '#f0b429' : borderColor}`,
             background: drawMode ? '#f0b42922' : 'transparent',
-            color: drawMode ? '#f0b429' : '#888',
+            color: drawMode ? '#f0b429' : textSecondary,
             boxShadow: drawMode ? '0 0 8px #f0b42966' : 'none',
           }}>
-          {drawMode ? '✎ Click chart…' : '— H-Line'}
+          {drawMode ? '✎ Click chart…' : 'Draw'}
         </button>
 
-        <button onClick={clearAllHLines}
-          title="Clear all horizontal lines"
+        <div style={{ display:'flex', alignItems:'center', gap:'4px' }}>
+          <select value={lineType} onChange={e => setLineType(e.target.value)} style={inputStyle}>
+            <option value="horizontal">Horizontal</option>
+            <option value="vertical">Vertical</option>
+          </select>
+          <input
+            type="text"
+            placeholder={lineType === 'horizontal' ? 'Price (e.g. 18750)' : 'Time (YYYY-MM-DD or unix)'}
+            value={lineValue}
+            onChange={e => setLineValue(e.target.value)}
+            style={{ ...inputStyle, width:'140px' }}
+          />
+          <input
+            type="text"
+            placeholder="Label"
+            value={lineLabel}
+            onChange={e => setLineLabel(e.target.value)}
+            style={{ ...inputStyle, width:'100px' }}
+          />
+          <button onClick={handleAddLine}
+            title="Add manual line"
+            style={{ padding:'5px 10px', fontSize:'12px', fontWeight:600,
+              border:`1px solid ${borderColor}`, borderRadius:'6px', cursor:'pointer',
+              background:'transparent', color:textSecondary, whiteSpace:'nowrap' }}>
+            + Add
+          </button>
+        </div>
+
+        <button onClick={clearAllLines}
+          title="Clear all lines"
           style={{ padding:'5px 10px', fontSize:'12px', fontWeight:600,
-            border:'1px solid #2a2a4a', borderRadius:'6px',
-            cursor:'pointer', background:'transparent', color:'#888', whiteSpace:'nowrap' }}>
-          ✕ Lines
+            border:`1px solid ${borderColor}`, borderRadius:'6px',
+            cursor:'pointer', background:'transparent', color:textSecondary, whiteSpace:'nowrap' }}>
+          ✕ Clear
         </button>
 
-        <div style={{ width:'1px', height:'24px', background:'#2a2a4a', flexShrink:0 }} />
+        <div style={{ width:'1px', height:'24px', background: borderColor, flexShrink:0 }} />
 
         {/* ── Level plotter ── */}
-        <span style={{ fontSize:'11px', color:'#666', fontWeight:600, letterSpacing:'0.5px', whiteSpace:'nowrap' }}>LEVELS</span>
+        <span style={{ fontSize:'11px', color:textSecondary, fontWeight:600, letterSpacing:'0.5px', whiteSpace:'nowrap' }}>LEVELS</span>
 
         <div style={{ display:'flex', flexDirection:'column', gap:'1px' }}>
           <label style={{ fontSize:'9px', color:'#555', letterSpacing:'0.4px' }}>FROM</label>
@@ -588,9 +848,9 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
           style={{
             padding:'5px 12px', fontSize:'12px', fontWeight:600, borderRadius:'6px',
             transition:'all 0.15s', whiteSpace:'nowrap',
-            background:  (!startDate || !endDate) ? '#1a1a2e' : '#7c6af5',
-            border:      `1px solid ${(!startDate || !endDate) ? '#2a2a4a' : '#7c6af5'}`,
-            color:       (!startDate || !endDate) ? '#555' : '#fff',
+            background:  (!startDate || !endDate) ? cardBackground : '#7c6af5',
+            border:      `1px solid ${(!startDate || !endDate) ? borderColor : '#7c6af5'}`,
+            color:       (!startDate || !endDate) ? textSecondary : '#fff',
             cursor:      (!startDate || !endDate) ? 'not-allowed' : 'pointer',
           }}>⊕ Plot</button>
 
@@ -602,35 +862,42 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
           }}>✕ Clear</button>
         )}
 
-        <div style={{ width:'1px', height:'24px', background:'#2a2a4a', flexShrink:0 }} />
+        <div style={{ width:'1px', height:'24px', background: borderColor, flexShrink:0 }} />
 
         {/* Reload */}
         <button onClick={() => loadHistoricalData(symbol, token, exchange, timeframe)}
           disabled={isLoadingData} title="Reload"
-          style={{ padding:'5px 10px', background:'transparent', border:'1px solid #2a2a4a',
-            borderRadius:'6px', color:'#888', cursor: isLoadingData ? 'not-allowed':'pointer', fontSize:'14px' }}>
+          style={{ padding:'5px 10px', background:'transparent', border:`1px solid ${borderColor}`,
+            borderRadius:'6px', color:textSecondary, cursor: isLoadingData ? 'not-allowed':'pointer', fontSize:'14px' }}>
           {isLoadingData ? '⏳' : '↺'}
         </button>
 
+        {/* Zoom recent two days */}
+        <button onClick={zoomToRecentRange} title="Zoom to last 2 days" style={{
+          padding:'5px 10px', background:'transparent', border:`1px solid ${borderColor}`,
+          borderRadius:'6px', color:textSecondary, cursor:'pointer', fontSize:'12px' }}>2D</button>
+
         {/* Fullscreen */}
         <button onClick={toggleFullscreen} style={{
-          padding:'5px 10px', background:'transparent', border:'1px solid #2a2a4a',
-          borderRadius:'6px', color:'#888', cursor:'pointer', fontSize:'14px' }}>⛶</button>
+          padding:'5px 10px', background:'transparent', border:`1px solid ${borderColor}`,
+          borderRadius:'6px', color:textSecondary, cursor:'pointer', fontSize:'14px' }}>⛶</button>
       </div>
+      )}
 
       {/* ── OHLC bar ── */}
-      <div style={{ padding:'4px 14px', fontSize:'12px', background:'#0d0d1a',
-        borderBottom:'1px solid #1a1a2e', flexShrink:0, display:'flex',
+      {!compact && (
+      <div style={{ padding:'4px 14px', fontSize:'12px', background: toolbarBackground,
+        borderBottom:`1px solid ${borderColor}`, flexShrink:0, display:'flex',
         alignItems:'center', gap:'14px', minHeight:'26px', fontFamily:'monospace' }}>
         {ohlc ? (
           <>
-            <span style={{ color:'#888', fontSize:'11px' }}>O</span>
+            <span style={{ color:textSecondary, fontSize:'11px' }}>O</span>
             <span style={{ color: ohlc.close >= ohlc.open ? '#26a69a':'#ef5350', fontWeight:600 }}>{ohlc.open.toFixed(2)}</span>
-            <span style={{ color:'#888', fontSize:'11px' }}>H</span>
+            <span style={{ color:textSecondary, fontSize:'11px' }}>H</span>
             <span style={{ color:'#26a69a', fontWeight:600 }}>{ohlc.high.toFixed(2)}</span>
-            <span style={{ color:'#888', fontSize:'11px' }}>L</span>
+            <span style={{ color:textSecondary, fontSize:'11px' }}>L</span>
             <span style={{ color:'#ef5350', fontWeight:600 }}>{ohlc.low.toFixed(2)}</span>
-            <span style={{ color:'#888', fontSize:'11px' }}>C</span>
+            <span style={{ color:textSecondary, fontSize:'11px' }}>C</span>
             <span style={{ color: ohlc.close >= ohlc.open ? '#26a69a':'#ef5350', fontWeight:600 }}>{ohlc.close.toFixed(2)}</span>
             <span style={{ fontSize:'11px', color: ohlc.close >= ohlc.open ? '#26a69a':'#ef5350' }}>
               {ohlc.close >= ohlc.open ? '▲' : '▼'} {Math.abs(ohlc.close - ohlc.open).toFixed(2)} ({((ohlc.close - ohlc.open) / ohlc.open * 100).toFixed(2)}%)
@@ -653,20 +920,21 @@ const AstroChart = ({ session, watchlist, externalSymbol }) => {
             )}
           </span>
         )}
-      </div>
+      </div> )}
 
       {/* ── Status bar ── */}
-      {(isLoadingData || error) && (
+      {!compact && (isLoadingData || error) && (
         <div style={{ padding:'6px 14px', fontSize:'12px', flexShrink:0,
-          background: error ? '#2d0f0f' : '#0d1a2d',
-          color: error ? '#ef5350' : '#26a69a', borderBottom:'1px solid #1a1a2e' }}>
+          background: error ? (isLight ? '#fef2f2' : '#2d0f0f') : (isLight ? '#eff6ff' : '#0d1a2d'),
+          color: error ? '#ef5350' : '#26a69a', borderBottom:`1px solid ${borderColor}` }}>
           {isLoadingData ? `Loading ${symbol} (${timeframe})…` : error}
         </div>
       )}
 
       {/* ── Chart canvas ── */}
-      <div style={{ flex:1, width:'100%', minHeight:'400px', cursor: drawMode ? 'crosshair' : 'default' }}>
+      <div style={{ position:'relative', flex:1, width:'100%', minHeight:'400px', cursor: drawMode ? 'crosshair' : 'default' }}>
         <div ref={chartRef} style={{ width:'100%', height:'100%' }} />
+        <div ref={overlayRef} style={{ position:'absolute', inset:0, pointerEvents:'none' }} />
       </div>
     </div>
   );

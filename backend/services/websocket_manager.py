@@ -108,7 +108,7 @@ def check_and_trigger_alerts(session_id: str, stock: dict):
 
             if check_alert_trigger(alert, stock):
 
-                log_entry = create_alert_log(stock, alert)
+                log_entry = create_alert_log(stock, alert, session)
                 session.logs.insert(0, log_entry)
                 session.alerts.remove(alert)
                 triggered_alerts.append({"alert": alert, "log": log_entry})
@@ -515,8 +515,23 @@ class WebSocketManager:
         max_errors = 10
         while self.running:
             try:
-                # Use shorter wait for debugging (revert to 10s later)
+                # Keep the loop alive even if mobile/browser suspends connections.
                 time.sleep(10)
+
+                # If any session exists but WS is dead, do not rely on browser activity to recover.
+                # Touch last_activity to avoid any downstream stale guards.
+                # (Some deployments may stop/defers websocket callbacks when app is backgrounded.)
+                try:
+                    from backend.services.session_manager import session_manager
+                    _sessions = session_manager.get_all_sessions()
+                    for _sid in list(_sessions.keys()):
+                        try:
+                            _sessions[_sid].last_activity = datetime.now()
+                        except:
+                            pass
+                except Exception:
+                    pass
+
                 # print(f"[DEBUG] [HEARTBEAT] Loop tic: {time.time()}")
 
                 
@@ -905,6 +920,15 @@ class WebSocketManager:
                 exchange_tokens[exch_type].append(str(stock['token']))
             
             watchlist_tokens = [str(s['token']) for s in watchlist]
+            chart_tokens_list = [str(t) for t in chart_tokens.keys()] if chart_tokens else []
+            for token_str in chart_tokens_list:
+                if token_str not in watchlist_tokens:
+                    stock = chart_tokens.get(token_str) or {}
+                    exch = str(stock.get('exch_seg', 'NSE')).upper()
+                    exch_type = "3" if "BSE" in exch else "1"
+                    exchange_tokens[exch_type].append(token_str)
+                    watchlist_tokens.append(token_str)
+
             for etype, tokens in auto_indices.items():
                 for t in tokens:
                     if t not in watchlist_tokens:
@@ -977,21 +1001,45 @@ class WebSocketManager:
         return False
 
     def subscribe_chart_token(self, session_id: str, token: str, stock_data: dict):
+        token_str = str(token)
         with self.lock:
-            # Update chart token map
+            # Update chart token map so newly opened connections can subscribe later
             if session_id not in self.chart_token_maps:
                 self.chart_token_maps[session_id] = {}
-            self.chart_token_maps[session_id][str(token)] = stock_data
-            # If websocket connection exists, subscribe to Angel One
+            self.chart_token_maps[session_id][token_str] = stock_data
+            # Also update active token map so incoming ticks are recognized
+            if session_id not in self.token_maps:
+                self.token_maps[session_id] = {}
+            self.token_maps[session_id][token_str] = stock_data
+            # If websocket connection exists, subscribe to Angel One now
             sws = self.connections.get(session_id)
             if sws:
                 exch = str(stock_data.get('exch_seg', 'NSE')).upper()
                 exch_type = 3 if "BSE" in exch else 1
                 try:
-                    sws.subscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [str(token)]}])
+                    sws.subscribe("watchlist", 3, [{"exchangeType": exch_type, "tokens": [token_str]}])
                     return True
                 except: pass
-        return False
+
+            # If connection is not active, try to start it when we have a valid session and feed token
+            from backend.services.session_manager import session_manager
+            session = session_manager.get_session(session_id)
+            broadcast_callback = self.broadcast_callbacks.get(session_id)
+            if session and getattr(session, 'feed_token', None) and broadcast_callback:
+                try:
+                    self.start_websocket(
+                        session_id,
+                        session.jwt_token,
+                        session.data_api_key,
+                        session.client_id,
+                        session.feed_token,
+                        session.watchlist,
+                        broadcast_callback,
+                    )
+                    return True
+                except Exception as e:
+                    print(f"[WS-MGR] Failed to start websocket for chart token {token_str}: {e}")
+        return True
 
     def unsubscribe_chart_token(self, session_id: str, token: str):
         with self.lock:

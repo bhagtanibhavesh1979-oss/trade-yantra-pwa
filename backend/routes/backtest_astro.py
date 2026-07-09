@@ -7,7 +7,6 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
 from backend.services.session_manager import session_manager
-from backend.services.planet_nakshatra_backtest_service import planet_nakshatra_backtest_service
 
 
 router = APIRouter(prefix="/api/astro/backtest", tags=["Astro Backtest"])
@@ -33,6 +32,8 @@ def backtest_planet_nakshatra(
             raise HTTPException(status_code=401, detail="SmartAPI session not available")
 
         requested_planets = planets or ["Sun", "Mars", "Jupiter", "Saturn", "Mercury", "Rahu", "Ketu"]
+
+        from backend.services.planet_nakshatra_backtest_service import planet_nakshatra_backtest_service
 
         result = planet_nakshatra_backtest_service.run(
             smart_api=smart_api,

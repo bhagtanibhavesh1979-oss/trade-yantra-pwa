@@ -31,7 +31,11 @@ STRATEGY_DISPLAY_MAP = {
     "S1": "TGT_L1", "S2": "TGT_L2", "S3": "TGT_L3",
     "S4": "TGT_L4", "S5": "TGT_L5", "S6": "TGT_L6",
     "R1": "TGT_H1", "R2": "TGT_H2", "R3": "TGT_H3",
-    "R4": "TGT_H4", "R5": "TGT_H5", "R6": "TGT_H6"
+    "R4": "TGT_H4", "R5": "TGT_H5", "R6": "TGT_H6",
+    # Midpoint-target mappings (between Range High and Target High1/2/3)
+    # Use MR*/MS* naming: MR = Mid between Range High and Target High, MS = Mid between Range Low and Target Low
+    "MR1": "MID_H1", "MR2": "MID_H2", "MR3": "MID_H3",
+    "MS1": "MID_L1", "MS2": "MID_L2", "MS3": "MID_L3"
 }
 
 class CreateAlertRequest(BaseModel):

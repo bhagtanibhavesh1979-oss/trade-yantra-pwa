@@ -57,7 +57,7 @@ from backend.routes import (
 )
 from backend.routes.astro import router as astro_router
 from backend.routes.backtest_astro import router as backtest_astro_router
-
+from backend.routes.oi import router as oi_router
 
 
 
@@ -69,6 +69,9 @@ from backend.routes.backtest_astro import router as backtest_astro_router
 # Import services (package-qualified)
 from backend.services.session_manager import session_manager
 from backend.services.websocket_manager import ws_manager
+from backend.services.oi_alert_service import oi_alert_engine
+
+
 
 
 # Load environment variables
@@ -93,13 +96,35 @@ async def lifespan(app: FastAPI):
         print("[INFO] App will continue without scrip master")
         sys.stdout.flush()
     
+    # Kickstart OI alert workers for any active sessions already loaded.
+    try:
+        all_sessions = session_manager.get_all_sessions()
+        for sid in list(all_sessions.keys()):
+            try:
+                oi_alert_engine.start_for_session(sid)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
     print("[OK] Backend Startup Sequence Complete!")
     sys.stdout.flush()
     yield
-    
+
     # Shutdown logic
     print("==> Trade Yantra Backend Shutting Down...")
     ws_manager.stop_all()
+    try:
+        for sid in list(session_manager.get_all_sessions().keys()):
+            try:
+                oi_alert_engine.stop_for_session(sid)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+
 
 # Create FastAPI app
 app = FastAPI(
@@ -139,6 +164,8 @@ app.include_router(telegram_signals_router)
 
 # Stream usually handles its own /ws prefix inside the router
 app.include_router(stream_router)
+app.include_router(oi_router)
+
 
 
 @app.get("/")

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import WatchlistTab from './WatchlistTab';
 import AlertsTab from './AlertsTab';
 
 import LogsTab from './LogsTab';
 import BacktestTab from './BacktestTab';
 import AstroChart from './AstroChart';
+import AstroChartGrid from './AstroChartGrid';
 import PlanetBacktestTab from './PlanetBacktestTab';
 
 
@@ -13,6 +14,8 @@ import { showNotification } from '../services/notifications';
 import MarketOverview from './MarketOverview';
 import OrdersTab from './OrdersTab';
 import LiveOrdersTab from './LiveOrdersTab';
+import OITrackerTab from './OITrackerTab';
+
 import toast from 'react-hot-toast';
 
 function Dashboard({
@@ -43,6 +46,9 @@ function Dashboard({
         if (typeof window !== 'undefined') return localStorage.getItem('trade_yantra_theme') || 'dark';
         return 'dark';
     });
+    const [navHidden, setNavHidden] = useState(false);
+    const [lastScrollY, setLastScrollY] = useState(0);
+    const mainContentRef = useRef(null);
 
     useEffect(() => {
         localStorage.setItem('trade_yantra_theme', theme);
@@ -50,13 +56,32 @@ function Dashboard({
         else document.documentElement.classList.remove('light-theme');
     }, [theme]);
 
+    useEffect(() => {
+        const element = mainContentRef.current;
+        if (!element) return;
+
+        const handleScroll = () => {
+            const currentY = element.scrollTop;
+            const delta = currentY - lastScrollY;
+            if (delta > 20 && currentY > 80) {
+                setNavHidden(true);
+            } else if (delta < -20) {
+                setNavHidden(false);
+            }
+            setLastScrollY(currentY);
+        };
+
+        element.addEventListener('scroll', handleScroll, { passive: true });
+        return () => element.removeEventListener('scroll', handleScroll);
+    }, [lastScrollY]);
+
     const handleIndexAlertClick = (symbol) => {
         setPreSelectedAlertSymbol(symbol);
         setActiveTab('alerts');
     };
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 flex flex-col pb-16 md:pb-0">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300 flex flex-col pb-28">
             {/* Header */}
             <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-2.5 md:px-6 py-4 sticky top-0 z-30 shadow-2xl">
                 <div className="flex items-center justify-between max-w-[1400px] mx-auto">
@@ -99,7 +124,7 @@ function Dashboard({
             </header>
 
             {/* Main content */}
-            <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
+            <div ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden p-0">
                 <div className="px-0 md:px-4 bg-[var(--bg-primary)] border-b border-[var(--border-color)]/30">
                     <MarketOverview
                         sessionId={session.sessionId || session.session_id}
@@ -167,10 +192,11 @@ function Dashboard({
                     />
                 )}
                 {activeTab === 'astro_chart' && (
-                    <AstroChart
+                    <AstroChartGrid
                         session={session}
                         watchlist={watchlist}
                         externalSymbol={chartSymbol}
+                        theme={theme}
                     />
                 )}
 
@@ -181,15 +207,25 @@ function Dashboard({
                     />
                 )}
 
+                {activeTab === 'oi_tracker' && (
+                    <OITrackerTab
+                        sessionId={session?.sessionId || session?.session_id}
+                        clientId={session?.clientId || session?.client_id}
+                    />
+                )}
+
             </div>
 
+
             {/* Bottom nav */}
-            <nav className="fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)]/80 backdrop-blur-xl border-t border-[var(--border-color)] z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.4)]">
+            <nav className={`fixed bottom-0 left-0 right-0 bg-[var(--bg-secondary)]/80 backdrop-blur-xl border-t border-[var(--border-color)] z-40 pb-safe shadow-[0_-10px_40px_rgba(0,0,0,0.4)] transition-transform duration-300 ${navHidden ? 'translate-y-full' : 'translate-y-0'}`}>
                 <div className="flex justify-around items-center h-20 max-w-lg mx-auto">
                     {[
                         { id: 'watchlist',   label: 'Market', icon: '📋' },
                         { id: 'orders',      label: 'Paper',  icon: '💰' },
-                        { id: 'live_orders', label: 'LIVE',   icon: '🔴' },
+                    { id: 'live_orders', label: 'LIVE',   icon: '🔴' },
+                    { id: 'oi_tracker',   label: 'OI',     icon: '📈' },
+
                         { id: 'lab',         label: 'Lab',    icon: '🧪' },
                         { id: 'astro_chart', label: 'Astro',  icon: '🔭' },
                         { id: 'alerts',      label: 'Alerts', icon: '🔔' },

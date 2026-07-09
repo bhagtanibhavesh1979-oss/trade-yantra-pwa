@@ -140,9 +140,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str, client_id: O
                         await websocket.send_json({"type": "error", "message": "Failed to unsubscribe from token"})
                  
                 elif message.get('type') == 'pong':
-                    # Server responded to our ping
-                    # console.log('Pong received');
-                    break
+                    # Server responded to our ping -- keep the websocket alive
+                    continue
                  
                 elif message.get('type') == 'status':
                     # Status update from server

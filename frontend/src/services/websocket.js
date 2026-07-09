@@ -37,13 +37,16 @@ class WebSocketClient {
     constructor() {
         this.ws = null;
         this.sessionId = null;
+        this.clientId = null;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 999999; // Practically infinite
         this.reconnectDelay = 2000;
         this.pingInterval = null;
-        this.lastSeen = Date.now();
         this.watchdogInterval = null;
+        this.lastSeen = Date.now();
         this.tokenCallbacks = new Map();
+        this.subscribedTokens = new Set();
+        this.pendingMessages = [];
         this.listeners = {
             price_update: [],
             alert_triggered: [],
@@ -74,7 +77,19 @@ class WebSocketClient {
             console.log('WebSocket connected');
             this.reconnectAttempts = 0; // Reset on successful connection
             this.startHeartbeat();
+            this.lastSeen = Date.now();
             this.emit('connected', { sessionId });
+
+            // Re-subscribe all persisted chart tokens after reconnect
+            for (const token of this.subscribedTokens) {
+                this.send({ type: 'subscribe_token', token });
+            }
+
+            // Flush any queued messages that were waiting for an open socket
+            if (this.pendingMessages.length > 0) {
+                this.pendingMessages.forEach((message) => this.send(message));
+                this.pendingMessages = [];
+            }
         };
 
         this.ws.onmessage = (event) => {
@@ -121,9 +136,12 @@ class WebSocketClient {
             case 'price_update':
                 console.log('[WS] Price update received:', data.symbol, data.ltp);
                 this.emit('price_update', data);
-                if (data.token && this.tokenCallbacks.has(data.token)) {
-                    const callback = this.tokenCallbacks.get(data.token);
-                    callback(data);
+                if (data.token != null) {
+                    const tokenKey = String(data.token);
+                    if (this.tokenCallbacks.has(tokenKey)) {
+                        const callback = this.tokenCallbacks.get(tokenKey);
+                        callback(data);
+                    }
                 }
                 break;
 
@@ -260,13 +278,29 @@ class WebSocketClient {
     }
 
     subscribeToToken(token, callback) {
-        this.tokenCallbacks.set(token, callback);
-        this.send({ type: 'subscribe_token', token });
+        const tokenKey = String(token);
+        this.tokenCallbacks.set(tokenKey, callback);
+        this.subscribedTokens.add(tokenKey);
+        const message = { type: 'subscribe_token', token: tokenKey };
+        console.log('[WS] subscribeToToken', tokenKey, 'connected=', this.isConnected());
+        if (this.isConnected()) {
+            this.send(message);
+        } else {
+            this.pendingMessages.push(message);
+        }
     }
 
     unsubscribeFromToken(token) {
-        this.tokenCallbacks.delete(token);
-        this.send({ type: 'unsubscribe_token', token });
+        const tokenKey = String(token);
+        this.tokenCallbacks.delete(tokenKey);
+        this.subscribedTokens.delete(tokenKey);
+        const message = { type: 'unsubscribe_token', token: tokenKey };
+        if (this.isConnected()) {
+            this.send(message);
+        } else {
+            // If the socket is not connected yet, remove any queued subscribe for this token
+            this.pendingMessages = this.pendingMessages.filter(msg => !(msg.type === 'subscribe_token' && msg.token === tokenKey));
+        }
     }
 
     on(event, callback) {

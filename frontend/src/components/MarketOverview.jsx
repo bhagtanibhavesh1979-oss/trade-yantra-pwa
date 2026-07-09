@@ -27,7 +27,10 @@ const MarketOverview = ({ sessionId, onAlertClick, isVisible = true }) => {
         if (indices.length === 0) setLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8002'}/api/indices/${sessionId}`);
+            // Use relative /api path so production hosts (Caddy) proxy to backend.
+            // Avoid hardcoding localhost:8002 which breaks when app runs in browser/mobile.
+            const base = import.meta.env.VITE_API_URL || '';
+            const response = await fetch(`${base}/api/indices/${sessionId}`);
             if (response.ok) {
                 const data = await response.json();
                 if (data.indices) {

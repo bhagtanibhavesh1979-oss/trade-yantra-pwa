@@ -392,37 +392,54 @@ class AngelService:
                 print(f"[OK] {len(self.scrips)} symbols loaded from local file (including cores).")
                 return
 
-            # 2. Remote Download if local missing
-            print("[INFO] Local cache missing, downloading from Angel One...")
-            r = requests.get("https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json", timeout=15)
+            # 2. Remote Download / Refresh (ENSURE FULL NFO options included)
+            print("[INFO] Loading Scrips from Angel One (refresh for NFO options)...")
+            r = requests.get(
+                "https://margincalculator.angelone.in/OpenAPI_File/files/OpenAPIScripMaster.json",
+                timeout=30,
+            )
             data = r.json()
-            
-            # Filter for NSE Stocks (-EQ) and common Indices
-            indices_tokens = [
-                "99926000", "99926009", "99926012", "99926014", "99919000", 
-                "99926013", "99926023", "99926003", "99926011", "99926015", 
-                "99926024", "99926010", "99926037", "99926005"
-            ]
-            full_scrips = [
-                {"token": s.get('token'), "symbol": s.get('symbol'), "exch_seg": s.get('exch_seg')}
-                for s in data 
-                if (s.get('exch_seg') == 'NSE' and '-EQ' in s.get('symbol', '')) or 
-                   (s.get('exch_seg') == 'BSE' and '-EQ' in s.get('symbol', '')) or
-                   (s.get('token') in indices_tokens)
-            ]
-            
+
+            # Filter for NFO option contracts (CE/PE) + the core indices we need for LTP.
+            def _is_option_symbol(sym: str) -> bool:
+                sym = sym or ""
+                return sym.endswith("CE") or sym.endswith("PE")
+
+            core_tokens = {
+                "99926000", "99926009", "99926012", "99926014", "99919000",
+                "99926013", "99926023", "99926003", "99926011", "99926015",
+                "99926024", "99926010", "99926037", "99926005",
+            }
+
+            full_scrips = []
+            for s in data:
+                exch_seg = s.get('exch_seg')
+                symbol = s.get('symbol', '')
+                tok = s.get('token')
+
+                # NFO options (must include CE/PE)
+                if exch_seg == 'NFO' and _is_option_symbol(symbol):
+                    full_scrips.append({"token": tok, "symbol": symbol, "exch_seg": exch_seg})
+                    continue
+
+                # Core indices (NIFTY/ SENSEX tokens)
+                if str(tok) in core_tokens:
+                    full_scrips.append({"token": tok, "symbol": symbol, "exch_seg": exch_seg})
+                    continue
+
+                # Equities are optional for this OI tracker; skip to reduce size.
+
             self.scrips = full_scrips
-            
+
             # Save locally
             with open(SCRIPMASTER_FILE, 'w', encoding='utf-8') as f:
                 json.dump(self.scrips, f)
-            
+
             self.master_loaded = True
-            print(f"[OK] Downloaded and cached {len(self.scrips)} symbols.")
-            
+            print(f"[OK] Refreshed and cached {len(self.scrips)} symbols (including NFO options).")
+
         except Exception as e:
             print(f"[ERROR] Scrip Master Error: {e}")
-            
         finally:
             pass
 
